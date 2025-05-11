@@ -38,6 +38,11 @@ const Navbar = () => {
               Driver Stats
             </Link>
           </li>
+          <li>
+            <Link to="/head-to-head" className={navStyle("/head-to-head")}>
+              Head to Head
+            </Link>
+          </li>
         </ul>
       </div>
     </header>
