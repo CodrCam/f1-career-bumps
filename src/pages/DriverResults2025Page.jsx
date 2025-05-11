@@ -1,5 +1,3 @@
-// src/pages/DriverResults2025Page.jsx
-
 import React, { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
 import {
@@ -26,6 +24,15 @@ ChartJS.register(
 
 const DriverResults2025Page = () => {
   const [chartData, setChartData] = useState(null);
+  const [selectedDrivers, setSelectedDrivers] = useState(["", ""]);
+
+  const allDrivers = Array.from(
+    new Set(
+      f1SeasonData.races.flatMap((race) =>
+        race.race_results.map((res) => res.driver)
+      )
+    )
+  ).sort();
 
   useEffect(() => {
     const buildChartData = () => {
@@ -38,36 +45,37 @@ const DriverResults2025Page = () => {
         const { round: raceRound, race_results } = round;
         raceRounds.push(`R${raceRound}`);
 
-        race_results.forEach((result) => {
-          const { driver, position } = result;
-
+        race_results.forEach(({ driver, position }) => {
           if (!standings.has(driver)) {
             standings.set(driver, []);
           }
-
           standings.get(driver).push(position);
         });
 
-        // Fill in nulls for missing drivers in a round
-        for (const [driverName, positions] of standings.entries()) {
-          if (positions.length < raceRounds.length) {
-            positions.push(null);
+        for (const [driver, posArr] of standings.entries()) {
+          if (posArr.length < raceRounds.length) {
+            posArr.push(null);
           }
         }
       });
 
       const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
-        const team = races.find(round => round.race_results.some(r => r.driver === driver))
-                        ?.race_results.find(r => r.driver === driver)?.team;
+        const team = races.find((r) =>
+          r.race_results.some((res) => res.driver === driver)
+        )?.race_results.find((res) => res.driver === driver)?.team;
+
+        const isSelected =
+          selectedDrivers.every((sel) => !sel) || selectedDrivers.includes(driver);
 
         return {
           label: driver,
           data: positions,
-          borderColor: getTeamColor(team),
+          borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
+          borderWidth: isSelected ? 2 : 1,
+          pointRadius: isSelected ? 3 : 1,
+          pointHoverRadius: isSelected ? 5 : 2,
           fill: false,
           tension: 0,
-          pointRadius: 3,
-          pointHoverRadius: 5,
         };
       });
 
@@ -78,7 +86,7 @@ const DriverResults2025Page = () => {
     };
 
     buildChartData();
-  }, []);
+  }, [selectedDrivers]);
 
   const getTeamColor = (team) => {
     const teamColors = {
@@ -91,7 +99,7 @@ const DriverResults2025Page = () => {
       "Aston Martin": "#00665E",
       "Haas": "#B6BABD",
       "Racing Bulls": "#2B4562",
-      "Kick Sauber": "#00F500"
+      "Kick Sauber": "#00F500",
     };
     return teamColors[team] || "#888";
   };
@@ -117,9 +125,18 @@ const DriverResults2025Page = () => {
         callbacks: {
           label: function (context) {
             const roundLabel = context.label;
-            const position = context.raw;
             const driver = context.dataset.label;
-            return `${roundLabel}: ${driver} (P${position})`;
+            const raceIndex = context.dataIndex;
+            const round = f1SeasonData.races[raceIndex];
+            const result = round?.race_results.find((r) => r.driver === driver);
+
+            if (!result) return `${roundLabel}: ${driver} – No data`;
+
+            const { team, position } = result;
+
+            return `${roundLabel}: ${driver}
+Team: ${team}
+Finish: P${position}`;
           },
         },
       },
@@ -160,6 +177,29 @@ const DriverResults2025Page = () => {
       >
         2025 Driver Race Results Bump Chart
       </h1>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginBottom: "1.5rem" }}>
+        {[0, 1].map((i) => (
+          <select
+            key={i}
+            value={selectedDrivers[i]}
+            onChange={(e) => {
+              const updated = [...selectedDrivers];
+              updated[i] = e.target.value;
+              setSelectedDrivers(updated);
+            }}
+          >
+            <option value="">Select Driver {i + 1}</option>
+            {allDrivers.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        ))}
+        <button onClick={() => setSelectedDrivers(["", ""])}>Reset</button>
+      </div>
+
       <div
         style={{
           height: "85vh",
@@ -169,11 +209,7 @@ const DriverResults2025Page = () => {
           boxSizing: "border-box",
         }}
       >
-        {chartData ? (
-          <Line data={chartData} options={options} />
-        ) : (
-          <p>Loading chart...</p>
-        )}
+        {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ ChartJS.register(
 
 const ConstructorBump2025Page = () => {
   const [chartData, setChartData] = useState(null);
+  const [cumulativePointsMap, setCumulativePointsMap] = useState(new Map());
 
   useEffect(() => {
     const buildChartData = () => {
@@ -33,6 +34,7 @@ const ConstructorBump2025Page = () => {
       const raceRounds = [];
       const pointsHistory = [];
 
+      // Track constructor points per race
       races.forEach((round) => {
         const { round: raceRound, race_results } = round;
         raceRounds.push(`R${raceRound}`);
@@ -47,8 +49,13 @@ const ConstructorBump2025Page = () => {
       });
 
       const teamStandings = new Map();
-      [...allConstructors].forEach((team) => teamStandings.set(team, []));
+      const cumulativeMap = new Map();
       const runningTotals = new Map();
+
+      [...allConstructors].forEach((team) => {
+        teamStandings.set(team, []);
+        cumulativeMap.set(team, []);
+      });
 
       pointsHistory.forEach((roundPoints) => {
         roundPoints.forEach((points, team) => {
@@ -61,7 +68,9 @@ const ConstructorBump2025Page = () => {
 
         [...allConstructors].forEach((team) => {
           const pos = sorted.indexOf(team);
+          const totalPts = runningTotals.get(team) || 0;
           teamStandings.get(team).push(pos !== -1 ? pos + 1 : null);
+          cumulativeMap.get(team).push(totalPts);
         });
       });
 
@@ -80,6 +89,7 @@ const ConstructorBump2025Page = () => {
         labels: raceRounds,
         datasets,
       });
+      setCumulativePointsMap(cumulativeMap);
     };
 
     buildChartData();
@@ -113,10 +123,13 @@ const ConstructorBump2025Page = () => {
       tooltip: {
         callbacks: {
           label: function (context) {
-            const roundLabel = context.label;
-            const position = context.raw;
+            const roundIndex = context.dataIndex;
             const team = context.dataset.label;
-            return `${roundLabel}: ${team} (P${position})`;
+            const position = context.raw;
+            const cumulativePoints = cumulativePointsMap.get(team)?.[roundIndex] ?? "N/A";
+
+            return `R${roundIndex + 1}: ${team}
+P${position} • ${cumulativePoints} pts`;
           },
         },
       },
