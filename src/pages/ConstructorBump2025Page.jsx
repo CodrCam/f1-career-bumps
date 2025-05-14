@@ -31,20 +31,18 @@ const ConstructorBump2025Page = () => {
     const buildChartData = () => {
       const races = f1SeasonData.races || [];
       const allConstructors = new Set();
-      const raceRounds = [];
       const pointsHistory = [];
 
-      // Track constructor points per race
-      races.forEach((round) => {
-        const { round: raceRound, race_results } = round;
-        raceRounds.push(`R${raceRound}`);
+      const raceRounds = races.map((race) => {
+        return race.circuit?.split(" ")[0] || `R${race.round}`;
+      });
 
+      races.forEach((round) => {
         const roundPoints = new Map();
-        race_results.forEach(({ team, points }) => {
+        round.race_results.forEach(({ team, points }) => {
           allConstructors.add(team);
           roundPoints.set(team, (roundPoints.get(team) || 0) + points);
         });
-
         pointsHistory.push(roundPoints);
       });
 
@@ -78,6 +76,7 @@ const ConstructorBump2025Page = () => {
         label: team,
         data: positions,
         borderColor: getTeamColor(team),
+        backgroundColor: getTeamColor(team),
         fill: false,
         tension: 0.3,
         pointRadius: 3,
@@ -89,6 +88,7 @@ const ConstructorBump2025Page = () => {
         labels: raceRounds,
         datasets,
       });
+
       setCumulativePointsMap(cumulativeMap);
     };
 
@@ -108,16 +108,17 @@ const ConstructorBump2025Page = () => {
       "Racing Bulls": "#2B4562",
       "Kick Sauber": "#00F500",
     };
-    return teamColors[team] || "#888";
+    return teamColors[team] || "#222";
   };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    devicePixelRatio: 2,
     plugins: {
       title: {
         display: true,
-        text: "2025 Constructor Championship Standings Bump Chart",
+        text: "2025 Constructor Championship Standings",
         font: { size: 20 },
       },
       tooltip: {
@@ -128,8 +129,7 @@ const ConstructorBump2025Page = () => {
             const position = context.raw;
             const cumulativePoints = cumulativePointsMap.get(team)?.[roundIndex] ?? "N/A";
 
-            return `R${roundIndex + 1}: ${team}
-P${position} • ${cumulativePoints} pts`;
+            return `${team}: P${position} • ${cumulativePoints} pts`;
           },
         },
       },
@@ -143,26 +143,26 @@ P${position} • ${cumulativePoints} pts`;
       },
     },
     layout: {
-      padding: 20,
+      padding: 10,
     },
     scales: {
       y: {
         reverse: true,
         min: 1,
         max: 10,
-        title: {
-          display: true,
-          text: "Championship Position",
-        },
         ticks: {
           stepSize: 1,
-          callback: (value) => `P${value}`,
+          callback: (val) => `P${val}`,
+        },
+        title: {
+          display: true,
+          text: "Position",
         },
       },
       x: {
         title: {
           display: true,
-          text: "Race Round",
+          text: "Circuit",
         },
       },
     },
@@ -175,11 +175,11 @@ P${position} • ${cumulativePoints} pts`;
       </h1>
       <div
         style={{
-          height: "80vh",
+          height: "85vh",
           width: "100vw",
-          overflowX: "auto",
           padding: "0 2rem",
           boxSizing: "border-box",
+          overflowX: "auto",
         }}
       >
         {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}

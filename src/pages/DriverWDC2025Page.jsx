@@ -37,27 +37,39 @@ const DriverWDC2025Page = () => {
   useEffect(() => {
     const buildChartData = () => {
       const pointsMap = new Map();
-      const raceRounds = [];
-
+      const raceLabels = [];
       const races = f1SeasonData.races || [];
 
-      races.forEach((round, roundIndex) => {
-        const { round: raceRound, race_results } = round;
-        raceRounds.push(`R${raceRound}`);
+      races.forEach((race, i) => {
+        const circuitLabel = race.circuit?.split(" ")[0] ?? `R${race.round}`;
+        raceLabels.push(circuitLabel);
 
-        race_results.forEach(({ driver, points }) => {
+        // Collect sprint points per driver
+        const sprintMap = new Map();
+        if (Array.isArray(race.sprint_results)) {
+          race.sprint_results.forEach(({ driver, points }) => {
+            sprintMap.set(driver, points);
+          });
+        }
+
+        // Add race + sprint points to each driver's running total
+        race.race_results.forEach(({ driver, points }) => {
+          const sprintPoints = sprintMap.get(driver) || 0;
+          const total = points + sprintPoints;
+
           if (!pointsMap.has(driver)) {
             pointsMap.set(driver, []);
           }
 
-          const prev = pointsMap.get(driver)[roundIndex - 1] || 0;
-          pointsMap.get(driver).push(prev + points);
+          const prev = pointsMap.get(driver)[i - 1] || 0;
+          pointsMap.get(driver).push(prev + total);
         });
 
-        for (const [driver, pts] of pointsMap.entries()) {
-          if (pts.length < raceRounds.length) {
-            const last = pts[pts.length - 1] || 0;
-            pts.push(last);
+        // Pad drivers who didn’t participate
+        for (const [driver, arr] of pointsMap.entries()) {
+          if (arr.length < raceLabels.length) {
+            const last = arr[arr.length - 1] || 0;
+            arr.push(last);
           }
         }
       });
@@ -82,7 +94,7 @@ const DriverWDC2025Page = () => {
         };
       });
 
-      setChartData({ labels: raceRounds, datasets });
+      setChartData({ labels: raceLabels, datasets });
     };
 
     buildChartData();
@@ -126,18 +138,8 @@ const DriverWDC2025Page = () => {
           label: function (context) {
             const roundLabel = context.label;
             const driver = context.dataset.label;
-            const raceIndex = context.dataIndex;
-            const round = f1SeasonData.races[raceIndex];
-            const result = round?.race_results.find((r) => r.driver === driver);
-
-            if (!result) return `${roundLabel}: ${driver} – No data`;
-
-            const { team, points, position } = result;
-
-            return `${roundLabel}: ${driver}
-Team: ${team}
-Points: ${points}
-Position: P${position}`;
+            const cumulativePoints = context.raw;
+            return `${roundLabel}: ${driver} — ${cumulativePoints} pts`;
           },
         },
       },
@@ -153,7 +155,7 @@ Position: P${position}`;
       x: {
         title: {
           display: true,
-          text: "Race Round",
+          text: "Circuit",
         },
       },
     },
