@@ -1,40 +1,63 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Rocket, BarChart3, Users2, Info } from "lucide-react";
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-10">
-      <div className="bg-white shadow-xl rounded-2xl p-10 max-w-2xl w-full text-center">
-        <h1 className="text-4xl font-bold mb-4 text-gray-800">
-          F1 Performance Dashboard
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Welcome! Choose a category below to start exploring driver and constructor analytics for the 2025 season.
+    <div className="home-container">
+      <div className="home-content">
+        <h1 className="home-title">F1 Performance Dashboard</h1>
+        <p className="home-subtitle">
+          Explore six core categories of driver and constructor analytics for the 2025 season.
         </p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Link
-            to="/driver-bump-2025"
-            className="bg-blue-500 text-white py-3 rounded-xl shadow hover:bg-blue-600 transition"
-          >
-            2025 Driver Bump Chart
+
+        <div className="card-grid">
+          <Link to="/2025-drivers" className="card">
+            <BarChart3 className="icon blue" />
+            <div>
+              <h3>Driver Bump Chart</h3>
+              <p>See 2025 standings evolve round by round</p>
+            </div>
           </Link>
-          <Link
-            to="/constructor-bump-2025"
-            className="bg-green-500 text-white py-3 rounded-xl shadow hover:bg-green-600 transition"
-          >
-            2025 Constructor Bump Chart
+
+          <Link to="/2025-constructors" className="card">
+            <Rocket className="icon green" />
+            <div>
+              <h3>Constructor Bump Chart</h3>
+              <p>Compare team performance and rankings</p>
+            </div>
           </Link>
-          <Link
-            to="/driver-comparison"
-            className="bg-purple-500 text-white py-3 rounded-xl shadow hover:bg-purple-600 transition"
-          >
-            Driver Stat Comparison
+
+          <Link to="/driver-results" className="card">
+            <Users2 className="icon purple" />
+            <div>
+              <h3>Driver Results Table</h3>
+              <p>Review qualifying vs. race vs. points</p>
+            </div>
           </Link>
-          <Link
-            to="/about"
-            className="bg-gray-400 text-white py-3 rounded-xl shadow hover:bg-gray-500 transition"
-          >
-            About This Project
+
+          <Link to="/driver-stats" className="card">
+            <Users2 className="icon orange" />
+            <div>
+              <h3>Driver Stat Comparison</h3>
+              <p>Composite metrics & team comparisons</p>
+            </div>
+          </Link>
+
+          <Link to="/head-to-head" className="card">
+            <BarChart3 className="icon red" />
+            <div>
+              <h3>Head-to-Head Comparison</h3>
+              <p>Compare any two drivers side by side</p>
+            </div>
+          </Link>
+
+          <Link to="/about" className="card">
+            <Info className="icon gray" />
+            <div>
+              <h3>About This Project</h3>
+              <p>Tech stack, goals & data sources</p>
+            </div>
           </Link>
         </div>
       </div>
