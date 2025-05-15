@@ -1,9 +1,9 @@
+// vite.config.js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-
   base: '/f1-career-bumps/',
 
   plugins: [react()],
@@ -15,14 +15,7 @@ export default defineConfig({
   },
 
   build: {
-    outDir: 'dist', // default
+    outDir: 'dist',
     emptyOutDir: true,
   },
-
-  // GitHub Pages routing
-  server: {
-    historyApiFallback: true,
-    port: 5173,
-    open: true,
-  }
 });
