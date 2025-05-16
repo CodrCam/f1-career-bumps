@@ -20,7 +20,7 @@ export function parseDriverStats(f1Data) {
       }
       const d = drivers.get(driver);
       d.points += points;
-      d.finishes.push(position);
+      if (typeof position === 'number') d.finishes.push(position);
       d.teams.push(team);
       d.raceTeamHistory.push({ round: round.round, team });
     });
@@ -37,7 +37,7 @@ export function parseDriverStats(f1Data) {
         });
       }
       const d = drivers.get(driver);
-      d.qualis.push(position);
+      if (typeof position === 'number') d.qualis.push(position);
       d.teams.push(team);
     });
 
@@ -69,7 +69,7 @@ export function parseDriverStats(f1Data) {
   rounds.forEach(round => {
     const resultMap = {};
     round.race_results?.forEach(({ driver, position }) => {
-      resultMap[driver] = position;
+      if (typeof position === 'number') resultMap[driver] = position;
     });
     Object.entries(teamDrivers).forEach(([team, [d1, d2]]) => {
       if (!d1 || !d2 || !(d1 in resultMap) || !(d2 in resultMap)) return;
