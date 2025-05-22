@@ -11,7 +11,8 @@ import {
   Legend,
 } from "chart.js";
 import f1SeasonData from "../data/f1_2025_season.json";
-import LayoutWrapper from "../components/LayoutWrapper";
+import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
+import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 
 ChartJS.register(
   LineElement,
@@ -26,6 +27,13 @@ ChartJS.register(
 const ConstructorBump2025Page = () => {
   const [chartData, setChartData] = useState(null);
   const [cumulativePointsMap, setCumulativePointsMap] = useState(new Map());
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const buildChartData = () => {
@@ -79,9 +87,9 @@ const ConstructorBump2025Page = () => {
         backgroundColor: getTeamColor(team),
         fill: false,
         tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderWidth: 2,
+        pointRadius: isMobile ? 2 : 3,
+        pointHoverRadius: isMobile ? 4 : 6,
+        borderWidth: isMobile ? 2 : 3,
       }));
 
       setChartData({
@@ -93,7 +101,7 @@ const ConstructorBump2025Page = () => {
     };
 
     buildChartData();
-  }, []);
+  }, [isMobile]);
 
   const getTeamColor = (team) => {
     const teamColors = {
@@ -111,80 +119,16 @@ const ConstructorBump2025Page = () => {
     return teamColors[team] || "#222";
   };
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    devicePixelRatio: 2,
-    plugins: {
-      title: {
-        display: true,
-        text: "2025 Constructor Championship Standings",
-        font: { size: 20 },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            const roundIndex = context.dataIndex;
-            const team = context.dataset.label;
-            const position = context.raw;
-            const cumulativePoints = cumulativePointsMap.get(team)?.[roundIndex] ?? "N/A";
-
-            return `${team}: P${position} • ${cumulativePoints} pts`;
-          },
-        },
-      },
-      legend: {
-        position: "bottom",
-        align: "center",
-        labels: {
-          boxWidth: 12,
-          padding: 10,
-        },
-      },
-    },
-    layout: {
-      padding: 10,
-    },
-    scales: {
-      y: {
-        reverse: true,
-        min: 1,
-        max: 10,
-        ticks: {
-          stepSize: 1,
-          callback: (val) => `P${val}`,
-        },
-        title: {
-          display: true,
-          text: "Position",
-        },
-      },
-      x: {
-        title: {
-          display: true,
-          text: "Circuit",
-        },
-      },
-    },
-  };
+  const options = createResponsiveChartOptions(
+    isMobile, 
+    "2025 Constructor Championship Standings",
+    "constructor"
+  );
 
   return (
-    <LayoutWrapper>
-      <h1 style={{ textAlign: "center", fontSize: "2rem", marginBottom: "1rem" }}>
-        2025 Constructor Championship Bump Chart
-      </h1>
-      <div
-        style={{
-          height: "85vh",
-          width: "100vw",
-          padding: "0 2rem",
-          boxSizing: "border-box",
-          overflowX: "auto",
-        }}
-      >
-        {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}
-      </div>
-    </LayoutWrapper>
+    <ResponsiveChartContainer title="2025 Constructor Championship Bump Chart">
+      {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}
+    </ResponsiveChartContainer>
   );
 };
 

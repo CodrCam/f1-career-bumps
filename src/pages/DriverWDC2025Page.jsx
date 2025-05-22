@@ -11,6 +11,8 @@ import {
   Legend,
 } from "chart.js";
 import f1SeasonData from "../data/f1_2025_season.json";
+import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
+import { createResponsiveChartOptions, createMobileDriverSelector } from "../utils/chartOptions.jsx";
 
 ChartJS.register(
   LineElement,
@@ -25,6 +27,13 @@ ChartJS.register(
 const DriverWDC2025Page = () => {
   const [chartData, setChartData] = useState(null);
   const [selectedDrivers, setSelectedDrivers] = useState(["", ""]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const allDrivers = Array.from(
     new Set(
@@ -44,7 +53,6 @@ const DriverWDC2025Page = () => {
         const circuitLabel = race.circuit?.split(" ")[0] ?? `R${race.round}`;
         raceLabels.push(circuitLabel);
 
-        // Collect sprint points per driver
         const sprintMap = new Map();
         if (Array.isArray(race.sprint_results)) {
           race.sprint_results.forEach(({ driver, points }) => {
@@ -52,7 +60,6 @@ const DriverWDC2025Page = () => {
           });
         }
 
-        // Add race + sprint points to each driver's running total
         race.race_results.forEach(({ driver, points }) => {
           const sprintPoints = sprintMap.get(driver) || 0;
           const total = points + sprintPoints;
@@ -65,7 +72,6 @@ const DriverWDC2025Page = () => {
           pointsMap.get(driver).push(prev + total);
         });
 
-        // Pad drivers who didn’t participate
         for (const [driver, arr] of pointsMap.entries()) {
           if (arr.length < raceLabels.length) {
             const last = arr[arr.length - 1] || 0;
@@ -86,9 +92,9 @@ const DriverWDC2025Page = () => {
           label: driver,
           data: points,
           borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
-          borderWidth: isSelected ? 2 : 1,
-          pointRadius: isSelected ? 3 : 1,
-          pointHoverRadius: isSelected ? 5 : 2,
+          borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
+          pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
+          pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
           fill: false,
           tension: 0.3,
         };
@@ -98,7 +104,7 @@ const DriverWDC2025Page = () => {
     };
 
     buildChartData();
-  }, [selectedDrivers]);
+  }, [selectedDrivers, isMobile]);
 
   const getTeamColor = (team) => {
     const teamColors = {
@@ -116,94 +122,23 @@ const DriverWDC2025Page = () => {
     return teamColors[team] || "#888";
   };
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      title: {
-        display: true,
-        text: "2025 Driver World Championship Standings",
-        font: { size: 18 },
-      },
-      legend: {
-        position: "right",
-        align: "start",
-        labels: {
-          boxWidth: 12,
-          padding: 8,
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            const roundLabel = context.label;
-            const driver = context.dataset.label;
-            const cumulativePoints = context.raw;
-            return `${roundLabel}: ${driver} — ${cumulativePoints} pts`;
-          },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: "Cumulative Points",
-        },
-      },
-      x: {
-        title: {
-          display: true,
-          text: "Circuit",
-        },
-      },
-    },
-  };
+  const options = createResponsiveChartOptions(
+    isMobile, 
+    "2025 Driver World Championship Standings",
+    "driver"
+  );
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1 style={{ textAlign: "center", fontSize: "2rem", marginBottom: "1rem" }}>
-        2025 Driver World Championship Bump Chart
-      </h1>
-
-      <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-        {[0, 1].map((i) => (
-          <select
-            key={i}
-            value={selectedDrivers[i]}
-            onChange={(e) => {
-              const copy = [...selectedDrivers];
-              copy[i] = e.target.value;
-              setSelectedDrivers(copy);
-            }}
-          >
-            <option value="">Select Driver {i + 1}</option>
-            {allDrivers.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        ))}
-        <button onClick={() => setSelectedDrivers(["", ""])}>Reset</button>
-      </div>
-
-      <div
-        style={{
-          height: "85vh",
-          width: "100vw",
-          padding: "2rem",
-          margin: "0 auto",
-          boxSizing: "border-box",
-        }}
-      >
+    <div>
+      {createMobileDriverSelector(allDrivers, selectedDrivers, setSelectedDrivers)}
+      
+      <ResponsiveChartContainer title="2025 Driver World Championship Bump Chart">
         {chartData ? (
           <Line data={chartData} options={options} />
         ) : (
           <p>Loading chart...</p>
         )}
-      </div>
+      </ResponsiveChartContainer>
     </div>
   );
 };

@@ -9,6 +9,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
 import f1SeasonData from "../data/f1_2025_season.json";
 import { parseDriverStats } from "../utils/parseDriverStats";
 
@@ -40,9 +41,15 @@ const DriverStatsPage = () => {
     setTeamStats(grouped);
   }, []);
 
+  const isMobile = window.innerWidth < 768;
+
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1 style={{ textAlign: "center", fontSize: "2rem", marginBottom: "2rem" }}>
+    <div style={{ padding: isMobile ? "1rem" : "2rem" }}>
+      <h1 style={{ 
+        textAlign: "center", 
+        fontSize: isMobile ? "1.5rem" : "2rem", 
+        marginBottom: "2rem" 
+      }}>
         2025 Composite Performance Breakdown
       </h1>
 
@@ -75,9 +82,12 @@ const DriverStatsPage = () => {
             title: {
               display: true,
               text: `${team} – Composite Metric Breakdown`,
+              font: {
+                size: isMobile ? 14 : 16
+              }
             },
             legend: {
-              position: "top",
+              position: isMobile ? "bottom" : "top",
             },
           },
           scales: {
@@ -86,56 +96,115 @@ const DriverStatsPage = () => {
               max: 1,
               ticks: {
                 stepSize: 0.2,
+                font: {
+                  size: isMobile ? 10 : 12
+                }
               },
             },
+            x: {
+              ticks: {
+                font: {
+                  size: isMobile ? 10 : 12
+                }
+              }
+            }
           },
         };
 
         return (
           <div key={team} style={{ marginBottom: "4rem" }}>
-            <div
-              style={{
-                height: "60vh",
-                width: "100vw",
-                padding: "2rem",
-                boxSizing: "border-box",
-              }}
-            >
+            <ResponsiveChartContainer>
               <Bar data={data} options={options} />
-            </div>
-            <div style={{ maxWidth: "800px", margin: "0 auto", padding: "1rem" }}>
-              <h3 style={{ textAlign: "center", marginBottom: "0.5rem" }}>Detailed Comparison</h3>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th>{d1.name}</th>
-                    <th>{d2.name}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                      <td>Total Points</td>
-                      <td>{d1.points}</td>
-                      <td>{d2.points}</td>
+            </ResponsiveChartContainer>
+            
+            <div style={{ 
+              maxWidth: isMobile ? "100%" : "800px", 
+              margin: "0 auto", 
+              padding: "1rem",
+              overflowX: isMobile ? "auto" : "visible"
+            }}>
+              <h3 style={{ 
+                textAlign: "center", 
+                marginBottom: "0.5rem",
+                fontSize: isMobile ? "1.1rem" : "1.3rem"
+              }}>
+                Detailed Comparison
+              </h3>
+              
+              {isMobile ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <div style={{ 
+                    backgroundColor: "#2a2a2a", 
+                    padding: "1rem", 
+                    borderRadius: "8px",
+                    border: "1px solid #404040"
+                  }}>
+                    <h4 style={{ margin: "0 0 0.5rem 0", color: color1 }}>
+                      {d1.name}
+                    </h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.9rem" }}>
+                      <div>Total Points: <strong>{d1.points}</strong></div>
+                      <div>Avg Qualifying: <strong>{d1.avgQuali?.toFixed(2)}</strong></div>
+                      <div>Avg Finish: <strong>{d1.avgFinish?.toFixed(2)}</strong></div>
+                      <div>H2H Wins: <strong>{d1.headWins}</strong></div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ 
+                    backgroundColor: "#2a2a2a", 
+                    padding: "1rem", 
+                    borderRadius: "8px",
+                    border: "1px solid #404040"
+                  }}>
+                    <h4 style={{ margin: "0 0 0.5rem 0", color: color2 }}>
+                      {d2.name}
+                    </h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.9rem" }}>
+                      <div>Total Points: <strong>{d2.points}</strong></div>
+                      <div>Avg Qualifying: <strong>{d2.avgQuali?.toFixed(2)}</strong></div>
+                      <div>Avg Finish: <strong>{d2.avgFinish?.toFixed(2)}</strong></div>
+                      <div>H2H Wins: <strong>{d2.headWins}</strong></div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <table style={{ 
+                  width: "100%", 
+                  borderCollapse: "collapse", 
+                  textAlign: "left",
+                  backgroundColor: "#1a1a1a"
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#333" }}>
+                      <th style={{ padding: "0.75rem", borderBottom: "1px solid #555" }}>Metric</th>
+                      <th style={{ padding: "0.75rem", borderBottom: "1px solid #555" }}>{d1.name}</th>
+                      <th style={{ padding: "0.75rem", borderBottom: "1px solid #555" }}>{d2.name}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #333" }}>
+                      <td style={{ padding: "0.75rem" }}>Total Points</td>
+                      <td style={{ padding: "0.75rem" }}>{d1.points}</td>
+                      <td style={{ padding: "0.75rem" }}>{d2.points}</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #333" }}>
+                      <td style={{ padding: "0.75rem" }}>Average Qualifying</td>
+                      <td style={{ padding: "0.75rem" }}>{d1.avgQuali?.toFixed(2)}</td>
+                      <td style={{ padding: "0.75rem" }}>{d2.avgQuali?.toFixed(2)}</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #333" }}>
+                      <td style={{ padding: "0.75rem" }}>Average Finish</td>
+                      <td style={{ padding: "0.75rem" }}>{d1.avgFinish?.toFixed(2)}</td>
+                      <td style={{ padding: "0.75rem" }}>{d2.avgFinish?.toFixed(2)}</td>
                     </tr>
                     <tr>
-                      <td>Average Qualifying</td>
-                      <td>{d1.avgQuali?.toFixed(2)}</td>
-                      <td>{d2.avgQuali?.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td>Average Finish</td>
-                      <td>{d1.avgFinish?.toFixed(2)}</td>
-                      <td>{d2.avgFinish?.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td>Head-to-Head Wins</td>
-                      <td>{d1.headWins}</td>
-                      <td>{d2.headWins}</td>
+                      <td style={{ padding: "0.75rem" }}>Head-to-Head Wins</td>
+                      <td style={{ padding: "0.75rem" }}>{d1.headWins}</td>
+                      <td style={{ padding: "0.75rem" }}>{d2.headWins}</td>
                     </tr>
                   </tbody>
-              </table>
+                </table>
+              )}
             </div>
           </div>
         );
