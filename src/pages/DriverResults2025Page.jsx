@@ -11,6 +11,8 @@ import {
   Legend,
 } from "chart.js";
 import f1SeasonData from "../data/f1_2025_season.json";
+import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
+import { createResponsiveChartOptions, createMobileDriverSelector } from "../utils/chartOptions.jsx";
 
 ChartJS.register(
   LineElement,
@@ -25,6 +27,13 @@ ChartJS.register(
 const DriverResults2025Page = () => {
   const [chartData, setChartData] = useState(null);
   const [selectedDrivers, setSelectedDrivers] = useState(["", ""]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const allDrivers = Array.from(
     new Set(
@@ -71,9 +80,9 @@ const DriverResults2025Page = () => {
           label: driver,
           data: positions,
           borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
-          borderWidth: isSelected ? 2 : 1,
-          pointRadius: isSelected ? 3 : 1,
-          pointHoverRadius: isSelected ? 5 : 2,
+          borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
+          pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
+          pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
           fill: false,
           tension: 0,
         };
@@ -86,7 +95,7 @@ const DriverResults2025Page = () => {
     };
 
     buildChartData();
-  }, [selectedDrivers]);
+  }, [selectedDrivers, isMobile]);
 
   const getTeamColor = (team) => {
     const teamColors = {
@@ -105,112 +114,58 @@ const DriverResults2025Page = () => {
   };
 
   const options = {
-    responsive: true,
-    maintainAspectRatio: false,
+    ...createResponsiveChartOptions(
+      isMobile, 
+      "2025 Driver Race Results Bump Chart",
+      "results"
+    ),
+    // Override the tooltip for this specific chart
     plugins: {
-      title: {
-        display: true,
-        text: "2025 Driver Race Results Bump Chart",
-        font: { size: 18 },
-      },
-      legend: {
-        position: "right",
-        align: "start",
-        labels: {
-          boxWidth: 12,
-          padding: 8,
-        },
-      },
+      ...createResponsiveChartOptions(isMobile, "", "results").plugins,
       tooltip: {
+        enabled: true,
         callbacks: {
+          title: function(context) {
+            return context[0].label;
+          },
           label: function (context) {
-            const roundLabel = context.label;
             const driver = context.dataset.label;
+            const position = context.raw;
             const raceIndex = context.dataIndex;
             const round = f1SeasonData.races[raceIndex];
             const result = round?.race_results.find((r) => r.driver === driver);
 
-            if (!result) return `${roundLabel}: ${driver} – No data`;
+            if (!result) return `${driver}: No data`;
 
-            const { team, position } = result;
-
-            return `${roundLabel}: ${driver}
-Team: ${team}
-Finish: P${position}`;
+            const { team } = result;
+            return [
+              `${driver}`,
+              `Team: ${team}`,
+              `Finish: P${position}`
+            ];
           },
         },
       },
     },
     scales: {
+      ...createResponsiveChartOptions(isMobile, "", "results").scales,
       y: {
+        ...createResponsiveChartOptions(isMobile, "", "results").scales.y,
         reverse: true,
         beginAtZero: false,
         min: 1,
         max: 20,
-        ticks: {
-          precision: 0,
-          stepSize: 1,
-          callback: (value) => `P${value}`,
-        },
-        title: {
-          display: true,
-          text: "Race Result Position",
-        },
-      },
-      x: {
-        title: {
-          display: true,
-          text: "Race Round",
-        },
       },
     },
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1
-        style={{
-          textAlign: "center",
-          fontSize: "2rem",
-          marginBottom: "1rem",
-        }}
-      >
-        2025 Driver Race Results Bump Chart
-      </h1>
-
-      <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-        {[0, 1].map((i) => (
-          <select
-            key={i}
-            value={selectedDrivers[i]}
-            onChange={(e) => {
-              const updated = [...selectedDrivers];
-              updated[i] = e.target.value;
-              setSelectedDrivers(updated);
-            }}
-          >
-            <option value="">Select Driver {i + 1}</option>
-            {allDrivers.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        ))}
-        <button onClick={() => setSelectedDrivers(["", ""])}>Reset</button>
-      </div>
-
-      <div
-        style={{
-          height: "85vh",
-          width: "100vw",
-          padding: "2rem",
-          margin: "0 auto",
-          boxSizing: "border-box",
-        }}
-      >
+    <div>
+      {createMobileDriverSelector(allDrivers, selectedDrivers, setSelectedDrivers)}
+      
+      <ResponsiveChartContainer title="2025 Driver Race Results Bump Chart">
         {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}
-      </div>
+      </ResponsiveChartContainer>
     </div>
   );
 };

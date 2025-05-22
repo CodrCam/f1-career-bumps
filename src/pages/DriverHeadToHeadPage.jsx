@@ -26,11 +26,9 @@ const formatTimeDelta = (time1, time2) => {
 
   if (t1 === null || t2 === null) return "--";
 
-  // Case: one absolute and one relative (just return the relative)
   if (isRelativeTime(time1) && !isRelativeTime(time2)) return time1;
   if (!isRelativeTime(time1) && isRelativeTime(time2)) return `-${time2}`;
 
-  // Case: both relative or both absolute
   const delta = (t1 - t2).toFixed(3);
   return `${delta > 0 ? "+" : ""}${delta}s`;
 };
@@ -80,18 +78,56 @@ const HeadToHeadPage = () => {
   const races2 = getDriverResultsByRound(driver2);
 
   return (
-    <div style={{ padding: "2rem", width: "100vw", boxSizing: "border-box" }}>
-      <h1 style={{ textAlign: "center", fontSize: "2rem", marginBottom: "1rem" }}>
+    <div style={{ 
+      padding: window.innerWidth < 768 ? "1rem" : "2rem", 
+      width: "100%", 
+      boxSizing: "border-box" 
+    }}>
+      <h1 style={{ 
+        textAlign: "center", 
+        fontSize: window.innerWidth < 768 ? "1.5rem" : "2rem", 
+        marginBottom: "1rem" 
+      }}>
         2025 Head-to-Head Driver Comparison
       </h1>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginBottom: "2rem" }}>
-        <select value={driver1} onChange={(e) => setDriver1(e.target.value)}>
+      <div style={{ 
+        display: "flex", 
+        flexDirection: window.innerWidth < 768 ? "column" : "row",
+        justifyContent: "center", 
+        gap: "1rem", 
+        marginBottom: "2rem" 
+      }}>
+        <select 
+          value={driver1} 
+          onChange={(e) => setDriver1(e.target.value)}
+          style={{
+            padding: "0.75rem",
+            fontSize: "1rem",
+            borderRadius: "6px",
+            border: "1px solid #555",
+            backgroundColor: "#333",
+            color: "#fff",
+            width: window.innerWidth < 768 ? "100%" : "auto"
+          }}
+        >
           {allDrivers.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
-        <select value={driver2} onChange={(e) => setDriver2(e.target.value)}>
+        <select 
+          value={driver2} 
+          onChange={(e) => setDriver2(e.target.value)}
+          style={{
+            padding: "0.75rem",
+            fontSize: "1rem",
+            borderRadius: "6px",
+            border: "1px solid #555",
+            backgroundColor: "#333",
+            color: "#fff",
+            width: window.innerWidth < 768 ? "100%" : "auto"
+          }}
+        >
           {allDrivers.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
@@ -100,95 +136,221 @@ const HeadToHeadPage = () => {
 
       {/* Qualifying Comparison */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2>Qualifying Comparison</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Track</th>
-              <th>{driver1}</th>
-              <th>{driver2}</th>
-              <th>Grid Diff</th>
-              <th>Time Diff</th>
-            </tr>
-          </thead>
-          <tbody>
+        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+          Qualifying Comparison
+        </h2>
+        {window.innerWidth < 768 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {quali1.map((q1, i) => {
               const q2 = quali2[i];
               const gridDelta = q1.grid !== null && q2.grid !== null ? q1.grid - q2.grid : null;
               return (
-                <tr key={`q-${i}`}>
-                  <td>{q1.circuit}</td>
-                  <td style={getWinStyle(q1.grid, q2.grid)}>Grid P{q1.grid} ({q1.time ?? "--"})</td>
-                  <td style={getWinStyle(q2.grid, q1.grid)}>Grid P{q2.grid} ({q2.time ?? "--"})</td>
-                  <td>{gridDelta !== null ? `${gridDelta > 0 ? "+" : ""}${gridDelta}` : "--"}</td>
-                  <td>{formatTimeDelta(q1.time, q2.time)}</td>
-                </tr>
+                <div key={`q-${i}`} style={{
+                  backgroundColor: "#2a2a2a",
+                  borderRadius: "8px",
+                  padding: "1rem",
+                  border: "1px solid #404040"
+                }}>
+                  <h4 style={{ margin: "0 0 0.5rem 0", color: "#fff" }}>
+                    {q1.circuit}
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver1}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(q1.grid, q2.grid).color || "#fff" }}>
+                        P{q1.grid} ({q1.time || "--"})
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver2}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(q2.grid, q1.grid).color || "#fff" }}>
+                        P{q2.grid} ({q2.time || "--"})
+                      </div>
+                    </div>
+                  </div>
+                  {gridDelta !== null && (
+                    <div style={{ marginTop: "0.5rem", textAlign: "center", fontSize: "0.9rem", color: "#aaa" }}>
+                      Δ: {gridDelta > 0 ? "+" : ""}{gridDelta}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th>Track</th>
+                <th>{driver1}</th>
+                <th>{driver2}</th>
+                <th>Grid Diff</th>
+                <th>Time Diff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quali1.map((q1, i) => {
+                const q2 = quali2[i];
+                const gridDelta = q1.grid !== null && q2.grid !== null ? q1.grid - q2.grid : null;
+                return (
+                  <tr key={`q-${i}`}>
+                    <td>{q1.circuit}</td>
+                    <td style={getWinStyle(q1.grid, q2.grid)}>Grid P{q1.grid} ({q1.time ?? "--"})</td>
+                    <td style={getWinStyle(q2.grid, q1.grid)}>Grid P{q2.grid} ({q2.time ?? "--"})</td>
+                    <td>{gridDelta !== null ? `${gridDelta > 0 ? "+" : ""}${gridDelta}` : "--"}</td>
+                    <td>{formatTimeDelta(q1.time, q2.time)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
 
       {/* Sprint Comparison */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2>Sprint Race Comparison</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Track</th>
-              <th>{driver1}</th>
-              <th>{driver2}</th>
-              <th>Pos Diff</th>
-              <th>Time Diff</th>
-            </tr>
-          </thead>
-          <tbody>
+        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+          Sprint Race Comparison
+        </h2>
+        {window.innerWidth < 768 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {sprint1.map((r1, i) => {
               const r2 = sprint2[i];
               const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
               return (
-                <tr key={`s-${i}`}>
-                  <td>{r1.circuit}</td>
-                  <td style={getWinStyle(r1.position, r2.position)}>P{r1.position} ({r1.time ?? "--"})</td>
-                  <td style={getWinStyle(r2.position, r1.position)}>P{r2.position} ({r2.time ?? "--"})</td>
-                  <td>{posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}</td>
-                  <td>{formatTimeDelta(r1.time, r2.time)}</td>
-                </tr>
+                <div key={`s-${i}`} style={{
+                  backgroundColor: "#2a2a2a",
+                  borderRadius: "8px",
+                  padding: "1rem",
+                  border: "1px solid #404040"
+                }}>
+                  <h4 style={{ margin: "0 0 0.5rem 0", color: "#fff" }}>
+                    {r1.circuit}
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver1}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(r1.position, r2.position).color || "#fff" }}>
+                        P{r1.position} ({r1.time || "--"})
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver2}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(r2.position, r1.position).color || "#fff" }}>
+                        P{r2.position} ({r2.time || "--"})
+                      </div>
+                    </div>
+                  </div>
+                  {posDelta !== null && (
+                    <div style={{ marginTop: "0.5rem", textAlign: "center", fontSize: "0.9rem", color: "#aaa" }}>
+                      Δ: {posDelta > 0 ? "+" : ""}{posDelta}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th>Track</th>
+                <th>{driver1}</th>
+                <th>{driver2}</th>
+                <th>Pos Diff</th>
+                <th>Time Diff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sprint1.map((r1, i) => {
+                const r2 = sprint2[i];
+                const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
+                return (
+                  <tr key={`s-${i}`}>
+                    <td>{r1.circuit}</td>
+                    <td style={getWinStyle(r1.position, r2.position)}>P{r1.position} ({r1.time ?? "--"})</td>
+                    <td style={getWinStyle(r2.position, r1.position)}>P{r2.position} ({r2.time ?? "--"})</td>
+                    <td>{posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}</td>
+                    <td>{formatTimeDelta(r1.time, r2.time)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
 
       {/* Race Comparison */}
       <section>
-        <h2>Race Results Comparison</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Track</th>
-              <th>{driver1}</th>
-              <th>{driver2}</th>
-              <th>Pos Diff</th>
-              <th>Time Diff</th>
-            </tr>
-          </thead>
-          <tbody>
+        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+          Race Results Comparison
+        </h2>
+        {window.innerWidth < 768 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {races1.map((r1, i) => {
               const r2 = races2[i];
               const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
               return (
-                <tr key={`r-${i}`}>
-                  <td>{r1.circuit}</td>
-                  <td style={getWinStyle(r1.position, r2.position)}>P{r1.position} ({r1.time ?? "--"})</td>
-                  <td style={getWinStyle(r2.position, r1.position)}>P{r2.position} ({r2.time ?? "--"})</td>
-                  <td>{posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}</td>
-                  <td>{formatTimeDelta(r1.time, r2.time)}</td>
-                </tr>
+                <div key={`r-${i}`} style={{
+                  backgroundColor: "#2a2a2a",
+                  borderRadius: "8px",
+                  padding: "1rem",
+                  border: "1px solid #404040"
+                }}>
+                  <h4 style={{ margin: "0 0 0.5rem 0", color: "#fff" }}>
+                    {r1.circuit}
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver1}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(r1.position, r2.position).color || "#fff" }}>
+                        P{r1.position} ({r1.time || "--"})
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", color: "#ccc" }}>{driver2}</div>
+                      <div style={{ fontWeight: "bold", color: getWinStyle(r2.position, r1.position).color || "#fff" }}>
+                        P{r2.position} ({r2.time || "--"})
+                      </div>
+                    </div>
+                  </div>
+                  {posDelta !== null && (
+                    <div style={{ marginTop: "0.5rem", textAlign: "center", fontSize: "0.9rem", color: "#aaa" }}>
+                      Δ: {posDelta > 0 ? "+" : ""}{posDelta}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th>Track</th>
+                <th>{driver1}</th>
+                <th>{driver2}</th>
+                <th>Pos Diff</th>
+                <th>Time Diff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {races1.map((r1, i) => {
+                const r2 = races2[i];
+                const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
+                return (
+                  <tr key={`r-${i}`}>
+                    <td>{r1.circuit}</td>
+                    <td style={getWinStyle(r1.position, r2.position)}>P{r1.position} ({r1.time ?? "--"})</td>
+                    <td style={getWinStyle(r2.position, r1.position)}>P{r2.position} ({r2.time ?? "--"})</td>
+                    <td>{posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}</td>
+                    <td>{formatTimeDelta(r1.time, r2.time)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   );

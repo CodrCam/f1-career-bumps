@@ -59,3 +59,125 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* ADD THESE STYLES TO YOUR EXISTING src/components/Navbar.css FILE */
+
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 1000;
+}
+
+/* Hamburger Icon */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  width: 24px;
+  height: 18px;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 1px;
+  transition: all 0.25s ease-in-out;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .navbar-inner {
+    justify-content: space-between;
+    padding: 1rem;
+  }
+
+  .mobile-menu-toggle {
+    display: block;
+  }
+
+  .nav-links {
+    position: fixed;
+    top: 70px; /* Adjust based on your navbar height */
+    left: 0;
+    right: 0;
+    background-color: #1a1a1a;
+    flex-direction: column;
+    border-top: 1px solid #333;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .nav-links.mobile-closed {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .nav-links.mobile-open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .nav-links li {
+    margin: 0;
+    border-bottom: 1px solid #333;
+  }
+
+  .nav-links li:last-child {
+    border-bottom: none;
+  }
+
+  .nav-link {
+    display: block;
+    padding: 1rem 1.5rem;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    background-color: #333;
+  }
+
+  .nav-brand {
+    font-size: 1.3rem;
+  }
+}
+
+/* Tablet Styles */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .navbar-inner {
+    padding: 0.75rem 1rem;
+  }
+
+  .nav-links {
+    gap: 1rem;
+  }
+
+  .nav-link {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
