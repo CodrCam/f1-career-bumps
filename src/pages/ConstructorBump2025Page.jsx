@@ -110,7 +110,7 @@ const ConstructorBump2025Page = () => {
       "Mercedes": "#00D2BE",
       "Ferrari": "#DC0000",
       "Williams": "#005AFF",
-      "Alpine": "#0090FF",
+      "Alpine": "#FF69B4",
       "Aston Martin": "#00665E",
       "Haas": "#B6BABD",
       "Racing Bulls": "#2B4562",

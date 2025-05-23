@@ -98,14 +98,15 @@ const DriverResults2025Page = () => {
   }, [selectedDrivers, isMobile]);
 
   const getTeamColor = (team) => {
+    // Updated with consistent team colors
     const teamColors = {
       "McLaren": "#FF8700",
       "Red Bull Racing": "#1E41FF",
       "Mercedes": "#00D2BE",
       "Ferrari": "#DC0000",
       "Williams": "#005AFF",
-      "Alpine": "#0090FF",
-      "Aston Martin": "#00665E",
+      "Alpine": "#FF69B4", 
+      "Aston Martin": "#006F62",
       "Haas": "#B6BABD",
       "Racing Bulls": "#2B4562",
       "Kick Sauber": "#00F500",

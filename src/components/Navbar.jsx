@@ -96,6 +96,29 @@ const Navbar = () => {
               Head to Head
             </Link>
           </li>
+          
+          {/* New F1 Analysis Section */}
+          <li className="nav-separator">
+            <span>Live Analysis</span>
+          </li>
+          <li>
+            <Link 
+              to="/sector-analysis" 
+              className={navStyle("/sector-analysis")}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Sector Analysis
+            </Link>
+          </li>
+          <li>
+            <Link 
+              to="/pit-strategy" 
+              className={navStyle("/pit-strategy")}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Pit Strategy
+            </Link>
+          </li>
         </ul>
       </div>
     </header>

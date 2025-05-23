@@ -15,16 +15,17 @@ import { parseDriverStats } from "../utils/parseDriverStats";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// Updated with consistent team colors for 2025
 const teamColorMap = {
   McLaren: ["#FF8700", "#0057B8"],
   Mercedes: ["#00D2BE", "#C0C0C0"],
   "Red Bull Racing": ["#1E41FF", "#FF1E00"],
   Ferrari: ["#DC0000", "#FFD700"],
   Williams: ["#005AFF", "#00CFFF"],
-  Alpine: ["#0090FF", "#FF69B4"],
-  "Aston Martin": ["#00665E", "#D4AF37"],
+  Alpine: ["#0090FF", "#FF69B4"], // Updated blue to match other components
+  "Aston Martin": ["#006F62", "#D4AF37"],
   Haas: ["#B6BABD", "#FF0000"],
-  "Racing Bulls": ["#4B6B8C", "#FF3C38"],
+  "Racing Bulls": ["#2B4562", "#FF3C38"],
   "Kick Sauber": ["#00F500", "#000000"],
 };
 

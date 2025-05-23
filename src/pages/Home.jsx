@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Info } from "lucide-react";
+import { Rocket, BarChart3, Users2, Info, Timer, Target } from "lucide-react";
 
 const Home = () => {
   return (
@@ -8,10 +8,11 @@ const Home = () => {
       <div className="home-content">
         <h1 className="home-title">F1 Performance Dashboard</h1>
         <p className="home-subtitle">
-          Explore six core categories of driver and constructor analytics for the 2025 season.
+          Explore comprehensive F1 analytics including driver standings, race analysis, and real-time telemetry insights.
         </p>
 
         <div className="card-grid">
+          {/* Original Analytics */}
           <Link to="/2025-drivers" className="card">
             <BarChart3 className="icon blue" />
             <div>
@@ -52,6 +53,27 @@ const Home = () => {
             </div>
           </Link>
 
+          {/* New Live Analysis Features */}
+          <Link to="/sector-analysis" className="card live-analysis">
+            <Timer className="icon cyan" />
+            <div>
+              <h3>Sector Time Analysis</h3>
+              <p>Real-time sector performance comparison</p>
+              <span className="new-badge">New</span>
+            </div>
+          </Link>
+
+          <Link to="/pit-strategy" className="card live-analysis">
+            <Target className="icon pink" />
+            <div>
+              <h3>Pit Stop Strategy</h3>
+              <p>Analyze pit timing and strategic decisions</p>
+              <span className="new-badge">New</span>
+            </div>
+          </Link>
+
+          {/* DRS Analysis card removed due to data availability issues */}
+
           <Link to="/about" className="card">
             <Info className="icon gray" />
             <div>
@@ -59,6 +81,15 @@ const Home = () => {
               <p>Tech stack, goals & data sources</p>
             </div>
           </Link>
+        </div>
+
+        <div className="feature-highlight">
+          <h2>🚀 New: Real-Time F1 Analysis</h2>
+          <p>
+            Powered by OpenF1 API, our new analysis tools provide deep insights into sector times 
+            and pit strategies. Experience F1 data like never before with 
+            interactive visualizations and comprehensive telemetry analysis.
+          </p>
         </div>
       </div>
     </div>
