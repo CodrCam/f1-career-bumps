@@ -1,5 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import f1SeasonData from "../data/f1_2025_season.json";
+
+// Driver change processing function - moved outside component
+const processDriverChange = (races) => {
+  return races.map(race => {
+    const processedRace = { ...race };
+    
+    // Process race results
+    if (processedRace.race_results) {
+      processedRace.race_results = processedRace.race_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process qualifying results
+    if (processedRace.qualifying_results) {
+      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process sprint results
+    if (processedRace.sprint_results) {
+      processedRace.sprint_results = processedRace.sprint_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    return processedRace;
+  });
+};
 
 const parseTimeToSeconds = (time) => {
   if (!time || time === "No Time" || time === "DNF" || time === "DNS") return null;
@@ -33,8 +72,8 @@ const formatTimeDelta = (time1, time2) => {
   return `${delta > 0 ? "+" : ""}${delta}s`;
 };
 
-const getDriverResultsByRound = (driver, type = "race_results") => {
-  return f1SeasonData.races.map((race) => {
+const getDriverResultsByRound = (driver, type = "race_results", processedRaces) => {
+  return processedRaces.map((race) => {
     const result = race[type]?.find((r) => r.driver === driver);
     return {
       circuit: race.circuit.split(" ")[0],
@@ -45,8 +84,8 @@ const getDriverResultsByRound = (driver, type = "race_results") => {
   });
 };
 
-const getQualifyingResultsByRound = (driver) => {
-  return f1SeasonData.races.map((race) => {
+const getQualifyingResultsByRound = (driver, processedRaces) => {
+  return processedRaces.map((race) => {
     const result = race.qualifying_results?.find((q) => q.driver === driver);
     return {
       circuit: race.circuit.split(" ")[0],
@@ -65,17 +104,32 @@ const getWinStyle = (val1, val2, isLowerBetter = true) => {
 };
 
 const HeadToHeadPage = () => {
-  const allDrivers = [...new Set(f1SeasonData.races.flatMap((r) => r.race_results.map((res) => res.driver)))];
+  // Memoize processed races - only recompute if raw data changes
+  const processedRaces = useMemo(() => {
+    return processDriverChange(f1SeasonData.races);
+  }, []);
+
+  // Memoize all drivers list
+  const allDrivers = useMemo(() => {
+    return [...new Set(processedRaces.flatMap((r) => r.race_results.map((res) => res.driver)))];
+  }, [processedRaces]);
 
   const [driver1, setDriver1] = useState(allDrivers[0]);
   const [driver2, setDriver2] = useState(allDrivers[1]);
 
-  const quali1 = getQualifyingResultsByRound(driver1);
-  const quali2 = getQualifyingResultsByRound(driver2);
-  const sprint1 = getDriverResultsByRound(driver1, "sprint_results");
-  const sprint2 = getDriverResultsByRound(driver2, "sprint_results");
-  const races1 = getDriverResultsByRound(driver1);
-  const races2 = getDriverResultsByRound(driver2);
+  // Memoize driver data to prevent recalculation on every render
+  const driverData = useMemo(() => {
+    return {
+      quali1: getQualifyingResultsByRound(driver1, processedRaces),
+      quali2: getQualifyingResultsByRound(driver2, processedRaces),
+      sprint1: getDriverResultsByRound(driver1, "sprint_results", processedRaces),
+      sprint2: getDriverResultsByRound(driver2, "sprint_results", processedRaces),
+      races1: getDriverResultsByRound(driver1, "race_results", processedRaces),
+      races2: getDriverResultsByRound(driver2, "race_results", processedRaces),
+    };
+  }, [driver1, driver2, processedRaces]);
+
+  const { quali1, quali2, sprint1, sprint2, races1, races2 } = driverData;
 
   return (
     <div style={{ 

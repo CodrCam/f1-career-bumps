@@ -390,10 +390,9 @@ const PitStrategyPage = () => {
           <h3>Pit Stop Timeline</h3>
           <div className="timeline">
             {sessionData.pits
-              .filter(pit => pit.lap_number && pit.pit_duration)
-              .sort((a, b) => a.lap_number - b.lap_number)
-              .slice(0, 20) // Limit to first 20 for performance
-              .map((pit, index) => {
+                .filter(pit => pit.lap_number && pit.pit_duration)
+                .sort((a, b) => a.lap_number - b.lap_number)
+                .map((pit, index) => {
                 const driver = sessionData.drivers.find(d => d.driver_number == pit.driver_number);
                 const driverName = driver?.name_acronym || `#${pit.driver_number}`;
                 const color = driverColors[driverName] || '#6366f1';

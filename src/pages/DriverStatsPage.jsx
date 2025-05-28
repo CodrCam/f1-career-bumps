@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,6 +15,45 @@ import { parseDriverStats } from "../utils/parseDriverStats";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// Driver change processing function - moved outside component
+const processDriverChange = (races) => {
+  return races.map(race => {
+    const processedRace = { ...race };
+    
+    // Process race results
+    if (processedRace.race_results) {
+      processedRace.race_results = processedRace.race_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process qualifying results
+    if (processedRace.qualifying_results) {
+      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process sprint results
+    if (processedRace.sprint_results) {
+      processedRace.sprint_results = processedRace.sprint_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    return processedRace;
+  });
+};
+
 // Updated with consistent team colors for 2025
 const teamColorMap = {
   McLaren: ["#FF8700", "#0057B8"],
@@ -22,7 +61,7 @@ const teamColorMap = {
   "Red Bull Racing": ["#1E41FF", "#FF1E00"],
   Ferrari: ["#DC0000", "#FFD700"],
   Williams: ["#005AFF", "#00CFFF"],
-  Alpine: ["#0090FF", "#FF69B4"], // Updated blue to match other components
+  Alpine: ["#0090FF", "#FF69B4"],
   "Aston Martin": ["#006F62", "#D4AF37"],
   Haas: ["#B6BABD", "#FF0000"],
   "Racing Bulls": ["#2B4562", "#FF3C38"],
@@ -32,15 +71,37 @@ const teamColorMap = {
 const DriverStatsPage = () => {
   const [teamStats, setTeamStats] = useState({});
 
+  // Memoize processed data to prevent recalculation
+  const processedData = useMemo(() => {
+    return {
+      races: processDriverChange(f1SeasonData.races)
+    };
+  }, []);
+
   useEffect(() => {
-    const parsed = parseDriverStats(f1SeasonData);
+    const parsed = parseDriverStats(processedData);
     const grouped = {};
+    
     parsed.forEach((driver) => {
       if (!grouped[driver.team]) grouped[driver.team] = [];
       grouped[driver.team].push(driver);
     });
+
+    // Handle teams with driver changes (like Alpine with Doohan -> Colapinto)
+    Object.keys(grouped).forEach(team => {
+      const drivers = grouped[team];
+      
+      // If more than 2 drivers (due to mid-season changes), keep only the most active ones
+      if (drivers.length > 2) {
+        // Sort by total points (most active/successful drivers first)
+        drivers.sort((a, b) => b.points - a.points);
+        // Keep top 2 drivers for comparison
+        grouped[team] = drivers.slice(0, 2);
+      }
+    });
+    
     setTeamStats(grouped);
-  }, []);
+  }, [processedData]);
 
   const isMobile = window.innerWidth < 768;
 

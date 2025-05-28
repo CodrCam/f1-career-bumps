@@ -47,10 +47,21 @@ const ConstructorBump2025Page = () => {
 
       races.forEach((round) => {
         const roundPoints = new Map();
+        
+        // Add race points
         round.race_results.forEach(({ team, points }) => {
           allConstructors.add(team);
           roundPoints.set(team, (roundPoints.get(team) || 0) + points);
         });
+        
+        // Add sprint points to round totals
+        if (round.sprint_results) {
+          round.sprint_results.forEach(({ team, points }) => {
+            allConstructors.add(team);
+            roundPoints.set(team, (roundPoints.get(team) || 0) + points);
+          });
+        }
+        
         pointsHistory.push(roundPoints);
       });
 
@@ -111,7 +122,7 @@ const ConstructorBump2025Page = () => {
       "Ferrari": "#DC0000",
       "Williams": "#005AFF",
       "Alpine": "#FF69B4",
-      "Aston Martin": "#00665E",
+      "Aston Martin": "#006F62",
       "Haas": "#B6BABD",
       "Racing Bulls": "#2B4562",
       "Kick Sauber": "#00F500",
@@ -119,11 +130,72 @@ const ConstructorBump2025Page = () => {
     return teamColors[team] || "#222";
   };
 
-  const options = createResponsiveChartOptions(
-    isMobile, 
-    "2025 Constructor Championship Standings",
-    "constructor"
-  );
+  // Create custom options with enhanced tooltips
+  const options = {
+    ...createResponsiveChartOptions(
+      isMobile, 
+      "2025 Constructor Championship Standings",
+      "constructor"
+    ),
+    // Override tooltip to show both position and points
+    plugins: {
+      ...createResponsiveChartOptions(isMobile, "", "constructor").plugins,
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          title: function(context) {
+            return context[0].label;
+          },
+          label: function (context) {
+            const team = context.dataset.label;
+            const position = context.raw;
+            const roundIndex = context.dataIndex;
+            const cumulativePoints = cumulativePointsMap.get(team)?.[roundIndex] ?? 0;
+            
+            return [
+              `${team}`,
+              `Position: P${position}`,
+              `Points: ${cumulativePoints}`
+            ];
+          },
+          afterBody: function(context) {
+            // Add gap information for context
+            const roundIndex = context[0].dataIndex;
+            const teams = [];
+            
+            // Get all teams and their points for this round
+            cumulativePointsMap.forEach((pointsArray, team) => {
+              const points = pointsArray[roundIndex] || 0;
+              teams.push({ team, points });
+            });
+            
+            // Sort by points descending
+            teams.sort((a, b) => b.points - a.points);
+            
+            // Find the hovered team's position and show gap to leader/next team
+            const hoveredTeam = context[0].dataset.label;
+            const hoveredTeamData = teams.find(t => t.team === hoveredTeam);
+            const hoveredPosition = teams.findIndex(t => t.team === hoveredTeam) + 1;
+            
+            if (hoveredPosition === 1) {
+              // Leader - show gap to second place
+              const gap = hoveredTeamData.points - (teams[1]?.points || 0);
+              return gap > 0 ? [`Gap to P2: +${gap} pts`] : [];
+            } else {
+              // Not leader - show gap to leader and previous position
+              const gapToLeader = teams[0].points - hoveredTeamData.points;
+              const gapToPrevious = teams[hoveredPosition - 2].points - hoveredTeamData.points;
+              
+              return [
+                `Gap to P1: -${gapToLeader} pts`,
+                gapToPrevious > 0 ? `Gap to P${hoveredPosition - 1}: -${gapToPrevious} pts` : ''
+              ].filter(Boolean);
+            }
+          }
+        },
+      },
+    },
+  };
 
   return (
     <ResponsiveChartContainer title="2025 Constructor Championship Bump Chart">

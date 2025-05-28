@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -24,6 +24,45 @@ ChartJS.register(
   Legend
 );
 
+// Driver change processing function - moved outside component
+const processDriverChange = (races) => {
+  return races.map(race => {
+    const processedRace = { ...race };
+    
+    // Process race results
+    if (processedRace.race_results) {
+      processedRace.race_results = processedRace.race_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process qualifying results
+    if (processedRace.qualifying_results) {
+      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    // Process sprint results
+    if (processedRace.sprint_results) {
+      processedRace.sprint_results = processedRace.sprint_results.map(result => {
+        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
+          return { ...result, driver: "Franco Colapinto" };
+        }
+        return result;
+      });
+    }
+    
+    return processedRace;
+  });
+};
+
 const DriverResults2025Page = () => {
   const [chartData, setChartData] = useState(null);
   const [selectedDrivers, setSelectedDrivers] = useState(["", ""]);
@@ -35,22 +74,28 @@ const DriverResults2025Page = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const allDrivers = Array.from(
-    new Set(
-      f1SeasonData.races.flatMap((race) =>
-        race.race_results.map((res) => res.driver)
+  // Memoize processed races - only recompute if raw data changes
+  const processedRaces = useMemo(() => {
+    return processDriverChange(f1SeasonData.races);
+  }, []);
+
+  // Memoize all drivers list
+  const allDrivers = useMemo(() => {
+    return Array.from(
+      new Set(
+        processedRaces.flatMap((race) =>
+          race.race_results.map((res) => res.driver)
+        )
       )
-    )
-  ).sort();
+    ).sort();
+  }, [processedRaces]);
 
   useEffect(() => {
     const buildChartData = () => {
       const standings = new Map();
       const raceRounds = [];
 
-      const races = f1SeasonData.races || [];
-
-      races.forEach((round) => {
+      processedRaces.forEach((round) => {
         const { round: raceRound, race_results } = round;
         raceRounds.push(`R${raceRound}`);
 
@@ -69,7 +114,7 @@ const DriverResults2025Page = () => {
       });
 
       const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
-        const team = races.find((r) =>
+        const team = processedRaces.find((r) =>
           r.race_results.some((res) => res.driver === driver)
         )?.race_results.find((res) => res.driver === driver)?.team;
 
@@ -95,10 +140,9 @@ const DriverResults2025Page = () => {
     };
 
     buildChartData();
-  }, [selectedDrivers, isMobile]);
+  }, [selectedDrivers, isMobile, processedRaces]);
 
   const getTeamColor = (team) => {
-    // Updated with consistent team colors
     const teamColors = {
       "McLaren": "#FF8700",
       "Red Bull Racing": "#1E41FF",
@@ -133,7 +177,7 @@ const DriverResults2025Page = () => {
             const driver = context.dataset.label;
             const position = context.raw;
             const raceIndex = context.dataIndex;
-            const round = f1SeasonData.races[raceIndex];
+            const round = processedRaces[raceIndex];
             const result = round?.race_results.find((r) => r.driver === driver);
 
             if (!result) return `${driver}: No data`;

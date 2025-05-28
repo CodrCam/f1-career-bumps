@@ -249,8 +249,12 @@ const SectorAnalysisPage = () => {
   };
 
   const uniqueDrivers = sessionData.drivers 
-    ? [...new Set(sessionData.laps?.map(lap => lap.driver_number) || [])].slice(0, 12)
-    : [];
+  ? [...new Set(sessionData.laps?.map(lap => lap.driver_number) || [])].sort((a, b) => {
+      const d1 = sessionData.drivers.find(d => d.driver_number == a)?.name_acronym || '';
+      const d2 = sessionData.drivers.find(d => d.driver_number == b)?.name_acronym || '';
+      return d1.localeCompare(d2);
+    })
+  : [];
 
   return (
     <div className="analysis-container">
