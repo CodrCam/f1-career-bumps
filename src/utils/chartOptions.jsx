@@ -1,5 +1,5 @@
-// src/utils/chartOptions.jsx - REPLACE ENTIRE FILE
 import React from "react";
+import { getTeamColor } from "./dataProcessing.js";
 
 export const createResponsiveChartOptions = (isMobile, title, chartType = 'line') => {
   const baseOptions = {
@@ -203,6 +203,14 @@ export const createMobileDriverSelector = (drivers, selectedDrivers, setSelected
             copy[i] = e.target.value;
             setSelectedDrivers(copy);
           }}
+          style={{
+            padding: "0.75rem",
+            fontSize: "1rem",
+            borderRadius: "6px",
+            border: "1px solid #555",
+            backgroundColor: "#333",
+            color: "#fff"
+          }}
         >
           <option value="">Select Driver {i + 1}</option>
           {drivers.map((d) => (
@@ -212,7 +220,20 @@ export const createMobileDriverSelector = (drivers, selectedDrivers, setSelected
           ))}
         </select>
       ))}
-      <button onClick={() => setSelectedDrivers(["", ""])}>Reset</button>
+      <button 
+        onClick={() => setSelectedDrivers(["", ""])}
+        style={{
+          padding: "0.75rem",
+          fontSize: "1rem",
+          borderRadius: "6px",
+          border: "none",
+          backgroundColor: "#666",
+          color: "#fff",
+          cursor: "pointer"
+        }}
+      >
+        Reset
+      </button>
     </div>
   );
 };

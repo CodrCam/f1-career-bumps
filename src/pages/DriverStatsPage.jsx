@@ -12,49 +12,11 @@ import { Bar } from "react-chartjs-2";
 import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
 import f1SeasonData from "../data/f1_2025_season.json";
 import { parseDriverStats } from "../utils/parseDriverStats";
+import { useProcessedRaceData, TEAM_COLORS } from "../utils/dataProcessing.js";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// Driver change processing function - moved outside component
-const processDriverChange = (races) => {
-  return races.map(race => {
-    const processedRace = { ...race };
-    
-    // Process race results
-    if (processedRace.race_results) {
-      processedRace.race_results = processedRace.race_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    // Process qualifying results
-    if (processedRace.qualifying_results) {
-      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    // Process sprint results
-    if (processedRace.sprint_results) {
-      processedRace.sprint_results = processedRace.sprint_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    return processedRace;
-  });
-};
-
-// Updated with consistent team colors for 2025
+// Updated team color mapping using shared colors
 const teamColorMap = {
   McLaren: ["#FF8700", "#0057B8"],
   Mercedes: ["#00D2BE", "#C0C0C0"],
@@ -71,14 +33,17 @@ const teamColorMap = {
 const DriverStatsPage = () => {
   const [teamStats, setTeamStats] = useState({});
 
+  // Use shared processing utility
+  const processedRaces = useProcessedRaceData(f1SeasonData.races);
+  
   // Memoize processed data to prevent recalculation
   const processedData = useMemo(() => {
-    return {
-      races: processDriverChange(f1SeasonData.races)
-    };
-  }, []);
+    return { races: processedRaces };
+  }, [processedRaces]);
 
   useEffect(() => {
+    if (processedData.races.length === 0) return;
+
     const parsed = parseDriverStats(processedData);
     const grouped = {};
     

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Bar } from 'react-chartjs-2';
+import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
+
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement);
 
 const PitStrategyPage = () => {
@@ -11,6 +13,7 @@ const PitStrategyPage = () => {
   const [error, setError] = useState('');
   const [pitStats, setPitStats] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const apiBase = 'https://api.openf1.org/v1';
 
@@ -36,19 +39,31 @@ const PitStrategyPage = () => {
 
   const loadSessions = async () => {
     try {
-      setLoading(true);
+      setInitialLoading(true);
+      setError('');
+      
       const response = await fetch(`${apiBase}/sessions?year=2025`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       const raceSessions = data.filter(s => 
         s.session_name === 'Race' || s.session_name === 'Sprint'
       ).slice(-15);
       
+      if (raceSessions.length === 0) {
+        throw new Error('No race sessions found for 2025');
+      }
+      
       setSessions(raceSessions);
-      setLoading(false);
     } catch (err) {
-      setError('Failed to load sessions: ' + err.message);
-      setLoading(false);
+      console.error('Failed to load sessions:', err);
+      setError(`Failed to load sessions: ${err.message}`);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -59,6 +74,8 @@ const PitStrategyPage = () => {
     }
 
     setLoading(true);
+    setError('');
+    
     try {
       const [pitResponse, driversResponse, lapsResponse] = await Promise.all([
         fetch(`${apiBase}/pit?session_key=${selectedSession}`),
@@ -66,55 +83,89 @@ const PitStrategyPage = () => {
         fetch(`${apiBase}/laps?session_key=${selectedSession}`)
       ]);
 
+      if (!pitResponse.ok) {
+        throw new Error(`Failed to fetch pit data: HTTP ${pitResponse.status}`);
+      }
+      
+      if (!driversResponse.ok) {
+        throw new Error(`Failed to fetch driver data: HTTP ${driversResponse.status}`);
+      }
+      
+      if (!lapsResponse.ok) {
+        throw new Error(`Failed to fetch lap data: HTTP ${lapsResponse.status}`);
+      }
+
       const pits = await pitResponse.json();
       const drivers = await driversResponse.json();
       const laps = await lapsResponse.json();
 
+      // Validate data format
+      if (!Array.isArray(pits) || !Array.isArray(drivers) || !Array.isArray(laps)) {
+        throw new Error('Invalid data format received from API');
+      }
+
+      if (drivers.length === 0) {
+        setError('No driver data available for this session');
+        return;
+      }
+
       setSessionData({ pits, drivers, laps });
       calculatePitStats(pits, drivers);
-      setLoading(false);
     } catch (err) {
-      setError('Failed to load session data: ' + err.message);
+      console.error('Failed to load session data:', err);
+      setError(`Failed to load session data: ${err.message}`);
+    } finally {
       setLoading(false);
     }
   };
 
   const calculatePitStats = (pits, drivers) => {
-    const stats = {
-      totalPitStops: pits.length,
-      averagePitTime: 0,
-      fastestPitStop: null,
-      slowestPitStop: null,
-      pitsByDriver: {}
-    };
+    try {
+      const stats = {
+        totalPitStops: pits.length,
+        averagePitTime: 0,
+        fastestPitStop: null,
+        slowestPitStop: null,
+        pitsByDriver: {}
+      };
 
-    if (pits.length === 0) {
-      setPitStats(stats);
-      return;
-    }
-
-    const validPits = pits.filter(pit => pit.pit_duration && pit.pit_duration > 0);
-    
-    if (validPits.length > 0) {
-      stats.averagePitTime = validPits.reduce((sum, pit) => sum + pit.pit_duration, 0) / validPits.length;
-      stats.fastestPitStop = validPits.reduce((fastest, pit) => 
-        (!fastest || pit.pit_duration < fastest.pit_duration) ? pit : fastest
-      );
-      stats.slowestPitStop = validPits.reduce((slowest, pit) => 
-        (!slowest || pit.pit_duration > slowest.pit_duration) ? pit : slowest
-      );
-    }
-
-    // Group by driver
-    pits.forEach(pit => {
-      const driverNum = pit.driver_number;
-      if (!stats.pitsByDriver[driverNum]) {
-        stats.pitsByDriver[driverNum] = [];
+      if (pits.length === 0) {
+        setPitStats(stats);
+        return;
       }
-      stats.pitsByDriver[driverNum].push(pit);
-    });
 
-    setPitStats(stats);
+      const validPits = pits.filter(pit => pit.pit_duration && pit.pit_duration > 0);
+      
+      if (validPits.length > 0) {
+        stats.averagePitTime = validPits.reduce((sum, pit) => sum + pit.pit_duration, 0) / validPits.length;
+        stats.fastestPitStop = validPits.reduce((fastest, pit) => 
+          (!fastest || pit.pit_duration < fastest.pit_duration) ? pit : fastest
+        );
+        stats.slowestPitStop = validPits.reduce((slowest, pit) => 
+          (!slowest || pit.pit_duration > slowest.pit_duration) ? pit : slowest
+        );
+      }
+
+      // Group by driver
+      pits.forEach(pit => {
+        const driverNum = pit.driver_number;
+        if (!stats.pitsByDriver[driverNum]) {
+          stats.pitsByDriver[driverNum] = [];
+        }
+        stats.pitsByDriver[driverNum].push(pit);
+      });
+
+      setPitStats(stats);
+    } catch (err) {
+      console.error('Error calculating pit stats:', err);
+      setPitStats({
+        totalPitStops: 0,
+        averagePitTime: 0,
+        fastestPitStop: null,
+        slowestPitStop: null,
+        pitsByDriver: {}
+      });
+    }
   };
 
   const formatTime = (seconds) => {
@@ -125,73 +176,89 @@ const PitStrategyPage = () => {
   const createScatterData = () => {
     if (!sessionData.pits || !sessionData.drivers) return null;
 
-    const datasets = [];
-    const driverPits = {};
+    try {
+      const datasets = [];
+      const driverPits = {};
 
-    // Group pit stops by driver
-    sessionData.pits.forEach(pit => {
-      if (!driverPits[pit.driver_number]) {
-        driverPits[pit.driver_number] = [];
-      }
-      driverPits[pit.driver_number].push(pit);
-    });
-
-    Object.keys(driverPits).forEach((driverNum, index) => {
-      const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-      const driverName = driver?.name_acronym || `#${driverNum}`;
-      
-      datasets.push({
-        label: driverName,
-        data: driverPits[driverNum]
-          .filter(pit => pit.lap_number && pit.pit_duration)
-          .map(pit => ({
-            x: pit.lap_number,
-            y: pit.pit_duration
-          })),
-        backgroundColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
-        borderColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
-        pointRadius: 8,
-        pointHoverRadius: 10
+      // Group pit stops by driver
+      sessionData.pits.forEach(pit => {
+        if (!driverPits[pit.driver_number]) {
+          driverPits[pit.driver_number] = [];
+        }
+        driverPits[pit.driver_number].push(pit);
       });
-    });
 
-    return { datasets };
+      Object.keys(driverPits).forEach((driverNum, index) => {
+        const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+        const driverName = driver?.name_acronym || `#${driverNum}`;
+        
+        datasets.push({
+          label: driverName,
+          data: driverPits[driverNum]
+            .filter(pit => pit.lap_number && pit.pit_duration)
+            .map(pit => ({
+              x: pit.lap_number,
+              y: pit.pit_duration
+            })),
+          backgroundColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
+          borderColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
+          pointRadius: 8,
+          pointHoverRadius: 10
+        });
+      });
+
+      return { datasets };
+    } catch (err) {
+      console.error('Error creating scatter data:', err);
+      return null;
+    }
   };
 
   const createPitDurationChart = () => {
-    if (!sessionData.pits || !sessionData.drivers) return null;
+    if (!sessionData.pits || !sessionData.drivers || Object.keys(pitStats.pitsByDriver || {}).length === 0) {
+      return null;
+    }
 
-    const driverAvgTimes = {};
-    Object.keys(pitStats.pitsByDriver).forEach(driverNum => {
-      const pits = pitStats.pitsByDriver[driverNum].filter(p => p.pit_duration && p.pit_duration > 0);
-      if (pits.length > 0) {
-        driverAvgTimes[driverNum] = pits.reduce((sum, pit) => sum + pit.pit_duration, 0) / pits.length;
+    try {
+      const driverAvgTimes = {};
+      Object.keys(pitStats.pitsByDriver).forEach(driverNum => {
+        const pits = pitStats.pitsByDriver[driverNum].filter(p => p.pit_duration && p.pit_duration > 0);
+        if (pits.length > 0) {
+          driverAvgTimes[driverNum] = pits.reduce((sum, pit) => sum + pit.pit_duration, 0) / pits.length;
+        }
+      });
+
+      const sortedDrivers = Object.keys(driverAvgTimes)
+        .sort((a, b) => driverAvgTimes[a] - driverAvgTimes[b])
+        .slice(0, 10);
+
+      if (sortedDrivers.length === 0) {
+        return null;
       }
-    });
 
-    const sortedDrivers = Object.keys(driverAvgTimes)
-      .sort((a, b) => driverAvgTimes[a] - driverAvgTimes[b])
-      .slice(0, 10);
-
-    return {
-      labels: sortedDrivers.map(driverNum => {
-        const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-        return driver?.name_acronym || `#${driverNum}`;
-      }),
-      datasets: [{
-        label: 'Average Pit Stop Duration',
-        data: sortedDrivers.map(driverNum => driverAvgTimes[driverNum]),
-        backgroundColor: sortedDrivers.map((driverNum, index) => {
+      return {
+        labels: sortedDrivers.map(driverNum => {
           const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-          return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+          return driver?.name_acronym || `#${driverNum}`;
         }),
-        borderColor: sortedDrivers.map((driverNum, index) => {
-          const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-          return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
-        }),
-        borderWidth: 2
-      }]
-    };
+        datasets: [{
+          label: 'Average Pit Stop Duration',
+          data: sortedDrivers.map(driverNum => driverAvgTimes[driverNum]),
+          backgroundColor: sortedDrivers.map((driverNum, index) => {
+            const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+            return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+          }),
+          borderColor: sortedDrivers.map((driverNum, index) => {
+            const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+            return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+          }),
+          borderWidth: 2
+        }]
+      };
+    } catch (err) {
+      console.error('Error creating pit duration chart:', err);
+      return null;
+    }
   };
 
   const chartOptions = {
@@ -283,6 +350,21 @@ const PitStrategyPage = () => {
     }
   };
 
+  // Show initial loading screen
+  if (initialLoading) {
+    return (
+      <div className="analysis-container">
+        <div className="analysis-header">
+          <h1 className="analysis-title">⛽ Pit Stop Strategy Analysis</h1>
+        </div>
+        <DataLoader 
+          message="Loading F1 Sessions..." 
+          submessage="Fetching race and sprint sessions from OpenF1 API"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="analysis-container">
       <div className="analysis-header">
@@ -319,10 +401,13 @@ const PitStrategyPage = () => {
         </div>
       </div>
 
+      {/* Error Display */}
       {error && (
-        <div className="error-message">
-          {error}
-        </div>
+        <ErrorMessage
+          title="Data Loading Error"
+          message={error}
+          onRetry={selectedSession ? loadSessionData : loadSessions}
+        />
       )}
 
       {/* Statistics Cards */}
@@ -365,22 +450,35 @@ const PitStrategyPage = () => {
         </div>
       )}
 
-      {/* Charts */}
-      {sessionData.pits && sessionData.drivers && (
+      {/* Charts or Loading */}
+      {loading ? (
+        <div>
+          <ChartLoadingSkeleton isMobile={isMobile} />
+          <ChartLoadingSkeleton isMobile={isMobile} />
+        </div>
+      ) : sessionData.pits && sessionData.drivers ? (
         <div className="charts-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(500px, 1fr))' }}>
           {/* Pit Stop Timeline */}
-          <div className="chart-container fade-in">
-            <div className="chart-wrapper">
-              <Scatter data={createScatterData()} options={scatterOptions} />
+          {createScatterData() && (
+            <div className="chart-container fade-in">
+              <div className="chart-wrapper">
+                <Scatter data={createScatterData()} options={scatterOptions} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Average Duration Comparison */}
-          <div className="chart-container fade-in">
-            <div className="chart-wrapper">
-              <Bar data={createPitDurationChart()} options={barOptions} />
+          {createPitDurationChart() && (
+            <div className="chart-container fade-in">
+              <div className="chart-wrapper">
+                <Bar data={createPitDurationChart()} options={barOptions} />
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+      ) : !error && selectedSession && (
+        <div className="no-data">
+          Select a session to analyze pit stop strategy
         </div>
       )}
 
@@ -415,14 +513,8 @@ const PitStrategyPage = () => {
         </div>
       )}
 
-      {loading && (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">Loading pit stop data...</div>
-        </div>
-      )}
-
-      {sessionData.pits && sessionData.pits.length === 0 && !loading && (
+      {/* No data message */}
+      {sessionData.pits && sessionData.pits.length === 0 && !loading && !error && (
         <div className="no-data">
           No pit stop data available for this session
         </div>

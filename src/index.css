@@ -148,3 +148,103 @@ body {
 .icon.pink { color: #ec4899; }
 .icon.yellow { color: #f59e0b; }
 
+/* ===== NEW LOADING & ERROR HANDLING STYLES ===== */
+
+/* Loading animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Fade in animation for content */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Loading state improvements */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 2rem;
+}
+
+.error-container {
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Skeleton loading styles */
+.skeleton {
+  background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Enhanced loading states for better UX */
+.chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.table-loading {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+/* Error state styling */
+.error-state {
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.warning-state {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+/* Responsive loading states */
+@media (max-width: 768px) {
+  .loading-container {
+    min-height: 150px;
+    padding: 1rem;
+  }
+  
+  .chart-loading {
+    min-height: 250px;
+  }
+}
