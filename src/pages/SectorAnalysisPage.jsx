@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import '../components/Analysis.css';
+import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
+import { SessionSelector, DriverToggleButtons } from '../components/UIControls.jsx';
+import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement);
 
-const SectorAnalysisPage = () => {
+// Custom hook for sector analysis data
+const useSectorAnalysis = () => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [sessionData, setSessionData] = useState({});
@@ -13,64 +17,21 @@ const SectorAnalysisPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bestSectorTimes, setBestSectorTimes] = useState({ s1: 0, s2: 0, s3: 0 });
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const apiBase = 'https://api.openf1.org/v1';
 
-  // Updated with accurate 2025 driver/team colors
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC0000', 
-    'LEC': '#DC0000',
-    
-    // Red Bull
-    'VER': '#1E41FF', 
-    'PER': '#1E41FF',
-    
-    // McLaren
-    'NOR': '#FF8700', 
-    'PIA': '#FF8700',
-    
-    // Mercedes
-    'RUS': '#00D2BE', 
-    'ANT': '#00D2BE',
-    
-    // Aston Martin
-    'ALO': '#006F62', 
-    'STR': '#006F62',
-    
-    // Alpine
-    'GAS': '#0090FF', 
-    'COL': '#0090FF',
-    
-    // Williams
-    'ALB': '#005AFF', 
-    'LAW': '#005AFF',
-    
-    // Haas
-    'OCO': '#B6BABD', 
-    'BEA': '#B6BABD',
-    
-    // Racing Bulls
-    'TSU': '#2B4562', 
-    'HAD': '#2B4562',
-    
-    // Kick Sauber
-    'BOT': '#00F500',
-    'BOR': '#00F500'
-  };
-
-  useEffect(() => {
-    loadSessions();
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const loadSessions = async () => {
     try {
-      setLoading(true);
+      setInitialLoading(true);
+      setError('');
+      
       const response = await fetch(`${apiBase}/sessions?year=2025`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       const raceSessions = data.filter(s => 
@@ -79,11 +40,16 @@ const SectorAnalysisPage = () => {
         s.session_name === 'Sprint'
       ).slice(-20);
       
+      if (raceSessions.length === 0) {
+        throw new Error('No race sessions found for 2025');
+      }
+      
       setSessions(raceSessions);
-      setLoading(false);
     } catch (err) {
-      setError('Failed to load sessions: ' + err.message);
-      setLoading(false);
+      console.error('Failed to load sessions:', err);
+      setError(`Failed to load sessions: ${err.message}`);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -94,39 +60,186 @@ const SectorAnalysisPage = () => {
     }
 
     setLoading(true);
+    setError('');
+    
     try {
       const [lapsResponse, driversResponse] = await Promise.all([
         fetch(`${apiBase}/laps?session_key=${selectedSession}`),
         fetch(`${apiBase}/drivers?session_key=${selectedSession}`)
       ]);
 
+      if (!lapsResponse.ok) {
+        throw new Error(`Failed to fetch lap data: HTTP ${lapsResponse.status}`);
+      }
+      
+      if (!driversResponse.ok) {
+        throw new Error(`Failed to fetch driver data: HTTP ${driversResponse.status}`);
+      }
+
       const laps = await lapsResponse.json();
       const drivers = await driversResponse.json();
 
+      if (!Array.isArray(laps) || !Array.isArray(drivers)) {
+        throw new Error('Invalid data format received from API');
+      }
+
+      if (laps.length === 0) {
+        setError('No lap data available for this session');
+        return;
+      }
+
+      if (drivers.length === 0) {
+        setError('No driver data available for this session');
+        return;
+      }
+
       setSessionData({ laps, drivers });
       calculateBestSectorTimes(laps);
-      setLoading(false);
     } catch (err) {
-      setError('Failed to load session data: ' + err.message);
+      console.error('Failed to load session data:', err);
+      setError(`Failed to load session data: ${err.message}`);
+    } finally {
       setLoading(false);
     }
   };
 
   const calculateBestSectorTimes = (laps) => {
-    const lapsWithSectors = laps.filter(lap => 
-      lap.duration_sector_1 && lap.duration_sector_2 && lap.duration_sector_3
-    );
+    try {
+      const lapsWithSectors = laps.filter(lap => 
+        lap.duration_sector_1 && lap.duration_sector_2 && lap.duration_sector_3
+      );
 
-    if (lapsWithSectors.length === 0) {
+      if (lapsWithSectors.length === 0) {
+        setBestSectorTimes({ s1: 0, s2: 0, s3: 0 });
+        return;
+      }
+
+      const bestS1 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_1));
+      const bestS2 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_2));
+      const bestS3 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_3));
+
+      setBestSectorTimes({ s1: bestS1, s2: bestS2, s3: bestS3 });
+    } catch (err) {
+      console.error('Error calculating sector times:', err);
       setBestSectorTimes({ s1: 0, s2: 0, s3: 0 });
-      return;
     }
+  };
 
-    const bestS1 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_1));
-    const bestS2 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_2));
-    const bestS3 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_3));
+  return {
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    sessionData,
+    selectedDrivers,
+    setSelectedDrivers,
+    loading,
+    error,
+    bestSectorTimes,
+    initialLoading,
+    loadSessions,
+    loadSessionData
+  };
+};
 
-    setBestSectorTimes({ s1: bestS1, s2: bestS2, s3: bestS3 });
+// Component for creating sector chart data
+const useSectorChartData = (sessionData, selectedDrivers) => {
+  return React.useMemo(() => {
+    if (!sessionData.laps || !sessionData.drivers) return null;
+
+    try {
+      const driverSectorData = {};
+      sessionData.laps.forEach(lap => {
+        if (!driverSectorData[lap.driver_number]) {
+          driverSectorData[lap.driver_number] = { s1: [], s2: [], s3: [] };
+        }
+        if (lap.duration_sector_1) driverSectorData[lap.driver_number].s1.push(lap.duration_sector_1);
+        if (lap.duration_sector_2) driverSectorData[lap.driver_number].s2.push(lap.duration_sector_2);
+        if (lap.duration_sector_3) driverSectorData[lap.driver_number].s3.push(lap.duration_sector_3);
+      });
+
+      const driversToShow = selectedDrivers.size > 0 
+        ? Array.from(selectedDrivers) 
+        : Object.keys(driverSectorData).slice(0, 8);
+
+      const labels = driversToShow.map(d => {
+        const driver = sessionData.drivers.find(dr => dr.driver_number == d);
+        return driver?.name_acronym || `#${d}`;
+      });
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'Sector 1 (Best)',
+            data: driversToShow.map(d => {
+              const times = driverSectorData[d]?.s1 || [];
+              return times.length ? Math.min(...times) : 0;
+            }),
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderColor: 'rgba(239, 68, 68, 1)',
+            borderWidth: 2
+          },
+          {
+            label: 'Sector 2 (Best)',
+            data: driversToShow.map(d => {
+              const times = driverSectorData[d]?.s2 || [];
+              return times.length ? Math.min(...times) : 0;
+            }),
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            borderColor: 'rgba(245, 158, 11, 1)',
+            borderWidth: 2
+          },
+          {
+            label: 'Sector 3 (Best)',
+            data: driversToShow.map(d => {
+              const times = driverSectorData[d]?.s3 || [];
+              return times.length ? Math.min(...times) : 0;
+            }),
+            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+            borderColor: 'rgba(34, 197, 94, 1)',
+            borderWidth: 2
+          }
+        ]
+      };
+    } catch (err) {
+      console.error('Error creating chart data:', err);
+      return null;
+    }
+  }, [sessionData, selectedDrivers]);
+};
+
+const SectorAnalysisPage = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  const {
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    sessionData,
+    selectedDrivers,
+    setSelectedDrivers,
+    loading,
+    error,
+    bestSectorTimes,
+    initialLoading,
+    loadSessions,
+    loadSessionData
+  } = useSectorAnalysis();
+
+  const chartData = useSectorChartData(sessionData, selectedDrivers);
+
+  useEffect(() => {
+    loadSessions();
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const formatTime = (seconds) => {
+    if (!seconds || seconds === 0) return '--:--';
+    const mins = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(3);
+    return mins > 0 ? `${mins}:${secs.padStart(6, '0')}` : `${secs}s`;
   };
 
   const toggleDriver = (driverNum) => {
@@ -139,71 +252,19 @@ const SectorAnalysisPage = () => {
     setSelectedDrivers(newSelected);
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds || seconds === 0) return '--:--';
-    const mins = Math.floor(seconds / 60);
-    const secs = (seconds % 60).toFixed(3);
-    return mins > 0 ? `${mins}:${secs.padStart(6, '0')}` : `${secs}s`;
-  };
+  const uniqueDrivers = sessionData.drivers 
+    ? [...new Set(sessionData.laps?.map(lap => lap.driver_number) || [])].sort((a, b) => {
+        const d1 = sessionData.drivers.find(d => d.driver_number == a)?.name_acronym || '';
+        const d2 = sessionData.drivers.find(d => d.driver_number == b)?.name_acronym || '';
+        return d1.localeCompare(d2);
+      })
+    : [];
 
-  const createChartData = () => {
-    if (!sessionData.laps || !sessionData.drivers) return null;
-
-    const driverSectorData = {};
-    sessionData.laps.forEach(lap => {
-      if (!driverSectorData[lap.driver_number]) {
-        driverSectorData[lap.driver_number] = { s1: [], s2: [], s3: [] };
-      }
-      if (lap.duration_sector_1) driverSectorData[lap.driver_number].s1.push(lap.duration_sector_1);
-      if (lap.duration_sector_2) driverSectorData[lap.driver_number].s2.push(lap.duration_sector_2);
-      if (lap.duration_sector_3) driverSectorData[lap.driver_number].s3.push(lap.duration_sector_3);
-    });
-
-    const driversToShow = selectedDrivers.size > 0 
-      ? Array.from(selectedDrivers) 
-      : Object.keys(driverSectorData).slice(0, 8);
-
-    const labels = driversToShow.map(d => {
-      const driver = sessionData.drivers.find(dr => dr.driver_number == d);
-      return driver?.name_acronym || `#${d}`;
-    });
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Sector 1 (Best)',
-          data: driversToShow.map(d => {
-            const times = driverSectorData[d]?.s1 || [];
-            return times.length ? Math.min(...times) : 0;
-          }),
-          backgroundColor: 'rgba(239, 68, 68, 0.7)',
-          borderColor: 'rgba(239, 68, 68, 1)',
-          borderWidth: 2
-        },
-        {
-          label: 'Sector 2 (Best)',
-          data: driversToShow.map(d => {
-            const times = driverSectorData[d]?.s2 || [];
-            return times.length ? Math.min(...times) : 0;
-          }),
-          backgroundColor: 'rgba(245, 158, 11, 0.7)',
-          borderColor: 'rgba(245, 158, 11, 1)',
-          borderWidth: 2
-        },
-        {
-          label: 'Sector 3 (Best)',
-          data: driversToShow.map(d => {
-            const times = driverSectorData[d]?.s3 || [];
-            return times.length ? Math.min(...times) : 0;
-          }),
-          backgroundColor: 'rgba(34, 197, 94, 0.7)',
-          borderColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 2
-        }
-      ]
-    };
-  };
+  const driverColors = uniqueDrivers.reduce((acc, driverNum) => {
+    const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
+    acc[driverNum] = driver?.name_acronym || `#${driverNum}`;
+    return acc;
+  }, {});
 
   const chartOptions = {
     responsive: true,
@@ -248,131 +309,114 @@ const SectorAnalysisPage = () => {
     }
   };
 
-  const uniqueDrivers = sessionData.drivers 
-  ? [...new Set(sessionData.laps?.map(lap => lap.driver_number) || [])].sort((a, b) => {
-      const d1 = sessionData.drivers.find(d => d.driver_number == a)?.name_acronym || '';
-      const d2 = sessionData.drivers.find(d => d.driver_number == b)?.name_acronym || '';
-      return d1.localeCompare(d2);
-    })
-  : [];
+  // Show initial loading screen
+  if (initialLoading) {
+    return (
+      <F1PageLayout 
+        title="🏁 Sector Time Analysis"
+        showHeader={true}
+      >
+        <DataLoader 
+          message="Loading F1 Sessions..." 
+          submessage="Fetching 2025 race sessions from OpenF1 API"
+        />
+      </F1PageLayout>
+    );
+  }
+
+  const statsData = bestSectorTimes.s1 > 0 ? [
+    {
+      label: 'Sector 1',
+      value: formatTime(bestSectorTimes.s1),
+      sublabel: 'Best Time',
+      color: 'red'
+    },
+    {
+      label: 'Sector 2', 
+      value: formatTime(bestSectorTimes.s2),
+      sublabel: 'Best Time',
+      color: 'yellow'
+    },
+    {
+      label: 'Sector 3',
+      value: formatTime(bestSectorTimes.s3), 
+      sublabel: 'Best Time',
+      color: 'green'
+    }
+  ] : [];
 
   return (
-    <div className="analysis-container">
-      <div className="analysis-header">
-        <h1 className="analysis-title">🏁 Sector Time Analysis</h1>
-        <p className="analysis-subtitle">
-          Analyze sector performance across qualifying and race sessions
-        </p>
-      </div>
+    <F1PageLayout 
+      title="🏁 Sector Time Analysis"
+      subtitle="Analyze sector performance across qualifying and race sessions"
+      className="sector-analysis-page"
+    >
+      {/* Session Controls */}
+      <SessionSelector
+        sessions={sessions}
+        selectedSession={selectedSession}
+        onSessionChange={setSelectedSession}
+        onLoadData={loadSessionData}
+        loading={loading}
+        label="Select Session"
+        buttonText="Load Data"
+      />
 
-      {/* Controls */}
-      <div className="analysis-controls">
-        <div className="controls-grid">
-          <div className="controls-row">
-            <select 
-              value={selectedSession} 
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="analysis-select"
-            >
-              <option value="">Select Session</option>
-              {sessions.map(session => (
-                <option key={session.session_key} value={session.session_key}>
-                  {session.location} - {session.session_name} ({session.date_start?.split('T')[0] || 'TBD'})
-                </option>
-              ))}
-            </select>
-            <button 
-              onClick={loadSessionData}
-              disabled={loading || !selectedSession}
-              className="analysis-button"
-            >
-              {loading ? 'Loading...' : 'Load Data'}
-            </button>
-          </div>
-        </div>
-      </div>
-
+      {/* Error Display */}
       {error && (
-        <div className="error-message">
-          {error}
-        </div>
+        <ErrorMessage
+          title="Data Loading Error"
+          message={error}
+          onRetry={selectedSession ? loadSessionData : loadSessions}
+        />
       )}
 
       {/* Driver Selection */}
       {uniqueDrivers.length > 0 && (
-        <div className="driver-selection">
-          <h3>Select Drivers to Compare (max 6):</h3>
-          <div className="driver-buttons">
-            {uniqueDrivers.map(driverNum => {
-              const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
-              const isSelected = selectedDrivers.has(driverNum);
-              return (
-                <button
-                  key={driverNum}
-                  onClick={() => toggleDriver(driverNum)}
-                  className={`driver-button ${isSelected ? 'active' : ''} ${selectedDrivers.size >= 6 && !isSelected ? 'disabled' : ''}`}
-                  style={isSelected ? {
-                    backgroundColor: driverColors[driver?.name_acronym] || '#6366f1',
-                    borderColor: driverColors[driver?.name_acronym] || '#6366f1'
-                  } : {}}
-                  disabled={selectedDrivers.size >= 6 && !isSelected}
-                >
-                  {driver?.name_acronym || `#${driverNum}`}
-                </button>
-              );
-            })}
-          </div>
-          {selectedDrivers.size === 0 && (
-            <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-              No drivers selected - showing top 8 drivers
-            </p>
-          )}
-        </div>
+        <DriverToggleButtons
+          drivers={uniqueDrivers.map(driverNum => {
+            const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
+            return driver?.name_acronym || `#${driverNum}`;
+          })}
+          selectedDrivers={new Set([...selectedDrivers].map(driverNum => {
+            const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
+            return driver?.name_acronym || `#${driverNum}`;
+          }))}
+          onToggleDriver={(driverName) => {
+            const driverNum = uniqueDrivers.find(num => {
+              const driver = sessionData.drivers?.find(d => d.driver_number == num);
+              return (driver?.name_acronym || `#${num}`) === driverName;
+            });
+            if (driverNum) toggleDriver(driverNum);
+          }}
+          maxDrivers={6}
+          driverColors={driverColors}
+          title="Select Drivers to Compare"
+        />
       )}
 
-      {/* Best Sector Times Display */}
-      {bestSectorTimes.s1 > 0 && (
-        <div className="stats-grid">
-          <div className="stat-card red">
-            <h3>Sector 1</h3>
-            <div className="stat-value">{formatTime(bestSectorTimes.s1)}</div>
-            <div className="stat-label">Best Time</div>
-          </div>
-          <div className="stat-card yellow">
-            <h3>Sector 2</h3>
-            <div className="stat-value">{formatTime(bestSectorTimes.s2)}</div>
-            <div className="stat-label">Best Time</div>
-          </div>
-          <div className="stat-card green">
-            <h3>Sector 3</h3>
-            <div className="stat-value">{formatTime(bestSectorTimes.s3)}</div>
-            <div className="stat-label">Best Time</div>
-          </div>
-        </div>
+      {/* Statistics Cards */}
+      {statsData.length > 0 && (
+        <StatsGrid stats={statsData} className="sector-stats" />
       )}
 
-      {/* Chart */}
-      {sessionData.laps && sessionData.drivers && (
-        <div className="chart-container fade-in">
-          <div className="chart-wrapper">
-            <Bar data={createChartData()} options={chartOptions} />
-          </div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">Loading F1 sector data...</div>
-        </div>
-      )}
-
-      {!loading && !sessionData.laps && (
+      {/* Chart or Loading */}
+      {loading ? (
+        <ChartLoadingSkeleton isMobile={isMobile} />
+      ) : chartData ? (
+        <ResponsiveChart 
+          type="bar" 
+          data={chartData} 
+          options={chartOptions}
+          className="sector-chart fade-in"
+          style={{ height: isMobile ? '400px' : '600px' }}
+        />
+      ) : !error && selectedSession && (
         <div className="no-data">
           Select a session to view sector analysis
         </div>
       )}
-    </div>
+    </F1PageLayout>
   );
 };
 

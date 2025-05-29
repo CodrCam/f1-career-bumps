@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   LineElement,
@@ -11,8 +10,10 @@ import {
   Legend,
 } from "chart.js";
 import f1SeasonData from "../data/f1_2025_season.json";
-import ResponsiveChartContainer from "../components/ResponsiveChartContainer";
-import { createResponsiveChartOptions, createMobileDriverSelector } from "../utils/chartOptions.jsx";
+import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
+import { useProcessedRaceData, getAllDrivers, getTeamColor } from "../utils/dataProcessing.js";
+import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
+import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
 ChartJS.register(
   LineElement,
@@ -24,48 +25,67 @@ ChartJS.register(
   Legend
 );
 
-// Driver change processing function - moved outside component
-const processDriverChange = (races) => {
-  return races.map(race => {
-    const processedRace = { ...race };
-    
-    // Process race results
-    if (processedRace.race_results) {
-      processedRace.race_results = processedRace.race_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
+// Custom hook for race results data with proper driver handling
+const useRaceResultsData = (rawRaces, selectedDrivers = [], isMobile = false) => {
+  const processedRaces = useProcessedRaceData(rawRaces);
+  
+  return useMemo(() => {
+    if (!processedRaces || processedRaces.length === 0) return null;
+
+    const standings = new Map();
+    const raceLabels = [];
+
+    processedRaces.forEach((round) => {
+      const { race_results, circuit } = round;
+      // Use circuit name like WDC page, not round number
+      const circuitLabel = circuit?.split(" ")[0] || `R${round.round}`;
+      raceLabels.push(circuitLabel);
+
+      race_results.forEach(({ driver, position }) => {
+        if (!standings.has(driver)) {
+          standings.set(driver, []);
         }
-        return result;
+        standings.get(driver).push(position);
       });
-    }
-    
-    // Process qualifying results
-    if (processedRace.qualifying_results) {
-      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
+
+      // Fill missing positions with null for drivers who didn't participate
+      for (const [driver, posArr] of standings.entries()) {
+        if (posArr.length < raceLabels.length) {
+          posArr.push(null);
         }
-        return result;
-      });
-    }
-    
-    // Process sprint results
-    if (processedRace.sprint_results) {
-      processedRace.sprint_results = processedRace.sprint_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
+      }
+    });
+
+    const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
+      // Find team from the most recent race where driver participated
+      let team = null;
+      for (let i = processedRaces.length - 1; i >= 0; i--) {
+        const result = processedRaces[i].race_results.find((res) => res.driver === driver);
+        if (result) {
+          team = result.team;
+          break;
         }
-        return result;
-      });
-    }
-    
-    return processedRace;
-  });
+      }
+
+      const isSelected = selectedDrivers.length === 0 || selectedDrivers.includes(driver);
+
+      return {
+        label: driver,
+        data: positions,
+        borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
+        borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
+        pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
+        pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
+        fill: false,
+        tension: 0,
+      };
+    });
+
+    return { labels: raceLabels, datasets };
+  }, [processedRaces, selectedDrivers, isMobile]);
 };
 
 const DriverResults2025Page = () => {
-  const [chartData, setChartData] = useState(null);
-  const [selectedDrivers, setSelectedDrivers] = useState(["", ""]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -74,90 +94,102 @@ const DriverResults2025Page = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Memoize processed races - only recompute if raw data changes
-  const processedRaces = useMemo(() => {
-    return processDriverChange(f1SeasonData.races);
-  }, []);
-
-  // Memoize all drivers list
+  // Get processed race data for tooltips (BEFORE driver changes)
+  const rawRaces = useMemo(() => f1SeasonData.races, []);
+  const processedRaces = useProcessedRaceData(rawRaces);
+  
+  // Get all drivers from the data (this will show both Jack Doohan AND Franco Colapinto)
   const allDrivers = useMemo(() => {
-    return Array.from(
-      new Set(
-        processedRaces.flatMap((race) =>
-          race.race_results.map((res) => res.driver)
-        )
-      )
-    ).sort();
-  }, [processedRaces]);
+    const driversSet = new Set();
+    
+    // Get drivers from RAW data to show original drivers for early races
+    rawRaces.forEach(race => {
+      race.race_results?.forEach(result => {
+        driversSet.add(result.driver);
+      });
+    });
+    
+    // Also get drivers from processed data to show current drivers
+    processedRaces.forEach(race => {
+      race.race_results?.forEach(result => {
+        driversSet.add(result.driver);
+      });
+    });
+    
+    return Array.from(driversSet).sort();
+  }, [rawRaces, processedRaces]);
+  
+  // Handle driver selection
+  const [selectedDrivers, setSelectedDrivers] = useState([]);
+  
+  // Get race results data - but we need to use RAW data to show original drivers
+  const chartData = useMemo(() => {
+    if (!rawRaces || rawRaces.length === 0) return null;
 
-  useEffect(() => {
-    const buildChartData = () => {
-      const standings = new Map();
-      const raceRounds = [];
+    const standings = new Map();
+    const raceLabels = [];
 
-      processedRaces.forEach((round) => {
-        const { round: raceRound, race_results } = round;
-        raceRounds.push(`R${raceRound}`);
+    rawRaces.forEach((round) => {
+      const { race_results, circuit } = round;
+      // Use circuit name like WDC page
+      const circuitLabel = circuit?.split(" ")[0] || `R${round.round}`;
+      raceLabels.push(circuitLabel);
 
-        race_results.forEach(({ driver, position }) => {
-          if (!standings.has(driver)) {
-            standings.set(driver, []);
-          }
-          standings.get(driver).push(position);
-        });
-
-        for (const [driver, posArr] of standings.entries()) {
-          if (posArr.length < raceRounds.length) {
-            posArr.push(null);
-          }
+      race_results.forEach(({ driver, position }) => {
+        if (!standings.has(driver)) {
+          standings.set(driver, []);
         }
+        standings.get(driver).push(position);
       });
 
-      const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
-        const team = processedRaces.find((r) =>
-          r.race_results.some((res) => res.driver === driver)
-        )?.race_results.find((res) => res.driver === driver)?.team;
+      // Fill missing positions with null for drivers who didn't participate
+      for (const [driver, posArr] of standings.entries()) {
+        if (posArr.length < raceLabels.length) {
+          posArr.push(null);
+        }
+      }
+    });
 
-        const isSelected =
-          selectedDrivers.every((sel) => !sel) || selectedDrivers.includes(driver);
+    const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
+      // Find team from the most recent race where driver participated
+      let team = null;
+      for (let i = rawRaces.length - 1; i >= 0; i--) {
+        const result = rawRaces[i].race_results.find((res) => res.driver === driver);
+        if (result) {
+          team = result.team;
+          break;
+        }
+      }
 
-        return {
-          label: driver,
-          data: positions,
-          borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
-          borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
-          pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
-          pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
-          fill: false,
-          tension: 0,
-        };
-      });
+      const isSelected = selectedDrivers.length === 0 || selectedDrivers.includes(driver);
 
-      setChartData({
-        labels: raceRounds,
-        datasets,
-      });
-    };
+      return {
+        label: driver,
+        data: positions,
+        borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
+        borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
+        pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
+        pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
+        fill: false,
+        tension: 0,
+      };
+    });
 
-    buildChartData();
-  }, [selectedDrivers, isMobile, processedRaces]);
+    return { labels: raceLabels, datasets };
+  }, [rawRaces, selectedDrivers, isMobile]);
 
-  const getTeamColor = (team) => {
-    const teamColors = {
-      "McLaren": "#FF8700",
-      "Red Bull Racing": "#1E41FF",
-      "Mercedes": "#00D2BE",
-      "Ferrari": "#DC0000",
-      "Williams": "#005AFF",
-      "Alpine": "#FF69B4", 
-      "Aston Martin": "#006F62",
-      "Haas": "#B6BABD",
-      "Racing Bulls": "#2B4562",
-      "Kick Sauber": "#00F500",
-    };
-    return teamColors[team] || "#888";
+  // Handle driver selection for mobile/desktop
+  const handleDriverChange = (index, value) => {
+    if (index === 'reset') {
+      setSelectedDrivers([]);
+    } else {
+      const newSelection = [...selectedDrivers];
+      newSelection[index] = value;
+      setSelectedDrivers(newSelection.filter(Boolean)); // Remove empty strings
+    }
   };
 
+  // Create custom options with enhanced tooltips for race results
   const options = {
     ...createResponsiveChartOptions(
       isMobile, 
@@ -177,7 +209,7 @@ const DriverResults2025Page = () => {
             const driver = context.dataset.label;
             const position = context.raw;
             const raceIndex = context.dataIndex;
-            const round = processedRaces[raceIndex];
+            const round = rawRaces[raceIndex]; // Use raw data for tooltips
             const result = round?.race_results.find((r) => r.driver === driver);
 
             if (!result) return `${driver}: No data`;
@@ -205,13 +237,31 @@ const DriverResults2025Page = () => {
   };
 
   return (
-    <div>
-      {createMobileDriverSelector(allDrivers, selectedDrivers, setSelectedDrivers)}
+    <F1PageLayout 
+      title="2025 Driver Race Results Bump Chart"
+      subtitle="Position-based performance tracking by race"
+      className="race-results-chart"
+    >
+      {/* Driver Selector */}
+      <ResponsiveDriverSelector
+        drivers={allDrivers}
+        selectedDrivers={[selectedDrivers[0] || "", selectedDrivers[1] || ""]}
+        onDriverChange={handleDriverChange}
+        maxDrivers={2}
+        isMobile={isMobile}
+      />
       
-      <ResponsiveChartContainer title="2025 Driver Race Results Bump Chart">
-        {chartData ? <Line data={chartData} options={options} /> : <p>Loading chart...</p>}
-      </ResponsiveChartContainer>
-    </div>
+      {/* Race Results Chart */}
+      <ResponsiveChart 
+        type="line" 
+        data={chartData} 
+        options={options}
+        className="race-results-line-chart"
+        style={{ height: isMobile ? '400px' : '600px' }}
+        loading={!chartData}
+        error={!chartData && rawRaces.length === 0 ? "No race data available" : null}
+      />
+    </F1PageLayout>
   );
 };
 

@@ -1,44 +1,6 @@
 import React, { useState, useMemo } from "react";
 import f1SeasonData from "../data/f1_2025_season.json";
-
-// Driver change processing function - moved outside component
-const processDriverChange = (races) => {
-  return races.map(race => {
-    const processedRace = { ...race };
-    
-    // Process race results
-    if (processedRace.race_results) {
-      processedRace.race_results = processedRace.race_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    // Process qualifying results
-    if (processedRace.qualifying_results) {
-      processedRace.qualifying_results = processedRace.qualifying_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    // Process sprint results
-    if (processedRace.sprint_results) {
-      processedRace.sprint_results = processedRace.sprint_results.map(result => {
-        if (result.driver === "Jack Doohan" && result.team === "Alpine") {
-          return { ...result, driver: "Franco Colapinto" };
-        }
-        return result;
-      });
-    }
-    
-    return processedRace;
-  });
-};
+import { useProcessedRaceData, getAllDrivers } from "../utils/dataProcessing.js";
 
 const parseTimeToSeconds = (time) => {
   if (!time || time === "No Time" || time === "DNF" || time === "DNS") return null;
@@ -104,21 +66,23 @@ const getWinStyle = (val1, val2, isLowerBetter = true) => {
 };
 
 const HeadToHeadPage = () => {
-  // Memoize processed races - only recompute if raw data changes
-  const processedRaces = useMemo(() => {
-    return processDriverChange(f1SeasonData.races);
-  }, []);
-
+  // Use shared processing utility
+  const processedRaces = useProcessedRaceData(f1SeasonData.races);
+  
   // Memoize all drivers list
-  const allDrivers = useMemo(() => {
-    return [...new Set(processedRaces.flatMap((r) => r.race_results.map((res) => res.driver)))];
-  }, [processedRaces]);
+  const allDrivers = useMemo(() => getAllDrivers(processedRaces), [processedRaces]);
 
-  const [driver1, setDriver1] = useState(allDrivers[0]);
-  const [driver2, setDriver2] = useState(allDrivers[1]);
+  const [driver1, setDriver1] = useState(allDrivers[0] || "");
+  const [driver2, setDriver2] = useState(allDrivers[1] || "");
 
   // Memoize driver data to prevent recalculation on every render
   const driverData = useMemo(() => {
+    if (!driver1 || !driver2 || processedRaces.length === 0) {
+      return {
+        quali1: [], quali2: [], sprint1: [], sprint2: [], races1: [], races2: []
+      };
+    }
+
     return {
       quali1: getQualifyingResultsByRound(driver1, processedRaces),
       quali2: getQualifyingResultsByRound(driver2, processedRaces),
@@ -131,15 +95,17 @@ const HeadToHeadPage = () => {
 
   const { quali1, quali2, sprint1, sprint2, races1, races2 } = driverData;
 
+  const isMobile = window.innerWidth < 768;
+
   return (
     <div style={{ 
-      padding: window.innerWidth < 768 ? "1rem" : "2rem", 
+      padding: isMobile ? "1rem" : "2rem", 
       width: "100%", 
       boxSizing: "border-box" 
     }}>
       <h1 style={{ 
         textAlign: "center", 
-        fontSize: window.innerWidth < 768 ? "1.5rem" : "2rem", 
+        fontSize: isMobile ? "1.5rem" : "2rem", 
         marginBottom: "1rem" 
       }}>
         2025 Head-to-Head Driver Comparison
@@ -147,7 +113,7 @@ const HeadToHeadPage = () => {
 
       <div style={{ 
         display: "flex", 
-        flexDirection: window.innerWidth < 768 ? "column" : "row",
+        flexDirection: isMobile ? "column" : "row",
         justifyContent: "center", 
         gap: "1rem", 
         marginBottom: "2rem" 
@@ -162,7 +128,7 @@ const HeadToHeadPage = () => {
             border: "1px solid #555",
             backgroundColor: "#333",
             color: "#fff",
-            width: window.innerWidth < 768 ? "100%" : "auto"
+            width: isMobile ? "100%" : "auto"
           }}
         >
           {allDrivers.map((d) => (
@@ -179,7 +145,7 @@ const HeadToHeadPage = () => {
             border: "1px solid #555",
             backgroundColor: "#333",
             color: "#fff",
-            width: window.innerWidth < 768 ? "100%" : "auto"
+            width: isMobile ? "100%" : "auto"
           }}
         >
           {allDrivers.map((d) => (
@@ -190,10 +156,10 @@ const HeadToHeadPage = () => {
 
       {/* Qualifying Comparison */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+        <h2 style={{ fontSize: isMobile ? "1.3rem" : "1.5rem" }}>
           Qualifying Comparison
         </h2>
-        {window.innerWidth < 768 ? (
+        {isMobile ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {quali1.map((q1, i) => {
               const q2 = quali2[i];
@@ -263,10 +229,10 @@ const HeadToHeadPage = () => {
 
       {/* Sprint Comparison */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+        <h2 style={{ fontSize: isMobile ? "1.3rem" : "1.5rem" }}>
           Sprint Race Comparison
         </h2>
-        {window.innerWidth < 768 ? (
+        {isMobile ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {sprint1.map((r1, i) => {
               const r2 = sprint2[i];
@@ -336,10 +302,10 @@ const HeadToHeadPage = () => {
 
       {/* Race Comparison */}
       <section>
-        <h2 style={{ fontSize: window.innerWidth < 768 ? "1.3rem" : "1.5rem" }}>
+        <h2 style={{ fontSize: isMobile ? "1.3rem" : "1.5rem" }}>
           Race Results Comparison
         </h2>
-        {window.innerWidth < 768 ? (
+        {isMobile ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {races1.map((r1, i) => {
               const r2 = races2[i];
