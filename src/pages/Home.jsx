@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Info, Timer, Target } from "lucide-react";
+import { Rocket, BarChart3, Users2, Info, Timer, Target, Zap } from "lucide-react";
 
 const Home = () => {
   return (
@@ -72,7 +72,14 @@ const Home = () => {
             </div>
           </Link>
 
-          {/* DRS Analysis card removed due to data availability issues */}
+          <Link to="/pit-stop-analysis" className="card live-analysis featured">
+            <Zap className="icon yellow" />
+            <div>
+              <h3>Pit Stop Predictions</h3>
+              <p>AI-powered fastest pit stop predictions</p>
+              <span className="new-badge">Featured</span>
+            </div>
+          </Link>
 
           <Link to="/about" className="card">
             <Info className="icon gray" />
@@ -84,10 +91,20 @@ const Home = () => {
         </div>
 
         <div className="feature-highlight">
-          <h2>🚀 New: Real-Time F1 Analysis</h2>
+          <h2>🚀 New: Pit Stop Prediction Engine</h2>
           <p>
-            Powered by OpenF1 API, our new analysis tools provide deep insights into sector times 
-            and pit strategies. Experience F1 data like never before with 
+            Our latest feature uses advanced analytics to predict which team will achieve the fastest pit stop 
+            in upcoming races. Using historical data from 2025 season pit stops, the algorithm considers consistency, 
+            average speed, position rankings, and win rates to generate predictive scores. Get ahead of the competition 
+            with data-driven pit stop insights!
+          </p>
+        </div>
+
+        <div className="feature-highlight">
+          <h2>🏁 Enhanced F1 Analysis Suite</h2>
+          <p>
+            Powered by OpenF1 API and comprehensive 2025 season data, our analysis tools provide deep insights into 
+            sector times, pit strategies, and performance predictions. Experience F1 data like never before with 
             interactive visualizations and comprehensive telemetry analysis.
           </p>
         </div>

@@ -1,0 +1,130 @@
+[
+    {
+      "round": 8,
+      "grand_prix": "Monaco Grand Prix",
+      "fastest_pit_stops": [
+        { "position": 1, "team": "Ferrari", "driver": "Leclerc", "time": 2.00 },
+        { "position": 2, "team": "Ferrari", "driver": "Hamilton", "time": 2.08 },
+        { "position": 3, "team": "McLaren", "driver": "Norris", "time": 2.23 },
+        { "position": 4, "team": "Red Bull Racing", "driver": "Verstappen", "time": 2.27 },
+        { "position": 5, "team": "McLaren", "driver": "Piastri", "time": 2.31 },
+        { "position": 6, "team": "Mercedes AMG", "driver": "Antonelli", "time": 2.38 },
+        { "position": 7, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.42 },
+        { "position": 8, "team": "Williams", "driver": "Albon", "time": 2.42 },
+        { "position": 9, "team": "Kick Sauber", "driver": "Hulkenberg", "time": 2.43 },
+        { "position": 10, "team": "Alpine", "driver": "Gasly", "time": 2.44 }
+      ]
+    },
+    {
+      "round": 7,
+      "grand_prix": "Imola Grand Prix",
+      "fastest_pit_stops": [
+        { "position": 1, "team": "Ferrari", "driver": "Leclerc", "time": 2.04 },
+        { "position": 2, "team": "Red Bull Racing", "driver": "Tsunoda", "time": 2.09 },
+        { "position": 3, "team": "Red Bull Racing", "driver": "Verstappen", "time": 2.11 },
+        { "position": 4, "team": "Racing Bulls", "driver": "Lawson", "time": 2.13 },
+        { "position": 5, "team": "McLaren", "driver": "Norris", "time": 2.18 },
+        { "position": 6, "team": "Ferrari", "driver": "Hamilton", "time": 2.18 },
+        { "position": 7, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.37 },
+        { "position": 8, "team": "Mercedes AMG", "driver": "Russell", "time": 2.47 },
+        { "position": 9, "team": "Racing Bulls", "driver": "Hadjar", "time": 2.50 },
+        { "position": 10, "team": "Mercedes AMG", "driver": "Antonelli", "time": 2.52 }
+      ]
+    },
+    {
+        "round": 6,
+        "grand_prix": "Miami Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.24},
+            {"position": 2, "team": "McLaren", "driver": "Piastri", "time": 2.25},
+            {"position": 3, "team": "Alpine", "driver": "Gasly", "time": 2.31},
+            {"position": 4, "team": "Red Bull Racing", "driver": "Tsunoda", "time": 2.33},
+            {"position": 5, "team": "McLaren", "driver": "Norris", "time": 2.38},
+            {"position": 6, "team": "Racing Bulls", "driver": "Hadjar", "time": 2.39},
+            {"position": 7, "team": "Ferrari", "driver": "Leclerc", "time": 2.39},
+            {"position": 8, "team": "Williams", "driver": "Albon", "time": 2.52},
+            {"position": 9, "team": "Racing Bulls", "driver": "Lawson", "time": 2.52},
+            {"position": 10, "team": "Aston Martin", "driver": "Stroll", "time": 2.54}
+        ]
+    },
+    {
+        "round": 5,
+        "grand_prix": "Saudi Arabian Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Ferrari", "driver": "Leclerc", "time": 2.00},
+            {"position": 2, "team": "Ferrari", "driver": "Hamilton", "time": 2.07},
+            {"position": 3, "team": "Mercedes AMG", "driver": "Antonelli", "time": 2.32},
+            {"position": 4, "team": "Kick Sauber", "driver": "Hulkenberg", "time": 2.36},
+            {"position": 5, "team": "Mercedes AMG", "driver": "Russell", "time": 2.41},
+            {"position": 6, "team": "Alpine", "driver": "Doohan", "time": 2.47},
+            {"position": 7, "team": "Aston Martin", "driver": "Stroll", "time": 2.55},
+            {"position": 8, "team": "Racing Bulls", "driver": "Lawson", "time": 2.57},
+            {"position": 9, "team": "McLaren", "driver": "Norris", "time": 2.67},
+            {"position": 10, "team": "Racing Bulls", "driver": "Hadjar", "time": 3.13}
+        ]
+    },
+    {
+        "round": 4,
+        "grand_prix": "Bahrain Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Ferrari", "driver": "Hamilton", "time": 2.16},
+            {"position": 2, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.24},
+            {"position": 3, "team": "Mercedes AMG", "driver": "Russell", "time": 2.27},
+            {"position": 4, "team": "Kick Sauber", "driver": "Hulkenberg", "time": 2.29},
+            {"position": 5, "team": "Racing Bulls", "driver": "Lawson", "time": 2.31},
+            {"position": 6, "team": "McLaren", "driver": "Piastri", "time": 2.36},
+            {"position": 7, "team": "McLaren", "driver": "Norris", "time": 2.38},
+            {"position": 8, "team": "Aston Martin", "driver": "Stroll", "time": 2.44},
+            {"position": 9, "team": "Red Bull Racing", "driver": "Tsunoda", "time": 2.44},
+            {"position": 10, "team": "Ferrari", "driver": "Leclerc", "time": 2.47}
+        ]
+    },
+    {
+        "round": 3,
+        "grand_prix": "Suzuka Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Ferrari", "driver": "Hamilton", "time": 2.18},
+            {"position": 2, "team": "McLaren", "driver": "Piastri", "time": 2.19},
+            {"position": 3, "team": "Mercedes AMG", "driver": "Russell", "time": 2.26},
+            {"position": 4, "team": "McLaren", "driver": "Norris", "time": 2.37},
+            {"position": 5, "team": "Ferrari", "driver": "Leclerc", "time": 2.40},
+            {"position": 6, "team": "Racing Bulls", "driver": "Hadjar", "time": 2.40},
+            {"position": 7, "team": "Alpine", "driver": "Doohan", "time": 2.56},
+            {"position": 8, "team": "Williams", "driver": "Albon", "time": 2.60},
+            {"position": 9, "team": "Aston Martin", "driver": "Stroll", "time": 2.63},
+            {"position": 10, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.63}
+        ]
+    },
+    {
+        "round": 2,
+        "grand_prix": "Shanghai Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Ferrari", "driver": "Leclerc", "time": 2.05},
+            {"position": 2, "team": "Racing Bulls", "driver": "Tsunoda", "time": 2.08},
+            {"position": 3, "team": "Red Bull Racing", "driver": "Verstappen", "time": 2.15},
+            {"position": 4, "team": "McLaren", "driver": "Norris", "time": 2.27},
+            {"position": 5, "team": "Ferrari", "driver": "Hamilton", "time": 2.35},
+            {"position": 6, "team": "Red Bull Racing", "driver": "Lawson", "time": 2.42},
+            {"position": 7, "team": "Mercedes AMG", "driver": "Russell", "time": 2.45},
+            {"position": 8, "team": "Racing Bulls", "driver": "Hadjar", "time": 2.54},
+            {"position": 9, "team": "Kick Sauber", "driver": "Bortoleto", "time": 2.69},
+            {"position": 10, "team": "Mercedes AMG", "driver": "Antonelli", "time": 2.72}
+        ]
+    },
+    {
+        "round": 1,
+        "grand_prix": "Melbourne Grand Prix",
+        "fastest_pit_stops": [
+            {"position": 1, "team": "Ferrari", "driver": "Leclerc", "time": 2.32},
+            {"position": 2, "team": "Ferrari", "driver": "Hamilton", "time": 2.38},
+            {"position": 3, "team": "Mercedes AMG", "driver": "Russell", "time": 2.43},
+            {"position": 4, "team": "Racing Bulls", "driver": "Tsunoda", "time": 2.47},
+            {"position": 5, "team": "Haas", "driver": "Bearman", "time": 2.49},
+            {"position": 6, "team": "Haas", "driver": "Ocon", "time": 2.54},
+            {"position": 7, "team": "Red Bull Racing", "driver": "Verstappen", "time": 2.56},
+            {"position": 8, "team": "Red Bull Racing", "driver": "Lawson", "time": 2.58},
+            {"position": 9, "team": "Mercedes AMG", "driver": "Antonelli", "time": 2.73},
+            {"position": 10, "team": "Williams", "driver": "Albon", "time": 2.75}
+        ]
+    }
+]

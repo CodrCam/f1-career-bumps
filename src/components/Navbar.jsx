@@ -32,7 +32,7 @@ const Navbar = () => {
       <div className="navbar-inner">
         <div className="nav-title">
           <Link to="/" className="nav-brand">
-            F1 Career Bumps
+            F1 Desktop
           </Link>
         </div>
         
@@ -117,6 +117,15 @@ const Navbar = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pit Strategy
+            </Link>
+          </li>
+          <li>
+            <Link 
+              to="/pit-stop-analysis" 
+              className={navStyle("/pit-stop-analysis")}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Pit Stop Predictions
             </Link>
           </li>
         </ul>

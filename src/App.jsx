@@ -12,6 +12,7 @@ import About from "./pages/About";
 // New F1 Analysis Pages
 import SectorAnalysisPage from "./pages/SectorAnalysisPage";
 import PitStrategyPage from "./pages/PitStrategyPage";
+import PitStopAnalysisPage from "./pages/PitStopAnalysisPage";
 
 // Import Error Boundary
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -31,6 +32,7 @@ const App = () => {
           <Route path="/about" element={<About />} />
           <Route path="/sector-analysis" element={<SectorAnalysisPage />} />
           <Route path="/pit-strategy" element={<PitStrategyPage />} />
+          <Route path="/pit-stop-analysis" element={<PitStopAnalysisPage />} />
         </Routes>
       </Router>
     </ErrorBoundary>
