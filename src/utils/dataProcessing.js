@@ -15,12 +15,13 @@ export const TEAM_COLORS = {
   "Kick Sauber": "#00F500",
 };
 
-// Driver change configuration - easy to maintain
+// Driver change configuration with timing
 const DRIVER_CHANGES = [
   {
     from: "Jack Doohan",
     to: "Franco Colapinto",
-    team: "Alpine"
+    team: "Alpine",
+    fromRound: 7  // Change starts from Round 7 (Imola)
   }
   // Add future driver changes here
 ];
@@ -36,9 +37,11 @@ export const processDriverChanges = (races) => {
         processedRace[resultType] = processedRace[resultType].map(result => {
           let updatedResult = { ...result };
           
-          // Apply all driver changes
+          // Apply driver changes only from the specified round onwards
           DRIVER_CHANGES.forEach(change => {
-            if (result.driver === change.from && result.team === change.team) {
+            if (result.driver === change.from && 
+                result.team === change.team && 
+                race.round >= change.fromRound) {
               updatedResult.driver = change.to;
             }
           });
@@ -65,10 +68,31 @@ export const getTeamColor = (team) => {
   return TEAM_COLORS[team] || "#888888";
 };
 
-// Helper to extract all drivers from processed races
+// Helper to extract all drivers from processed races (includes both original and replacement drivers)
 export const getAllDrivers = (processedRaces) => {
   const driversSet = new Set();
   
+  processedRaces.forEach(race => {
+    race.race_results?.forEach(result => {
+      driversSet.add(result.driver);
+    });
+  });
+  
+  return Array.from(driversSet).sort();
+};
+
+// NEW: Helper to get all drivers including original drivers (for results pages)
+export const getAllDriversIncludingOriginals = (rawRaces, processedRaces) => {
+  const driversSet = new Set();
+  
+  // Get drivers from raw data (original drivers like Jack Doohan)
+  rawRaces.forEach(race => {
+    race.race_results?.forEach(result => {
+      driversSet.add(result.driver);
+    });
+  });
+  
+  // Get drivers from processed data (replacement drivers like Franco Colapinto)
   processedRaces.forEach(race => {
     race.race_results?.forEach(result => {
       driversSet.add(result.driver);
