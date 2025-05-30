@@ -11,7 +11,7 @@ import {
 } from "chart.js";
 import f1SeasonData from "../data/f1_2025_season.json";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
-import { useProcessedRaceData, getAllDrivers, getTeamColor } from "../utils/dataProcessing.js";
+import { useProcessedRaceData, getTeamColor, getAllDriversIncludingOriginals } from "../utils/dataProcessing.js";
 import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
 import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
@@ -25,67 +25,8 @@ ChartJS.register(
   Legend
 );
 
-// Custom hook for race results data with proper driver handling
-const useRaceResultsData = (rawRaces, selectedDrivers = [], isMobile = false) => {
-  const processedRaces = useProcessedRaceData(rawRaces);
-  
-  return useMemo(() => {
-    if (!processedRaces || processedRaces.length === 0) return null;
-
-    const standings = new Map();
-    const raceLabels = [];
-
-    processedRaces.forEach((round) => {
-      const { race_results, circuit } = round;
-      // Use circuit name like WDC page, not round number
-      const circuitLabel = circuit?.split(" ")[0] || `R${round.round}`;
-      raceLabels.push(circuitLabel);
-
-      race_results.forEach(({ driver, position }) => {
-        if (!standings.has(driver)) {
-          standings.set(driver, []);
-        }
-        standings.get(driver).push(position);
-      });
-
-      // Fill missing positions with null for drivers who didn't participate
-      for (const [driver, posArr] of standings.entries()) {
-        if (posArr.length < raceLabels.length) {
-          posArr.push(null);
-        }
-      }
-    });
-
-    const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
-      // Find team from the most recent race where driver participated
-      let team = null;
-      for (let i = processedRaces.length - 1; i >= 0; i--) {
-        const result = processedRaces[i].race_results.find((res) => res.driver === driver);
-        if (result) {
-          team = result.team;
-          break;
-        }
-      }
-
-      const isSelected = selectedDrivers.length === 0 || selectedDrivers.includes(driver);
-
-      return {
-        label: driver,
-        data: positions,
-        borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
-        borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
-        pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
-        pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
-        fill: false,
-        tension: 0,
-      };
-    });
-
-    return { labels: raceLabels, datasets };
-  }, [processedRaces, selectedDrivers, isMobile]);
-};
-
 const DriverResults2025Page = () => {
+  const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -94,70 +35,91 @@ const DriverResults2025Page = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Get processed race data for tooltips (BEFORE driver changes)
+  // Get both raw and processed race data
   const rawRaces = useMemo(() => f1SeasonData.races, []);
   const processedRaces = useProcessedRaceData(rawRaces);
   
-  // Get all drivers from the data (this will show both Jack Doohan AND Franco Colapinto)
+  // Get all drivers including both original and replacement drivers (should be 21 total)
   const allDrivers = useMemo(() => {
-    const driversSet = new Set();
-    
-    // Get drivers from RAW data to show original drivers for early races
-    rawRaces.forEach(race => {
-      race.race_results?.forEach(result => {
-        driversSet.add(result.driver);
-      });
-    });
-    
-    // Also get drivers from processed data to show current drivers
-    processedRaces.forEach(race => {
-      race.race_results?.forEach(result => {
-        driversSet.add(result.driver);
-      });
-    });
-    
-    return Array.from(driversSet).sort();
+    return getAllDriversIncludingOriginals(rawRaces, processedRaces);
   }, [rawRaces, processedRaces]);
-  
-  // Handle driver selection
-  const [selectedDrivers, setSelectedDrivers] = useState([]);
-  
-  // Get race results data - but we need to use RAW data to show original drivers
+
+  // Create chart data that shows both original and replacement drivers correctly
   const chartData = useMemo(() => {
     if (!rawRaces || rawRaces.length === 0) return null;
 
     const standings = new Map();
     const raceLabels = [];
 
+    // Build race labels
     rawRaces.forEach((round) => {
-      const { race_results, circuit } = round;
-      // Use circuit name like WDC page
+      const { circuit } = round;
       const circuitLabel = circuit?.split(" ")[0] || `R${round.round}`;
       raceLabels.push(circuitLabel);
+    });
 
-      race_results.forEach(({ driver, position }) => {
-        if (!standings.has(driver)) {
-          standings.set(driver, []);
+    // Process each race to build driver standings
+    rawRaces.forEach((round, raceIndex) => {
+      const { race_results } = round;
+      
+      race_results.forEach(({ driver, position, team }) => {
+        // Check if this driver was replaced starting from this round
+        const driverChange = [
+          {
+            from: "Jack Doohan",
+            to: "Franco Colapinto", 
+            team: "Alpine",
+            fromRound: 7
+          }
+        ].find(change => 
+          driver === change.from && 
+          team === change.team && 
+          round.round >= change.fromRound
+        );
+
+        if (driverChange) {
+          // Add position for replacement driver
+          if (!standings.has(driverChange.to)) {
+            standings.set(driverChange.to, new Array(rawRaces.length).fill(null));
+          }
+          standings.get(driverChange.to)[raceIndex] = position;
+          
+          // Ensure original driver exists with nulls for this race
+          if (!standings.has(driver)) {
+            standings.set(driver, new Array(rawRaces.length).fill(null));
+          }
+          // Original driver gets null for this race (already set by fill(null))
+        } else {
+          // Normal driver - add their position
+          if (!standings.has(driver)) {
+            standings.set(driver, new Array(rawRaces.length).fill(null));
+          }
+          standings.get(driver)[raceIndex] = position;
         }
-        standings.get(driver).push(position);
       });
-
-      // Fill missing positions with null for drivers who didn't participate
-      for (const [driver, posArr] of standings.entries()) {
-        if (posArr.length < raceLabels.length) {
-          posArr.push(null);
-        }
-      }
     });
 
     const datasets = Array.from(standings.entries()).map(([driver, positions]) => {
       // Find team from the most recent race where driver participated
       let team = null;
-      for (let i = rawRaces.length - 1; i >= 0; i--) {
-        const result = rawRaces[i].race_results.find((res) => res.driver === driver);
+      
+      // First try to find team from processed data (for replacement drivers)
+      for (let i = processedRaces.length - 1; i >= 0; i--) {
+        const result = processedRaces[i].race_results.find((res) => res.driver === driver);
         if (result) {
           team = result.team;
           break;
+        }
+      }
+      
+      // If not found, try raw data (for original drivers)
+      if (!team) {
+        for (let i = rawRaces.length - 1; i >= 0; i--) {
+          const result = rawRaces[i].race_results.find((res) => res.driver === driver);
+          if (result) {
+            team = result.team;
+            break;
+          }
         }
       }
 
@@ -172,11 +134,12 @@ const DriverResults2025Page = () => {
         pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
         fill: false,
         tension: 0,
+        spanGaps: false, // Don't connect points across null values
       };
     });
 
     return { labels: raceLabels, datasets };
-  }, [rawRaces, selectedDrivers, isMobile]);
+  }, [rawRaces, processedRaces, selectedDrivers, isMobile]);
 
   // Handle driver selection for mobile/desktop
   const handleDriverChange = (index, value) => {
@@ -209,10 +172,18 @@ const DriverResults2025Page = () => {
             const driver = context.dataset.label;
             const position = context.raw;
             const raceIndex = context.dataIndex;
-            const round = rawRaces[raceIndex]; // Use raw data for tooltips
-            const result = round?.race_results.find((r) => r.driver === driver);
+            
+            if (position === null) return `${driver}: Did not participate`;
 
-            if (!result) return `${driver}: No data`;
+            // Try to find result in processed data first (for replacement drivers)
+            let result = processedRaces[raceIndex]?.race_results.find((r) => r.driver === driver);
+            
+            // If not found, try raw data (for original drivers)
+            if (!result) {
+              result = rawRaces[raceIndex]?.race_results.find((r) => r.driver === driver);
+            }
+
+            if (!result) return `${driver}: Position ${position}`;
 
             const { team } = result;
             return [
@@ -238,8 +209,6 @@ const DriverResults2025Page = () => {
 
   return (
     <F1PageLayout 
-      title="2025 Driver Race Results Bump Chart"
-      subtitle="Position-based performance tracking by race"
       className="race-results-chart"
     >
       {/* Driver Selector */}
@@ -261,6 +230,7 @@ const DriverResults2025Page = () => {
         loading={!chartData}
         error={!chartData && rawRaces.length === 0 ? "No race data available" : null}
       />
+
     </F1PageLayout>
   );
 };

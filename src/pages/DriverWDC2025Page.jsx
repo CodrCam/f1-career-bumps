@@ -13,7 +13,6 @@ import f1SeasonData from "../data/f1_2025_season.json";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useChampionshipData, useDriverSelection, useAllDrivers } from "../components/F1DataComponents.jsx";
 import { ChampionshipBumpChart } from "../components/ChartComponents.jsx";
-import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
 ChartJS.register(
   LineElement,
@@ -37,26 +36,11 @@ const DriverWDC2025Page = () => {
   // Get all drivers from the data
   const allDrivers = useAllDrivers(f1SeasonData.races);
   
-  // Handle driver selection
-  const { selectedDrivers, handleDriverSelect } = useDriverSelection(allDrivers, 2);
+  // Handle driver selection - increased from 2 to 5 drivers
+  const { selectedDrivers, handleDriverSelect } = useDriverSelection(allDrivers, 5);
   
   // Get championship data
   const chartData = useChampionshipData(f1SeasonData.races, selectedDrivers, isMobile);
-
-  // Handle driver selection for mobile/desktop
-  const handleDriverChange = (index, value) => {
-    if (index === 'reset') {
-      handleDriverSelect('reset');
-    } else {
-      const newSelection = [...selectedDrivers];
-      newSelection[index] = value;
-      // Update the selection by clearing and adding back
-      handleDriverSelect('reset');
-      newSelection.filter(Boolean).forEach(driver => {
-        handleDriverSelect('toggle', driver);
-      });
-    }
-  };
 
   const options = createResponsiveChartOptions(
     isMobile, 
@@ -66,25 +50,17 @@ const DriverWDC2025Page = () => {
 
   return (
     <div>
-      {/* Driver Selector */}
-      <ResponsiveDriverSelector
-        drivers={allDrivers}
-        selectedDrivers={[selectedDrivers[0] || "", selectedDrivers[1] || ""]}
-        onDriverChange={handleDriverChange}
-        maxDrivers={2}
-        isMobile={isMobile}
-      />
-      
-      {/* Championship Chart */}
+      {/* Championship Chart - now with up to 5 driver selection and no dropdown */}
       <ChampionshipBumpChart
         data={chartData}
         options={options}
         type="driver"
-        title="2025 Driver World Championship Bump Chart"
+        title="2025 Driver World Championship Points"
         selectedDrivers={selectedDrivers}
         onDriverSelect={handleDriverSelect}
         allDrivers={allDrivers}
         isMobile={isMobile}
+        maxDrivers={5}
       />
     </div>
   );
