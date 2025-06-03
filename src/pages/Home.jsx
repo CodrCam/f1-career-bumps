@@ -75,9 +75,9 @@ const Home = () => {
           <Link to="/pit-stop-analysis" className="card live-analysis featured">
             <Zap className="icon yellow" />
             <div>
-              <h3>Pit Stop Predictions</h3>
-              <p>AI-powered fastest pit stop predictions</p>
-              <span className="new-badge">Featured</span>
+              <h3>AI Pit Stop Analytics</h3>
+              <p>Advanced ML predictions with comprehensive data analysis</p>
+              <span className="new-badge">Enhanced</span>
             </div>
           </Link>
 
@@ -91,12 +91,13 @@ const Home = () => {
         </div>
 
         <div className="feature-highlight">
-          <h2>🚀 New: Pit Stop Prediction Engine</h2>
+          <h2>🚀 Enhanced: Advanced AI Pit Stop Prediction Engine</h2>
           <p>
-            Our latest feature uses advanced analytics to predict which team will achieve the fastest pit stop 
-            in upcoming races. Using historical data from 2025 season pit stops, the algorithm considers consistency, 
-            average speed, position rankings, and win rates to generate predictive scores. Get ahead of the competition 
-            with data-driven pit stop insights!
+            Our latest update introduces a sophisticated machine learning model for pit stop predictions using comprehensive 
+            2025 season data from all drivers and teams. The algorithm employs advanced statistical techniques including 
+            linear regression, trend analysis, consistency metrics, and weighted moving averages to generate predictive 
+            scores. Features include team vs driver analysis, performance trend tracking, speed vs consistency scatter plots, 
+            and confidence ratings with mathematically-sound forecasting capabilities.
           </p>
         </div>
 
