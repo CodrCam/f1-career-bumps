@@ -1,41 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Bar } from 'react-chartjs-2';
+import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
+import { SessionSelector, ControlBar } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement);
 
-const PitStrategyPage = () => {
+// Custom hook for pit strategy data
+const usePitStrategyData = () => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [sessionData, setSessionData] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [pitStats, setPitStats] = useState({});
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [initialLoading, setInitialLoading] = useState(true);
 
   const apiBase = 'https://api.openf1.org/v1';
-
-  const driverColors = {
-    'HAM': '#DC143C', 'LEC': '#DC143C', // Ferrari
-    'VER': '#0600EF', 'TSU': '#0600EF', // Red Bull Racing
-    'NOR': '#FF8700', 'PIA': '#FF8700', // McLaren
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', // Mercedes (Kimi Antonelli)
-    'ALO': '#006F62', 'STR': '#006F62', // Aston Martin
-    'GAS': '#0090FF', 'COL': '#0090FF', // Alpine (Franco Colapinto)
-    'ALB': '#005AFF', 'SAI': '#005AFF', // Williams
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', // Haas
-    'HAD': '#2B4562', 'LAW': '#2B4562', // Racing Bulls
-    'HUL': '#00F500', 'BOR': '#00F500'  // Kick Sauber
-  };
-
-  useEffect(() => {
-    loadSessions();
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const loadSessions = async () => {
     try {
@@ -99,7 +81,6 @@ const PitStrategyPage = () => {
       const drivers = await driversResponse.json();
       const laps = await lapsResponse.json();
 
-      // Validate data format
       if (!Array.isArray(pits) || !Array.isArray(drivers) || !Array.isArray(laps)) {
         throw new Error('Invalid data format received from API');
       }
@@ -168,12 +149,36 @@ const PitStrategyPage = () => {
     }
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds || seconds === 0) return '--:--';
-    return `${seconds.toFixed(3)}s`;
+  return {
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    sessionData,
+    loading,
+    error,
+    pitStats,
+    initialLoading,
+    loadSessions,
+    loadSessionData
+  };
+};
+
+// Create chart data using useMemo
+const usePitScatterData = (sessionData) => {
+  const driverColors = {
+    'HAM': '#DC143C', 'LEC': '#DC143C', // Ferrari
+    'VER': '#0600EF', 'TSU': '#0600EF', // Red Bull Racing
+    'NOR': '#FF8700', 'PIA': '#FF8700', // McLaren
+    'RUS': '#00D2BE', 'ANT': '#00D2BE', // Mercedes
+    'ALO': '#006F62', 'STR': '#006F62', // Aston Martin
+    'GAS': '#0090FF', 'COL': '#0090FF', // Alpine
+    'ALB': '#005AFF', 'SAI': '#005AFF', // Williams
+    'OCO': '#B6BABD', 'BEA': '#B6BABD', // Haas
+    'HAD': '#2B4562', 'LAW': '#2B4562', // Racing Bulls
+    'HUL': '#00F500', 'BOR': '#00F500'  // Kick Sauber
   };
 
-  const createScatterData = () => {
+  return useMemo(() => {
     if (!sessionData.pits || !sessionData.drivers) return null;
 
     try {
@@ -212,9 +217,24 @@ const PitStrategyPage = () => {
       console.error('Error creating scatter data:', err);
       return null;
     }
+  }, [sessionData]);
+};
+
+const usePitDurationData = (sessionData, pitStats) => {
+  const driverColors = {
+    'HAM': '#DC143C', 'LEC': '#DC143C', // Ferrari
+    'VER': '#0600EF', 'TSU': '#0600EF', // Red Bull Racing
+    'NOR': '#FF8700', 'PIA': '#FF8700', // McLaren
+    'RUS': '#00D2BE', 'ANT': '#00D2BE', // Mercedes
+    'ALO': '#006F62', 'STR': '#006F62', // Aston Martin
+    'GAS': '#0090FF', 'COL': '#0090FF', // Alpine
+    'ALB': '#005AFF', 'SAI': '#005AFF', // Williams
+    'OCO': '#B6BABD', 'BEA': '#B6BABD', // Haas
+    'HAD': '#2B4562', 'LAW': '#2B4562', // Racing Bulls
+    'HUL': '#00F500', 'BOR': '#00F500'  // Kick Sauber
   };
 
-  const createPitDurationChart = () => {
+  return useMemo(() => {
     if (!sessionData.pits || !sessionData.drivers || Object.keys(pitStats.pitsByDriver || {}).length === 0) {
       return null;
     }
@@ -259,15 +279,96 @@ const PitStrategyPage = () => {
       console.error('Error creating pit duration chart:', err);
       return null;
     }
+  }, [sessionData, pitStats]);
+};
+
+const PitStrategyPage = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  const {
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    sessionData,
+    loading,
+    error,
+    pitStats,
+    initialLoading,
+    loadSessions,
+    loadSessionData
+  } = usePitStrategyData();
+
+  const scatterData = usePitScatterData(sessionData);
+  const durationData = usePitDurationData(sessionData, pitStats);
+
+  useEffect(() => {
+    loadSessions();
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const formatTime = (seconds) => {
+    if (!seconds || seconds === 0) return '--:--';
+    return `${seconds.toFixed(3)}s`;
   };
 
-  const chartOptions = {
+  // Chart options
+  const scatterOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
         labels: { color: 'white' }
+      },
+      title: {
+        display: true,
+        text: 'Pit Stop Timing Throughout Race',
+        color: 'white'
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        callbacks: {
+          label: (context) => {
+            const driver = context.dataset.label;
+            const lap = context.parsed.x;
+            const duration = context.parsed.y;
+            return `${driver}: Lap ${lap}, ${formatTime(duration)}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Lap Number', color: 'white' },
+        ticks: { color: 'white' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      },
+      y: {
+        title: { display: true, text: 'Pit Duration (seconds)', color: 'white' },
+        ticks: {
+          color: 'white',
+          callback: (value) => formatTime(value)
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      }
+    }
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Average Pit Stop Duration by Driver',
+        color: 'white'
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -283,69 +384,11 @@ const PitStrategyPage = () => {
         grid: { color: 'rgba(255, 255, 255, 0.1)' }
       },
       y: {
-        ticks: { color: 'white' },
+        ticks: {
+          color: 'white',
+          callback: (value) => formatTime(value)
+        },
         grid: { color: 'rgba(255, 255, 255, 0.1)' }
-      }
-    }
-  };
-
-  const scatterOptions = {
-    ...chartOptions,
-    plugins: {
-      ...chartOptions.plugins,
-      title: {
-        display: true,
-        text: 'Pit Stop Timing Throughout Race',
-        color: 'white'
-      },
-      tooltip: {
-        ...chartOptions.plugins.tooltip,
-        callbacks: {
-          label: (context) => {
-            const driver = context.dataset.label;
-            const lap = context.parsed.x;
-            const duration = context.parsed.y;
-            return `${driver}: Lap ${lap}, ${formatTime(duration)}`;
-          }
-        }
-      }
-    },
-    scales: {
-      ...chartOptions.scales,
-      x: {
-        ...chartOptions.scales.x,
-        title: { display: true, text: 'Lap Number', color: 'white' }
-      },
-      y: {
-        ...chartOptions.scales.y,
-        title: { display: true, text: 'Pit Duration (seconds)', color: 'white' },
-        ticks: {
-          ...chartOptions.scales.y.ticks,
-          callback: (value) => formatTime(value)
-        }
-      }
-    }
-  };
-
-  const barOptions = {
-    ...chartOptions,
-    plugins: {
-      ...chartOptions.plugins,
-      legend: { display: false },
-      title: {
-        display: true,
-        text: 'Average Pit Stop Duration by Driver',
-        color: 'white'
-      }
-    },
-    scales: {
-      ...chartOptions.scales,
-      y: {
-        ...chartOptions.scales.y,
-        ticks: {
-          ...chartOptions.scales.y.ticks,
-          callback: (value) => formatTime(value)
-        }
       }
     }
   };
@@ -353,53 +396,66 @@ const PitStrategyPage = () => {
   // Show initial loading screen
   if (initialLoading) {
     return (
-      <div className="analysis-container">
-        <div className="analysis-header">
-          <h1 className="analysis-title">⛽ Pit Stop Strategy Analysis</h1>
-        </div>
+      <F1PageLayout 
+        title="⛽ Pit Stop Strategy Analysis"
+        showHeader={true}
+      >
         <DataLoader 
           message="Loading F1 Sessions..." 
           submessage="Fetching race and sprint sessions from OpenF1 API"
         />
-      </div>
+      </F1PageLayout>
     );
   }
 
-  return (
-    <div className="analysis-container">
-      <div className="analysis-header">
-        <h1 className="analysis-title">⛽ Pit Stop Strategy Analysis</h1>
-        <p className="analysis-subtitle">
-          Analyze pit stop timing, duration, and strategic decisions
-        </p>
-      </div>
+  // Stats data for grid
+  const statsData = Object.keys(pitStats).length > 0 ? [
+    {
+      label: 'Total Pit Stops',
+      value: pitStats.totalPitStops.toString(),
+      sublabel: 'in session',
+      color: 'blue'
+    },
+    {
+      label: 'Average Duration',
+      value: formatTime(pitStats.averagePitTime),
+      sublabel: 'pit stop time',
+      color: 'green'
+    },
+    {
+      label: 'Fastest Stop',
+      value: pitStats.fastestPitStop ? formatTime(pitStats.fastestPitStop.pit_duration) : '--:--',
+      sublabel: pitStats.fastestPitStop ? 
+        sessionData.drivers?.find(d => d.driver_number == pitStats.fastestPitStop.driver_number)?.name_acronym || `#${pitStats.fastestPitStop.driver_number}`
+        : 'N/A',
+      color: 'yellow'
+    },
+    {
+      label: 'Slowest Stop',
+      value: pitStats.slowestPitStop ? formatTime(pitStats.slowestPitStop.pit_duration) : '--:--',
+      sublabel: pitStats.slowestPitStop ? 
+        sessionData.drivers?.find(d => d.driver_number == pitStats.slowestPitStop.driver_number)?.name_acronym || `#${pitStats.slowestPitStop.driver_number}`
+        : 'N/A',
+      color: 'red'
+    }
+  ] : [];
 
-      {/* Controls */}
-      <div className="analysis-controls">
-        <div className="controls-grid">
-          <div className="controls-row">
-            <select 
-              value={selectedSession} 
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="analysis-select"
-            >
-              <option value="">Select Race Session</option>
-              {sessions.map(session => (
-                <option key={session.session_key} value={session.session_key}>
-                  {session.location} - {session.session_name} ({session.date_start?.split('T')[0] || 'TBD'})
-                </option>
-              ))}
-            </select>
-            <button 
-              onClick={loadSessionData}
-              disabled={loading || !selectedSession}
-              className="analysis-button"
-            >
-              {loading ? 'Loading...' : 'Load Data'}
-            </button>
-          </div>
-        </div>
-      </div>
+  return (
+    <F1PageLayout 
+      title="⛽ Pit Stop Strategy Analysis"
+      subtitle="Analyze pit stop timing, duration, and strategic decisions"
+      className="pit-strategy-page"
+    >
+      {/* Session Controls */}
+      <SessionSelector
+        sessions={sessions}
+        selectedSession={selectedSession}
+        onSessionChange={setSelectedSession}
+        onLoadData={loadSessionData}
+        loading={loading}
+        label="Select Race Session"
+        buttonText="Load Data"
+      />
 
       {/* Error Display */}
       {error && (
@@ -411,68 +467,44 @@ const PitStrategyPage = () => {
       )}
 
       {/* Statistics Cards */}
-      {Object.keys(pitStats).length > 0 && (
-        <div className="stats-grid">
-          <div className="stat-card blue">
-            <h3>Total Pit Stops</h3>
-            <div className="stat-value">{pitStats.totalPitStops}</div>
-            <div className="stat-label">in session</div>
-          </div>
-          <div className="stat-card green">
-            <h3>Average Duration</h3>
-            <div className="stat-value">{formatTime(pitStats.averagePitTime)}</div>
-            <div className="stat-label">pit stop time</div>
-          </div>
-          <div className="stat-card yellow">
-            <h3>Fastest Stop</h3>
-            <div className="stat-value">
-              {pitStats.fastestPitStop ? formatTime(pitStats.fastestPitStop.pit_duration) : '--:--'}
-            </div>
-            <div className="stat-label">
-              {pitStats.fastestPitStop ? 
-                sessionData.drivers?.find(d => d.driver_number == pitStats.fastestPitStop.driver_number)?.name_acronym || `#${pitStats.fastestPitStop.driver_number}`
-                : 'N/A'
-              }
-            </div>
-          </div>
-          <div className="stat-card red">
-            <h3>Slowest Stop</h3>
-            <div className="stat-value">
-              {pitStats.slowestPitStop ? formatTime(pitStats.slowestPitStop.pit_duration) : '--:--'}
-            </div>
-            <div className="stat-label">
-              {pitStats.slowestPitStop ? 
-                sessionData.drivers?.find(d => d.driver_number == pitStats.slowestPitStop.driver_number)?.name_acronym || `#${pitStats.slowestPitStop.driver_number}`
-                : 'N/A'
-              }
-            </div>
-          </div>
-        </div>
+      {statsData.length > 0 && (
+        <StatsGrid stats={statsData} className="pit-stats" />
       )}
 
-      {/* Charts or Loading */}
+      {/* Charts Grid */}
       {loading ? (
         <div>
           <ChartLoadingSkeleton isMobile={isMobile} />
           <ChartLoadingSkeleton isMobile={isMobile} />
         </div>
-      ) : sessionData.pits && sessionData.drivers ? (
-        <div className="charts-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(500px, 1fr))' }}>
+      ) : (scatterData || durationData) ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: '2rem',
+          marginBottom: '2rem'
+        }}>
           {/* Pit Stop Timeline */}
-          {createScatterData() && (
-            <div className="chart-container fade-in">
-              <div className="chart-wrapper">
-                <Scatter data={createScatterData()} options={scatterOptions} />
-              </div>
+          {scatterData && (
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '1rem',
+              height: '400px'
+            }}>
+              <Scatter data={scatterData} options={scatterOptions} />
             </div>
           )}
 
           {/* Average Duration Comparison */}
-          {createPitDurationChart() && (
-            <div className="chart-container fade-in">
-              <div className="chart-wrapper">
-                <Bar data={createPitDurationChart()} options={barOptions} />
-              </div>
+          {durationData && (
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '1rem',
+              height: '400px'
+            }}>
+              <Bar data={durationData} options={barOptions} />
             </div>
           )}
         </div>
@@ -482,30 +514,61 @@ const PitStrategyPage = () => {
         </div>
       )}
 
-      {/* Pit Stop Timeline */}
+      {/* Enhanced Pit Stop Timeline */}
       {sessionData.pits && sessionData.drivers && sessionData.pits.length > 0 && (
-        <div className="data-card">
-          <h3>Pit Stop Timeline</h3>
-          <div className="timeline">
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '8px',
+          padding: '1.5rem',
+          marginTop: '2rem'
+        }}>
+          <h3 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
+            📊 Pit Stop Timeline
+          </h3>
+          <div style={{
+            maxHeight: '400px',
+            overflowY: 'auto',
+            paddingRight: '1rem'
+          }}>
             {sessionData.pits
-                .filter(pit => pit.lap_number && pit.pit_duration)
-                .sort((a, b) => a.lap_number - b.lap_number)
-                .map((pit, index) => {
+              .filter(pit => pit.lap_number && pit.pit_duration)
+              .sort((a, b) => a.lap_number - b.lap_number)
+              .map((pit, index) => {
                 const driver = sessionData.drivers.find(d => d.driver_number == pit.driver_number);
                 const driverName = driver?.name_acronym || `#${pit.driver_number}`;
-                const color = driverColors[driverName] || '#6366f1';
                 
                 return (
-                  <div key={index} className="timeline-item">
-                    <div 
-                      className="timeline-marker"
-                      style={{ backgroundColor: color }}
-                    ></div>
-                    <div className="timeline-content">
-                      <div className="timeline-title">Lap {pit.lap_number}</div>
-                      <div className="timeline-description">{driverName}</div>
+                  <div key={index} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    marginBottom: '0.5rem',
+                    backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                    borderRadius: '6px',
+                    transition: 'background-color 0.2s ease'
+                  }}>
+                    <div style={{
+                      minWidth: '60px',
+                      fontWeight: 'bold',
+                      color: '#888'
+                    }}>
+                      Lap {pit.lap_number}
                     </div>
-                    <div className="timeline-time">{formatTime(pit.pit_duration)}</div>
+                    <div style={{
+                      flex: 1,
+                      marginLeft: '1rem',
+                      fontWeight: 'bold',
+                      color: '#fff'
+                    }}>
+                      {driverName}
+                    </div>
+                    <div style={{
+                      fontWeight: 'bold',
+                      color: pit.pit_duration < 2.5 ? '#10B981' : 
+                             pit.pit_duration < 3.0 ? '#F59E0B' : '#EF4444'
+                    }}>
+                      {formatTime(pit.pit_duration)}
+                    </div>
                   </div>
                 );
               })}
@@ -519,7 +582,7 @@ const PitStrategyPage = () => {
           No pit stop data available for this session
         </div>
       )}
-    </div>
+    </F1PageLayout>
   );
 };
 
