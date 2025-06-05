@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Scatter, Line } from 'react-chartjs-2';
 import '../components/Analysis.css';
 import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
-import { SessionSelector, DriverToggleButtons } from '../components/UIControls.jsx';
+import { SessionSelector, DriverToggleButtons, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement);
 
-// Custom hook for sector analysis data
+// Custom hook for enhanced sector analysis data
 const useSectorAnalysis = () => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState('');
@@ -16,7 +16,7 @@ const useSectorAnalysis = () => {
   const [selectedDrivers, setSelectedDrivers] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [bestSectorTimes, setBestSectorTimes] = useState({ s1: 0, s2: 0, s3: 0 });
+  const [sectorStats, setSectorStats] = useState({});
   const [initialLoading, setInitialLoading] = useState(true);
 
   const apiBase = 'https://api.openf1.org/v1';
@@ -94,7 +94,7 @@ const useSectorAnalysis = () => {
       }
 
       setSessionData({ laps, drivers });
-      calculateBestSectorTimes(laps);
+      calculateEnhancedSectorStats(laps, drivers);
     } catch (err) {
       console.error('Failed to load session data:', err);
       setError(`Failed to load session data: ${err.message}`);
@@ -103,25 +103,144 @@ const useSectorAnalysis = () => {
     }
   };
 
-  const calculateBestSectorTimes = (laps) => {
+  const calculateEnhancedSectorStats = (laps, drivers) => {
     try {
-      const lapsWithSectors = laps.filter(lap => 
-        lap.duration_sector_1 && lap.duration_sector_2 && lap.duration_sector_3
+      const stats = {
+        bestSectorTimes: { s1: null, s2: null, s3: null },
+        sessionAverages: { s1: 0, s2: 0, s3: 0 },
+        driverStats: {},
+        sectorLeaders: { s1: null, s2: null, s3: null },
+        totalLapsAnalyzed: 0
+      };
+
+      // Filter valid laps with sector times
+      const validLaps = laps.filter(lap => 
+        lap.duration_sector_1 && lap.duration_sector_2 && lap.duration_sector_3 &&
+        lap.duration_sector_1 > 0 && lap.duration_sector_2 > 0 && lap.duration_sector_3 > 0
       );
 
-      if (lapsWithSectors.length === 0) {
-        setBestSectorTimes({ s1: 0, s2: 0, s3: 0 });
+      if (validLaps.length === 0) {
+        setSectorStats(stats);
         return;
       }
 
-      const bestS1 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_1));
-      const bestS2 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_2));
-      const bestS3 = Math.min(...lapsWithSectors.map(lap => lap.duration_sector_3));
+      stats.totalLapsAnalyzed = validLaps.length;
 
-      setBestSectorTimes({ s1: bestS1, s2: bestS2, s3: bestS3 });
+      // Calculate global best times and session averages
+      const s1Times = validLaps.map(lap => lap.duration_sector_1);
+      const s2Times = validLaps.map(lap => lap.duration_sector_2);
+      const s3Times = validLaps.map(lap => lap.duration_sector_3);
+
+      stats.bestSectorTimes.s1 = Math.min(...s1Times);
+      stats.bestSectorTimes.s2 = Math.min(...s2Times);
+      stats.bestSectorTimes.s3 = Math.min(...s3Times);
+
+      stats.sessionAverages.s1 = s1Times.reduce((sum, time) => sum + time, 0) / s1Times.length;
+      stats.sessionAverages.s2 = s2Times.reduce((sum, time) => sum + time, 0) / s2Times.length;
+      stats.sessionAverages.s3 = s3Times.reduce((sum, time) => sum + time, 0) / s3Times.length;
+
+      // Find sector leaders
+      const s1Leader = validLaps.find(lap => lap.duration_sector_1 === stats.bestSectorTimes.s1);
+      const s2Leader = validLaps.find(lap => lap.duration_sector_2 === stats.bestSectorTimes.s2);
+      const s3Leader = validLaps.find(lap => lap.duration_sector_3 === stats.bestSectorTimes.s3);
+
+      stats.sectorLeaders.s1 = s1Leader ? drivers.find(d => d.driver_number == s1Leader.driver_number)?.name_acronym : null;
+      stats.sectorLeaders.s2 = s2Leader ? drivers.find(d => d.driver_number == s2Leader.driver_number)?.name_acronym : null;
+      stats.sectorLeaders.s3 = s3Leader ? drivers.find(d => d.driver_number == s3Leader.driver_number)?.name_acronym : null;
+
+      // Calculate detailed driver statistics
+      validLaps.forEach(lap => {
+        const driverNum = lap.driver_number;
+        if (!stats.driverStats[driverNum]) {
+          stats.driverStats[driverNum] = {
+            s1Times: [],
+            s2Times: [],
+            s3Times: [],
+            bestS1: null,
+            bestS2: null,
+            bestS3: null,
+            avgS1: 0,
+            avgS2: 0,
+            avgS3: 0,
+            consistencyS1: 0,
+            consistencyS2: 0,
+            consistencyS3: 0,
+            gapToBestS1: 0,
+            gapToBestS2: 0,
+            gapToBestS3: 0,
+            relativeToAvgS1: 0,
+            relativeToAvgS2: 0,
+            relativeToAvgS3: 0,
+            overallBestLap: null,
+            sectorStrengths: {},
+            lapCount: 0
+          };
+        }
+
+        const driverStat = stats.driverStats[driverNum];
+        driverStat.s1Times.push(lap.duration_sector_1);
+        driverStat.s2Times.push(lap.duration_sector_2);
+        driverStat.s3Times.push(lap.duration_sector_3);
+        driverStat.lapCount++;
+      });
+
+      // Calculate advanced metrics for each driver
+      Object.keys(stats.driverStats).forEach(driverNum => {
+        const driverStat = stats.driverStats[driverNum];
+        
+        // Best times
+        driverStat.bestS1 = Math.min(...driverStat.s1Times);
+        driverStat.bestS2 = Math.min(...driverStat.s2Times);
+        driverStat.bestS3 = Math.min(...driverStat.s3Times);
+
+        // Averages
+        driverStat.avgS1 = driverStat.s1Times.reduce((sum, time) => sum + time, 0) / driverStat.s1Times.length;
+        driverStat.avgS2 = driverStat.s2Times.reduce((sum, time) => sum + time, 0) / driverStat.s2Times.length;
+        driverStat.avgS3 = driverStat.s3Times.reduce((sum, time) => sum + time, 0) / driverStat.s3Times.length;
+
+        // Consistency (standard deviation)
+        const varianceS1 = driverStat.s1Times.reduce((sum, time) => sum + Math.pow(time - driverStat.avgS1, 2), 0) / driverStat.s1Times.length;
+        const varianceS2 = driverStat.s2Times.reduce((sum, time) => sum + Math.pow(time - driverStat.avgS2, 2), 0) / driverStat.s2Times.length;
+        const varianceS3 = driverStat.s3Times.reduce((sum, time) => sum + Math.pow(time - driverStat.avgS3, 2), 0) / driverStat.s3Times.length;
+
+        driverStat.consistencyS1 = Math.sqrt(varianceS1);
+        driverStat.consistencyS2 = Math.sqrt(varianceS2);
+        driverStat.consistencyS3 = Math.sqrt(varianceS3);
+
+        // Gap analysis
+        driverStat.gapToBestS1 = driverStat.bestS1 - stats.bestSectorTimes.s1;
+        driverStat.gapToBestS2 = driverStat.bestS2 - stats.bestSectorTimes.s2;
+        driverStat.gapToBestS3 = driverStat.bestS3 - stats.bestSectorTimes.s3;
+
+        // Relative performance to session average
+        driverStat.relativeToAvgS1 = ((driverStat.avgS1 - stats.sessionAverages.s1) / stats.sessionAverages.s1) * 100;
+        driverStat.relativeToAvgS2 = ((driverStat.avgS2 - stats.sessionAverages.s2) / stats.sessionAverages.s2) * 100;
+        driverStat.relativeToAvgS3 = ((driverStat.avgS3 - stats.sessionAverages.s3) / stats.sessionAverages.s3) * 100;
+
+        // Sector strengths analysis
+        const gaps = [driverStat.gapToBestS1, driverStat.gapToBestS2, driverStat.gapToBestS3];
+        const minGap = Math.min(...gaps);
+        const maxGap = Math.max(...gaps);
+        
+        driverStat.sectorStrengths = {
+          strongest: gaps.indexOf(minGap) + 1, // 1, 2, or 3
+          weakest: gaps.indexOf(maxGap) + 1,
+          strengthGap: minGap,
+          weaknessGap: maxGap,
+          consistency: Math.max(...[driverStat.consistencyS1, driverStat.consistencyS2, driverStat.consistencyS3])
+        };
+      });
+
+      setSectorStats(stats);
     } catch (err) {
-      console.error('Error calculating sector times:', err);
-      setBestSectorTimes({ s1: 0, s2: 0, s3: 0 });
+      console.error('Error calculating enhanced sector stats:', err);
+      setSectorStats({
+        bestSectorTimes: { s1: null, s2: null, s3: null },
+        sessionAverages: { s1: 0, s2: 0, s3: 0 },
+        driverStats: {},
+        sectorLeaders: { s1: null, s2: null, s3: null },
+        totalLapsAnalyzed: 0
+      });
     }
   };
 
@@ -134,67 +253,209 @@ const useSectorAnalysis = () => {
     setSelectedDrivers,
     loading,
     error,
-    bestSectorTimes,
+    sectorStats,
     initialLoading,
     loadSessions,
     loadSessionData
   };
 };
 
-// Component for creating sector chart data
-const useSectorChartData = (sessionData, selectedDrivers) => {
+// Enhanced relative performance chart for sectors
+const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
+  const driverColors = {
+    // Ferrari
+    'HAM': '#DC143C', 'LEC': '#DC143C', 
+    // Red Bull Racing
+    'VER': '#0600EF', 'TSU': '#0600EF', 
+    // McLaren
+    'NOR': '#FF8700', 'PIA': '#FF8700', 
+    // Mercedes
+    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
+    // Aston Martin
+    'ALO': '#006F62', 'STR': '#006F62', 
+    // Alpine
+    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
+    // Williams
+    'ALB': '#005AFF', 'SAI': '#005AFF', 
+    // Haas
+    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
+    // Racing Bulls
+    'HAD': '#2B4562', 'LAW': '#2B4562', 
+    // Kick Sauber
+    'HUL': '#00F500', 'BOR': '#00F500',
+    // Additional fallback colors
+    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
+  };
+
   return React.useMemo(() => {
-    if (!sessionData.laps || !sessionData.drivers) return null;
+    if (!sessionData.drivers || Object.keys(sectorStats.driverStats || {}).length === 0) {
+      return null;
+    }
 
     try {
-      const driverSectorData = {};
-      sessionData.laps.forEach(lap => {
-        if (!driverSectorData[lap.driver_number]) {
-          driverSectorData[lap.driver_number] = { s1: [], s2: [], s3: [] };
-        }
-        if (lap.duration_sector_1) driverSectorData[lap.driver_number].s1.push(lap.duration_sector_1);
-        if (lap.duration_sector_2) driverSectorData[lap.driver_number].s2.push(lap.duration_sector_2);
-        if (lap.duration_sector_3) driverSectorData[lap.driver_number].s3.push(lap.duration_sector_3);
-      });
+      const driversWithData = Object.keys(sectorStats.driverStats)
+        .filter(driverNum => sectorStats.driverStats[driverNum].lapCount > 0);
 
+      if (driversWithData.length === 0) return null;
+
+      // Filter by selected drivers if any are selected
       const driversToShow = selectedDrivers.size > 0 
-        ? Array.from(selectedDrivers) 
-        : Object.keys(driverSectorData).slice(0, 8);
+        ? driversWithData.filter(driverNum => {
+            const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+            return selectedDrivers.has(driverNum) || selectedDrivers.has(driver?.name_acronym);
+          })
+        : driversWithData;
 
-      const labels = driversToShow.map(d => {
-        const driver = sessionData.drivers.find(dr => dr.driver_number == d);
-        return driver?.name_acronym || `#${d}`;
+      if (driversToShow.length === 0) return null;
+
+      // Sort by overall performance (average gap across all sectors)
+      driversToShow.sort((a, b) => {
+        const avgGapA = (sectorStats.driverStats[a].gapToBestS1 + sectorStats.driverStats[a].gapToBestS2 + sectorStats.driverStats[a].gapToBestS3) / 3;
+        const avgGapB = (sectorStats.driverStats[b].gapToBestS1 + sectorStats.driverStats[b].gapToBestS2 + sectorStats.driverStats[b].gapToBestS3) / 3;
+        return avgGapA - avgGapB;
       });
 
       return {
-        labels,
+        labels: driversToShow.map(driverNum => {
+          const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+          return driver?.name_acronym || `#${driverNum}`;
+        }),
         datasets: [
           {
-            label: 'Sector 1 (Best)',
-            data: driversToShow.map(d => {
-              const times = driverSectorData[d]?.s1 || [];
-              return times.length ? Math.min(...times) : 0;
+            label: 'Sector 1 vs Session Avg (%)',
+            data: driversToShow.map(driverNum => sectorStats.driverStats[driverNum].relativeToAvgS1),
+            backgroundColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS1;
+              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 50%)`;
+              const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
+              return baseColor + opacity;
             }),
+            borderColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 50%)`;
+            }),
+            borderWidth: 2
+          },
+          {
+            label: 'Sector 2 vs Session Avg (%)',
+            data: driversToShow.map(driverNum => sectorStats.driverStats[driverNum].relativeToAvgS2),
+            backgroundColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS2;
+              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 45%)`;
+              const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
+              return baseColor + opacity;
+            }),
+            borderColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 45%)`;
+            }),
+            borderWidth: 2
+          },
+          {
+            label: 'Sector 3 vs Session Avg (%)',
+            data: driversToShow.map(driverNum => sectorStats.driverStats[driverNum].relativeToAvgS3),
+            backgroundColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS3;
+              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 40%)`;
+              const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
+              return baseColor + opacity;
+            }),
+            borderColor: driversToShow.map((driverNum, index) => {
+              const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 40%)`;
+            }),
+            borderWidth: 2
+          }
+        ]
+      };
+    } catch (err) {
+      console.error('Error creating relative sector data:', err);
+      return null;
+    }
+  }, [sessionData, sectorStats, selectedDrivers]);
+};
+
+// Precision gap analysis chart
+const usePrecisionGapData = (sessionData, sectorStats, selectedDrivers) => {
+  const driverColors = {
+    // Ferrari
+    'HAM': '#DC143C', 'LEC': '#DC143C', 
+    // Red Bull Racing
+    'VER': '#0600EF', 'TSU': '#0600EF', 
+    // McLaren
+    'NOR': '#FF8700', 'PIA': '#FF8700', 
+    // Mercedes
+    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
+    // Aston Martin
+    'ALO': '#006F62', 'STR': '#006F62', 
+    // Alpine
+    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
+    // Williams
+    'ALB': '#005AFF', 'SAI': '#005AFF', 
+    // Haas
+    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
+    // Racing Bulls
+    'HAD': '#2B4562', 'LAW': '#2B4562', 
+    // Kick Sauber
+    'HUL': '#00F500', 'BOR': '#00F500',
+    // Additional fallback colors
+    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
+  };
+
+  return React.useMemo(() => {
+    if (!sessionData.drivers || Object.keys(sectorStats.driverStats || {}).length === 0) {
+      return null;
+    }
+
+    try {
+      const driversWithData = Object.keys(sectorStats.driverStats)
+        .filter(driverNum => sectorStats.driverStats[driverNum].lapCount > 0);
+
+      if (driversWithData.length === 0) return null;
+
+      // Filter by selected drivers if any are selected
+      const driversToShow = selectedDrivers.size > 0 
+        ? driversWithData.filter(driverNum => {
+            const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+            return selectedDrivers.has(driverNum) || selectedDrivers.has(driver?.name_acronym);
+          })
+        : driversWithData;
+
+      if (driversToShow.length === 0) return null;
+
+      // Sort by overall performance
+      driversToShow.sort((a, b) => {
+        const avgGapA = (sectorStats.driverStats[a].gapToBestS1 + sectorStats.driverStats[a].gapToBestS2 + sectorStats.driverStats[a].gapToBestS3) / 3;
+        const avgGapB = (sectorStats.driverStats[b].gapToBestS1 + sectorStats.driverStats[b].gapToBestS2 + sectorStats.driverStats[b].gapToBestS3) / 3;
+        return avgGapA - avgGapB;
+      });
+
+      return {
+        labels: driversToShow.map(driverNum => {
+          const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+          return driver?.name_acronym || `#${driverNum}`;
+        }),
+        datasets: [
+          {
+            label: 'Sector 1 Gap to Best (ms)',
+            data: driversToShow.map(driverNum => (sectorStats.driverStats[driverNum].gapToBestS1 * 1000).toFixed(0)),
             backgroundColor: 'rgba(239, 68, 68, 0.7)',
             borderColor: 'rgba(239, 68, 68, 1)',
             borderWidth: 2
           },
           {
-            label: 'Sector 2 (Best)',
-            data: driversToShow.map(d => {
-              const times = driverSectorData[d]?.s2 || [];
-              return times.length ? Math.min(...times) : 0;
-            }),
+            label: 'Sector 2 Gap to Best (ms)',
+            data: driversToShow.map(driverNum => (sectorStats.driverStats[driverNum].gapToBestS2 * 1000).toFixed(0)),
             backgroundColor: 'rgba(245, 158, 11, 0.7)',
             borderColor: 'rgba(245, 158, 11, 1)',
             borderWidth: 2
           },
           {
-            label: 'Sector 3 (Best)',
-            data: driversToShow.map(d => {
-              const times = driverSectorData[d]?.s3 || [];
-              return times.length ? Math.min(...times) : 0;
-            }),
+            label: 'Sector 3 Gap to Best (ms)',
+            data: driversToShow.map(driverNum => (sectorStats.driverStats[driverNum].gapToBestS3 * 1000).toFixed(0)),
             backgroundColor: 'rgba(34, 197, 94, 0.7)',
             borderColor: 'rgba(34, 197, 94, 1)',
             borderWidth: 2
@@ -202,14 +463,75 @@ const useSectorChartData = (sessionData, selectedDrivers) => {
         ]
       };
     } catch (err) {
-      console.error('Error creating chart data:', err);
+      console.error('Error creating precision gap data:', err);
       return null;
     }
-  }, [sessionData, selectedDrivers]);
+  }, [sessionData, sectorStats, selectedDrivers]);
+};
+
+// Sector strengths analysis
+const useSectorStrengthData = (sessionData, sectorStats) => {
+  return React.useMemo(() => {
+    if (!sessionData.drivers || Object.keys(sectorStats.driverStats || {}).length === 0) {
+      return null;
+    }
+
+    try {
+      const driversWithData = Object.keys(sectorStats.driverStats)
+        .filter(driverNum => sectorStats.driverStats[driverNum].lapCount > 0);
+
+      if (driversWithData.length === 0) return null;
+
+      return {
+        datasets: driversWithData.map((driverNum, index) => {
+          const driverStat = sectorStats.driverStats[driverNum];
+          const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
+          const driverName = driver?.name_acronym || `#${driverNum}`;
+
+          return {
+            label: driverName,
+            data: [
+              {
+                x: driverStat.gapToBestS1 * 1000, // Convert to ms
+                y: driverStat.consistencyS1 * 1000,
+                sector: 'S1',
+                gap: driverStat.gapToBestS1,
+                consistency: driverStat.consistencyS1
+              },
+              {
+                x: driverStat.gapToBestS2 * 1000,
+                y: driverStat.consistencyS2 * 1000,
+                sector: 'S2',
+                gap: driverStat.gapToBestS2,
+                consistency: driverStat.consistencyS2
+              },
+              {
+                x: driverStat.gapToBestS3 * 1000,
+                y: driverStat.consistencyS3 * 1000,
+                sector: 'S3',
+                gap: driverStat.gapToBestS3,
+                consistency: driverStat.consistencyS3
+              }
+            ],
+            backgroundColor: `hsl(${index * 15}, 70%, 50%)`,
+            borderColor: `hsl(${index * 15}, 70%, 50%)`,
+            pointRadius: 8,
+            pointHoverRadius: 12,
+            showLine: false
+          };
+        }).slice(0, 12) // Limit for readability
+      };
+    } catch (err) {
+      console.error('Error creating sector strength data:', err);
+      return null;
+    }
+  }, [sessionData, sectorStats]);
 };
 
 const SectorAnalysisPage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [visualizationType, setVisualizationType] = useState('relative'); // 'relative', 'precision', 'strengths'
+  const [showConsistency, setShowConsistency] = useState(false);
   
   const {
     sessions,
@@ -220,13 +542,15 @@ const SectorAnalysisPage = () => {
     setSelectedDrivers,
     loading,
     error,
-    bestSectorTimes,
+    sectorStats,
     initialLoading,
     loadSessions,
     loadSessionData
   } = useSectorAnalysis();
 
-  const chartData = useSectorChartData(sessionData, selectedDrivers);
+  const relativeData = useRelativeSectorData(sessionData, sectorStats, selectedDrivers);
+  const precisionData = usePrecisionGapData(sessionData, sectorStats, selectedDrivers);
+  const strengthData = useSectorStrengthData(sessionData, sectorStats);
 
   useEffect(() => {
     loadSessions();
@@ -242,12 +566,18 @@ const SectorAnalysisPage = () => {
     return mins > 0 ? `${mins}:${secs.padStart(6, '0')}` : `${secs}s`;
   };
 
-  const toggleDriver = (driverNum) => {
+  const formatDelta = (delta) => {
+    if (!delta && delta !== 0) return '--';
+    const sign = delta >= 0 ? '+' : '';
+    return `${sign}${(delta * 1000).toFixed(0)}ms`;
+  };
+
+  const toggleDriver = (driverName) => {
     const newSelected = new Set(selectedDrivers);
-    if (newSelected.has(driverNum)) {
-      newSelected.delete(driverNum);
-    } else if (newSelected.size < 6) {
-      newSelected.add(driverNum);
+    if (newSelected.has(driverName)) {
+      newSelected.delete(driverName);
+    } else if (newSelected.size < 8) {
+      newSelected.add(driverName);
     }
     setSelectedDrivers(newSelected);
   };
@@ -260,50 +590,173 @@ const SectorAnalysisPage = () => {
       })
     : [];
 
-  const driverColors = uniqueDrivers.reduce((acc, driverNum) => {
-    const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
-    acc[driverNum] = driver?.name_acronym || `#${driverNum}`;
-    return acc;
-  }, {});
-
-  const chartOptions = {
+  // Chart options for relative performance
+  const relativeOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: 'white' }
+        labels: { color: 'white', font: { size: isMobile ? 10 : 12 } }
       },
       title: {
         display: true,
-        text: 'Best Sector Times Comparison',
-        color: 'white'
+        text: 'Sector Performance vs Session Average - Qualifying Precision',
+        color: 'white',
+        font: { size: isMobile ? 14 : 16 }
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
         titleColor: 'white',
         bodyColor: 'white',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1,
         callbacks: {
           label: (context) => {
-            const label = context.dataset.label;
-            const value = formatTime(context.raw);
-            return `${label}: ${value}`;
+            const value = parseFloat(context.raw);
+            const driver = context.label;
+            const sector = context.dataset.label.includes('Sector 1') ? 'S1' : 
+                          context.dataset.label.includes('Sector 2') ? 'S2' : 'S3';
+            
+            const driverNum = Object.keys(sectorStats.driverStats || {}).find(num => {
+              const d = sessionData.drivers?.find(dr => dr.driver_number == num);
+              return (d?.name_acronym || `#${num}`) === driver;
+            });
+            
+            if (driverNum && sectorStats.driverStats[driverNum]) {
+              const driverData = sectorStats.driverStats[driverNum];
+              const bestTime = sector === 'S1' ? driverData.bestS1 : 
+                              sector === 'S2' ? driverData.bestS2 : driverData.bestS3;
+              const gapToBest = sector === 'S1' ? driverData.gapToBestS1 : 
+                               sector === 'S2' ? driverData.gapToBestS2 : driverData.gapToBestS3;
+              
+              return [
+                `${driver} - ${sector}`,
+                `Best: ${formatTime(bestTime)}`,
+                `vs Session Avg: ${value >= 0 ? '+' : ''}${value.toFixed(2)}%`,
+                `Gap to Best: ${formatDelta(gapToBest)}`
+              ];
+            }
+            return `${driver} ${sector}: ${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
           }
         }
       }
     },
     scales: {
-      x: { 
+      x: {
+        ticks: { 
+          color: 'white',
+          maxRotation: isMobile ? 90 : 45,
+          minRotation: isMobile ? 45 : 0
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      },
+      y: {
+        title: { 
+          display: true, 
+          text: 'Performance vs Session Average (%)', 
+          color: 'white' 
+        },
+        ticks: {
+          color: 'white',
+          callback: (value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      }
+    }
+  };
+
+  // Chart options for precision gaps
+  const precisionOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { color: 'white', font: { size: isMobile ? 10 : 12 } }
+      },
+      title: {
+        display: true,
+        text: 'Precision Gap Analysis - Every Millisecond Counts',
+        color: 'white',
+        font: { size: isMobile ? 14 : 16 }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1
+      }
+    },
+    scales: {
+      x: {
+        ticks: { 
+          color: 'white',
+          maxRotation: isMobile ? 90 : 45,
+          minRotation: isMobile ? 45 : 0
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      },
+      y: {
+        title: { 
+          display: true, 
+          text: 'Gap to Fastest Sector (milliseconds)', 
+          color: 'white' 
+        },
+        ticks: {
+          color: 'white',
+          callback: (value) => `+${value}ms`
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        beginAtZero: true
+      }
+    }
+  };
+
+  // Chart options for sector strengths scatter
+  const strengthOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { color: 'white', font: { size: isMobile ? 8 : 10 } }
+      },
+      title: {
+        display: true,
+        text: 'Speed vs Consistency by Sector',
+        color: 'white',
+        font: { size: isMobile ? 14 : 16 }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
+        callbacks: {
+          label: (context) => {
+            const point = context.raw;
+            const driver = context.dataset.label;
+            return [
+              `${driver} - ${point.sector}`,
+              `Gap to Best: ${formatDelta(point.gap)}`,
+              `Consistency: ±${(point.consistency * 1000).toFixed(0)}ms`
+            ];
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Gap to Fastest (milliseconds)', color: 'white' },
         ticks: { color: 'white' },
         grid: { color: 'rgba(255, 255, 255, 0.1)' }
       },
-      y: { 
-        ticks: { 
-          color: 'white',
-          callback: (value) => formatTime(value)
-        },
+      y: {
+        title: { display: true, text: 'Consistency (milliseconds)', color: 'white' },
+        ticks: { color: 'white' },
         grid: { color: 'rgba(255, 255, 255, 0.1)' }
       }
     }
@@ -313,7 +766,7 @@ const SectorAnalysisPage = () => {
   if (initialLoading) {
     return (
       <F1PageLayout 
-        title="🏁 Sector Time Analysis"
+        title="🏁 Enhanced Sector Time Analysis"
         showHeader={true}
       >
         <DataLoader 
@@ -324,33 +777,66 @@ const SectorAnalysisPage = () => {
     );
   }
 
-  const statsData = bestSectorTimes.s1 > 0 ? [
+  // Enhanced stats data
+  const statsData = sectorStats.bestSectorTimes?.s1 ? [
     {
-      label: 'Sector 1',
-      value: formatTime(bestSectorTimes.s1),
-      sublabel: 'Best Time',
+      label: 'Sector 1 Best',
+      value: formatTime(sectorStats.bestSectorTimes.s1),
+      sublabel: sectorStats.sectorLeaders?.s1 || 'N/A',
       color: 'red'
     },
     {
-      label: 'Sector 2', 
-      value: formatTime(bestSectorTimes.s2),
-      sublabel: 'Best Time',
+      label: 'Sector 2 Best',
+      value: formatTime(sectorStats.bestSectorTimes.s2),
+      sublabel: sectorStats.sectorLeaders?.s2 || 'N/A',
       color: 'yellow'
     },
     {
-      label: 'Sector 3',
-      value: formatTime(bestSectorTimes.s3), 
-      sublabel: 'Best Time',
+      label: 'Sector 3 Best',
+      value: formatTime(sectorStats.bestSectorTimes.s3),
+      sublabel: sectorStats.sectorLeaders?.s3 || 'N/A',
       color: 'green'
+    },
+    {
+      label: 'Laps Analyzed',
+      value: sectorStats.totalLapsAnalyzed.toString(),
+      sublabel: 'valid sector data',
+      color: 'blue'
     }
   ] : [];
 
   return (
     <F1PageLayout 
-      title="🏁 Sector Time Analysis"
-      subtitle="Analyze sector performance across qualifying and race sessions"
-      className="sector-analysis-page"
+      title="🏁 Enhanced Sector Time Analysis"
+      subtitle="Precision sector analysis where qualifying pole position is decided by milliseconds"
+      className="enhanced-sector-analysis-page"
     >
+      {/* Enhanced Controls */}
+      <ControlBar>
+        <select
+          value={visualizationType}
+          onChange={(e) => setVisualizationType(e.target.value)}
+          style={{
+            padding: "0.75rem",
+            fontSize: "1rem",
+            borderRadius: "6px",
+            border: "1px solid #555",
+            backgroundColor: "#333",
+            color: "#fff"
+          }}
+        >
+          <option value="relative">Relative Performance</option>
+          <option value="precision">Precision Gaps</option>
+          <option value="strengths">Sector Strengths</option>
+        </select>
+
+        <ToggleSwitch
+          checked={showConsistency}
+          onChange={(e) => setShowConsistency(e.target.checked)}
+          label="Show Consistency"
+        />
+      </ControlBar>
+
       {/* Session Controls */}
       <SessionSelector
         sessions={sessions}
@@ -378,44 +864,247 @@ const SectorAnalysisPage = () => {
             const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
             return driver?.name_acronym || `#${driverNum}`;
           })}
-          selectedDrivers={new Set([...selectedDrivers].map(driverNum => {
-            const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
-            return driver?.name_acronym || `#${driverNum}`;
-          }))}
-          onToggleDriver={(driverName) => {
-            const driverNum = uniqueDrivers.find(num => {
-              const driver = sessionData.drivers?.find(d => d.driver_number == num);
-              return (driver?.name_acronym || `#${num}`) === driverName;
-            });
-            if (driverNum) toggleDriver(driverNum);
-          }}
-          maxDrivers={6}
-          driverColors={driverColors}
+          selectedDrivers={selectedDrivers}
+          onToggleDriver={toggleDriver}
+          maxDrivers={8}
           title="Select Drivers to Compare"
         />
       )}
 
-      {/* Statistics Cards */}
+      {/* Enhanced Statistics Cards */}
       {statsData.length > 0 && (
-        <StatsGrid stats={statsData} className="sector-stats" />
+        <StatsGrid stats={statsData} className="enhanced-sector-stats" />
       )}
 
-      {/* Chart or Loading */}
+      {/* Main Visualization */}
       {loading ? (
         <ChartLoadingSkeleton isMobile={isMobile} />
-      ) : chartData ? (
-        <ResponsiveChart 
-          type="bar" 
-          data={chartData} 
-          options={chartOptions}
-          className="sector-chart fade-in"
-          style={{ height: isMobile ? '400px' : '600px' }}
-        />
-      ) : !error && selectedSession && (
-        <div className="no-data">
-          Select a session to view sector analysis
+      ) : (
+        <div style={{ marginBottom: '2rem' }}>
+          {visualizationType === 'relative' && relativeData && (
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '1rem',
+              height: isMobile ? '600px' : '700px'
+            }}>
+              <Bar data={relativeData} options={relativeOptions} />
+            </div>
+          )}
+
+          {visualizationType === 'precision' && precisionData && (
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '1rem',
+              height: isMobile ? '600px' : '700px'
+            }}>
+              <Bar data={precisionData} options={precisionOptions} />
+            </div>
+          )}
+
+          {visualizationType === 'strengths' && strengthData && (
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '1rem',
+              height: isMobile ? '600px' : '700px'
+            }}>
+              <Scatter data={strengthData} options={strengthOptions} />
+            </div>
+          )}
         </div>
       )}
+
+      {/* Enhanced Sector Performance Table */}
+      {Object.keys(sectorStats.driverStats || {}).length > 0 && (
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '8px',
+          padding: '1.5rem',
+          marginTop: '2rem'
+        }}>
+          <h3 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
+            🎯 Sector Performance Breakdown
+          </h3>
+          
+          {isMobile ? (
+            /* Mobile Card Layout */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {Object.keys(sectorStats.driverStats)
+                .filter(driverNum => sectorStats.driverStats[driverNum].lapCount > 0)
+                .sort((a, b) => {
+                  const avgGapA = (sectorStats.driverStats[a].gapToBestS1 + sectorStats.driverStats[a].gapToBestS2 + sectorStats.driverStats[a].gapToBestS3) / 3;
+                  const avgGapB = (sectorStats.driverStats[b].gapToBestS1 + sectorStats.driverStats[b].gapToBestS2 + sectorStats.driverStats[b].gapToBestS3) / 3;
+                  return avgGapA - avgGapB;
+                })
+                .map((driverNum, index) => {
+                  const driverData = sectorStats.driverStats[driverNum];
+                  const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
+                  const driverName = driver?.name_acronym || `#${driverNum}`;
+                  
+                  return (
+                    <div key={driverNum} style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '8px',
+                      padding: '1.5rem',
+                      border: `2px solid ${index === 0 ? '#FFD700' : index < 3 ? '#C0C0C0' : 'rgba(255, 255, 255, 0.2)'}`,
+                      position: 'relative'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>
+                            #{index + 1} {driverName}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#ccc' }}>
+                            {driverData.lapCount} laps analyzed
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#10B981' }}>
+                            S{driverData.sectorStrengths.strongest} Strongest
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#EF4444' }}>
+                            S{driverData.sectorStrengths.weakest} Weakest
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', fontSize: '0.8rem' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ color: '#EF4444', fontWeight: 'bold' }}>S1</span>
+                          <div style={{ color: '#fff', fontWeight: 'bold' }}>{formatTime(driverData.bestS1)}</div>
+                          <div style={{ color: '#aaa' }}>{formatDelta(driverData.gapToBestS1)}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ color: '#F59E0B', fontWeight: 'bold' }}>S2</span>
+                          <div style={{ color: '#fff', fontWeight: 'bold' }}>{formatTime(driverData.bestS2)}</div>
+                          <div style={{ color: '#aaa' }}>{formatDelta(driverData.gapToBestS2)}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>S3</span>
+                          <div style={{ color: '#fff', fontWeight: 'bold' }}>{formatTime(driverData.bestS3)}</div>
+                          <div style={{ color: '#aaa' }}>{formatDelta(driverData.gapToBestS3)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            /* Desktop Table Layout */
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
+                    <th style={{ padding: '1rem', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Pos</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Driver</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#EF4444', fontWeight: 'bold' }}>S1 Best</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#F59E0B', fontWeight: 'bold' }}>S2 Best</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#10B981', fontWeight: 'bold' }}>S3 Best</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Strongest</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Laps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.keys(sectorStats.driverStats)
+                    .filter(driverNum => sectorStats.driverStats[driverNum].lapCount > 0)
+                    .sort((a, b) => {
+                      const avgGapA = (sectorStats.driverStats[a].gapToBestS1 + sectorStats.driverStats[a].gapToBestS2 + sectorStats.driverStats[a].gapToBestS3) / 3;
+                      const avgGapB = (sectorStats.driverStats[b].gapToBestS1 + sectorStats.driverStats[b].gapToBestS2 + sectorStats.driverStats[b].gapToBestS3) / 3;
+                      return avgGapA - avgGapB;
+                    })
+                    .map((driverNum, index) => {
+                      const driverData = sectorStats.driverStats[driverNum];
+                      const driver = sessionData.drivers?.find(d => d.driver_number == driverNum);
+                      const driverName = driver?.name_acronym || `#${driverNum}`;
+                      
+                      return (
+                        <tr key={driverNum} style={{ 
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                          backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                          borderLeft: index === 0 ? '4px solid #FFD700' : index < 3 ? '4px solid #C0C0C0' : '4px solid transparent'
+                        }}>
+                          <td style={{ 
+                            padding: '1rem', 
+                            color: index === 0 ? '#FFD700' : '#fff', 
+                            fontWeight: 'bold' 
+                          }}>
+                            #{index + 1}
+                          </td>
+                          <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>{driverName}</td>
+                          <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>
+                            {formatTime(driverData.bestS1)}
+                            <div style={{ fontSize: '0.8rem', color: '#aaa' }}>{formatDelta(driverData.gapToBestS1)}</div>
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>
+                            {formatTime(driverData.bestS2)}
+                            <div style={{ fontSize: '0.8rem', color: '#aaa' }}>{formatDelta(driverData.gapToBestS2)}</div>
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>
+                            {formatTime(driverData.bestS3)}
+                            <div style={{ fontSize: '0.8rem', color: '#aaa' }}>{formatDelta(driverData.gapToBestS3)}</div>
+                          </td>
+                          <td style={{ 
+                            padding: '1rem', 
+                            textAlign: 'center', 
+                            color: '#10B981',
+                            fontWeight: 'bold'
+                          }}>
+                            Sector {driverData.sectorStrengths.strongest}
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
+                            {driverData.lapCount}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Enhanced Methodology */}
+      <div style={{
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '8px',
+        padding: '2rem',
+        marginTop: '2rem'
+      }}>
+        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>🔬 Advanced Sector Analysis Methodology</h3>
+        <div style={{ color: '#ccc', lineHeight: '1.6' }}>
+          <p style={{ marginBottom: '1rem' }}>
+            In Formula 1 qualifying, pole position is often decided by thousandths of a second across three sectors. 
+            Our enhanced analysis reveals these critical micro-differences and identifies where each driver gains or loses time.
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: '1.5rem'
+          }}>
+            <div>
+              <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Precision Analysis:</h4>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                <li>• <strong>Millisecond Accuracy</strong>: Gap analysis to fastest sector times</li>
+                <li>• <strong>Relative Performance</strong>: Percentage differences from session averages</li>
+                <li>• <strong>Sector Strengths</strong>: Identifies where drivers excel or struggle</li>
+                <li>• <strong>Consistency Tracking</strong>: Standard deviation across multiple laps</li>
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Advanced Metrics:</h4>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                <li>• <strong>Performance Visualization</strong>: Multiple chart types for different insights</li>
+                <li>• <strong>All Driver Coverage</strong>: Complete field analysis (20-21 drivers)</li>
+                <li>• <strong>Session Comparisons</strong>: Qualifying, race, and sprint sessions</li>
+                <li>• <strong>Interactive Filtering</strong>: Focus on specific drivers or sectors</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </F1PageLayout>
   );
 };
