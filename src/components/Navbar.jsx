@@ -88,7 +88,7 @@ const Navbar = () => {
       items: [
         { path: '/sector-analysis', label: 'Sector Times', icon: '⏱️' },
         { path: '/pit-strategy', label: 'Pit Strategy', icon: '🔧' },
-        { path: '/pit-stop-analysis', label: 'AI Pit Predictions', icon: '🤖' }
+        { path: '/pit-stop-analysis', label: 'Pit Predictions', icon: '⛽' }
       ]
     }
   ];
