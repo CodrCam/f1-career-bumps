@@ -51,7 +51,7 @@ const getDriverColor = (driverName) => {
     'Oliver Bearman': '#999C9F',
     'Isack Hadjar': '#ADD8E6',
     'Liam Lawson': '#8BC5E6',
-    'Nico Hulkenberg': '#00FF00',
+    'Nico Hülkenberg': '#00FF00',
     'Gabriel Bortoleto': '#00CC00'
   };
   
@@ -121,10 +121,10 @@ const getWinStyle = (val1, val2, isLowerBetter = true) => {
     : { color: "#EF4444", fontWeight: "600" };
 };
 
-const DriverHeadToHeadPage = () => {
+const NewDriverHeadToHeadPage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showVisualization, setShowVisualization] = useState(true);
-  const [comparisonType, setComparisonType] = useState('overview'); // 'overview', 'qualifying', 'sprint', 'race'
+  const [viewMode, setViewMode] = useState('overview'); // 'overview', 'qualifying', 'sprint', 'race'
 
   // Use shared processing utility
   const processedRaces = useProcessedRaceData(f1SeasonData.races);
@@ -135,9 +135,9 @@ const DriverHeadToHeadPage = () => {
   const [driver1, setDriver1] = useState(allDrivers[0] || "");
   const [driver2, setDriver2] = useState(allDrivers[1] || "");
 
-  // Helper functions defined before usage
-  const calculateSummaryStats = (quali1, quali2, sprint1, sprint2, races1, races2) => {
-    // Qualifying stats
+  // Calculate comprehensive statistics
+  const calculateComprehensiveStats = (quali1, quali2, sprint1, sprint2, races1, races2) => {
+    // Head-to-head battles
     const qualiWins1 = quali1.filter((q1, i) => {
       const q2 = quali2[i];
       return q1.grid !== null && q2.grid !== null && q1.grid < q2.grid;
@@ -148,7 +148,6 @@ const DriverHeadToHeadPage = () => {
       return q1.grid !== null && q2.grid !== null && q2.grid < q1.grid;
     }).length;
 
-    // Race stats
     const raceWins1 = races1.filter((r1, i) => {
       const r2 = races2[i];
       return r1.position !== null && r2.position !== null && r1.position < r2.position;
@@ -159,21 +158,44 @@ const DriverHeadToHeadPage = () => {
       return r1.position !== null && r2.position !== null && r2.position < r1.position;
     }).length;
 
-    // Points and averages
-    const totalPoints1 = races1.reduce((sum, r) => sum + r.points, 0);
-    const totalPoints2 = races2.reduce((sum, r) => sum + r.points, 0);
+    // Points calculation including sprint points
+    const racePoints1 = races1.reduce((sum, r) => sum + r.points, 0);
+    const racePoints2 = races2.reduce((sum, r) => sum + r.points, 0);
+    const sprintPoints1 = sprint1.reduce((sum, s) => sum + s.points, 0);
+    const sprintPoints2 = sprint2.reduce((sum, s) => sum + s.points, 0);
+    const totalPoints1 = racePoints1 + sprintPoints1;
+    const totalPoints2 = racePoints2 + sprintPoints2;
 
-    const avgQuali1 = quali1.filter(q => q.grid !== null).reduce((sum, q, _, arr) => sum + q.grid / arr.length, 0);
-    const avgQuali2 = quali2.filter(q => q.grid !== null).reduce((sum, q, _, arr) => sum + q.grid / arr.length, 0);
+    // Average positions
+    const validQuali1 = quali1.filter(q => q.grid !== null);
+    const validQuali2 = quali2.filter(q => q.grid !== null);
+    const avgQuali1 = validQuali1.length > 0 ? validQuali1.reduce((sum, q) => sum + q.grid, 0) / validQuali1.length : 0;
+    const avgQuali2 = validQuali2.length > 0 ? validQuali2.reduce((sum, q) => sum + q.grid, 0) / validQuali2.length : 0;
 
-    const avgRace1 = races1.filter(r => r.position !== null).reduce((sum, r, _, arr) => sum + r.position / arr.length, 0);
-    const avgRace2 = races2.filter(r => r.position !== null).reduce((sum, r, _, arr) => sum + r.position / arr.length, 0);
+    const validRaces1 = races1.filter(r => r.position !== null);
+    const validRaces2 = races2.filter(r => r.position !== null);
+    const avgRace1 = validRaces1.length > 0 ? validRaces1.reduce((sum, r) => sum + r.position, 0) / validRaces1.length : 0;
+    const avgRace2 = validRaces2.length > 0 ? validRaces2.reduce((sum, r) => sum + r.position, 0) / validRaces2.length : 0;
+
+    // Sprint battles
+    const sprintWins1 = sprint1.filter((s1, i) => {
+      const s2 = sprint2[i];
+      return s1.position !== null && s2.position !== null && s1.position < s2.position;
+    }).length;
+
+    const sprintWins2 = sprint2.filter((s2, i) => {
+      const s1 = sprint1[i];
+      return s1.position !== null && s2.position !== null && s2.position < s1.position;
+    }).length;
 
     return {
       driver1: {
         qualiWins: qualiWins1,
         raceWins: raceWins1,
+        sprintWins: sprintWins1,
         totalPoints: totalPoints1,
+        racePoints: racePoints1,
+        sprintPoints: sprintPoints1,
         avgQuali: avgQuali1,
         avgRace: avgRace1,
         pointsPerRace: totalPoints1 / races1.length
@@ -181,7 +203,10 @@ const DriverHeadToHeadPage = () => {
       driver2: {
         qualiWins: qualiWins2,
         raceWins: raceWins2,
+        sprintWins: sprintWins2,
         totalPoints: totalPoints2,
+        racePoints: racePoints2,
+        sprintPoints: sprintPoints2,
         avgQuali: avgQuali2,
         avgRace: avgRace2,
         pointsPerRace: totalPoints2 / races2.length
@@ -189,43 +214,53 @@ const DriverHeadToHeadPage = () => {
     };
   };
 
-  const createComparisonChartData = (summary, driver1Name, driver2Name) => {
-    if (!summary) return null;
+  const createRadarChartData = (stats, driver1Name, driver2Name) => {
+    if (!stats) return null;
 
     return {
-      labels: ['Qualifying Wins', 'Race Wins', 'Total Points', 'Avg Qualifying', 'Avg Race Finish'],
+      labels: ['Qualifying Battles', 'Race Battles', 'Sprint Battles', 'Total Points', 'Avg Qualifying', 'Avg Race Finish'],
       datasets: [
         {
           label: driver1Name,
           data: [
-            summary.driver1.qualiWins,
-            summary.driver1.raceWins,
-            summary.driver1.totalPoints,
-            20 - summary.driver1.avgQuali, // Invert for better visual (higher = better)
-            20 - summary.driver1.avgRace
+            stats.driver1.qualiWins,
+            stats.driver1.raceWins,
+            stats.driver1.sprintWins,
+            Math.round(stats.driver1.totalPoints / 10), // Scale points for radar
+            Math.max(0, 20 - stats.driver1.avgQuali), // Invert for better visual
+            Math.max(0, 20 - stats.driver1.avgRace)
           ],
-          backgroundColor: getDriverColor(driver1Name) + '80',
+          backgroundColor: getDriverColor(driver1Name) + '40',
           borderColor: getDriverColor(driver1Name),
-          borderWidth: 2
+          borderWidth: 2,
+          pointBackgroundColor: getDriverColor(driver1Name),
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: getDriverColor(driver1Name)
         },
         {
           label: driver2Name,
           data: [
-            summary.driver2.qualiWins,
-            summary.driver2.raceWins,
-            summary.driver2.totalPoints,
-            20 - summary.driver2.avgQuali,
-            20 - summary.driver2.avgRace
+            stats.driver2.qualiWins,
+            stats.driver2.raceWins,
+            stats.driver2.sprintWins,
+            Math.round(stats.driver2.totalPoints / 10),
+            Math.max(0, 20 - stats.driver2.avgQuali),
+            Math.max(0, 20 - stats.driver2.avgRace)
           ],
-          backgroundColor: getDriverColor(driver2Name) + '80',
+          backgroundColor: getDriverColor(driver2Name) + '40',
           borderColor: getDriverColor(driver2Name),
-          borderWidth: 2
+          borderWidth: 2,
+          pointBackgroundColor: getDriverColor(driver2Name),
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: getDriverColor(driver2Name)
         }
       ]
     };
   };
 
-  const createProgressionData = (races1, races2, driver1Name, driver2Name) => {
+  const createPointsProgressionData = (races1, races2, sprint1, sprint2, driver1Name, driver2Name) => {
     let cumulative1 = 0;
     let cumulative2 = 0;
     
@@ -233,8 +268,14 @@ const DriverHeadToHeadPage = () => {
     const progression2 = [0];
     
     races1.forEach((race, index) => {
-      cumulative1 += race.points;
-      cumulative2 += races2[index].points;
+      const racePoints1 = race.points;
+      const racePoints2 = races2[index].points;
+      const sprintPoints1 = sprint1[index] ? sprint1[index].points : 0;
+      const sprintPoints2 = sprint2[index] ? sprint2[index].points : 0;
+      
+      cumulative1 += racePoints1 + sprintPoints1;
+      cumulative2 += racePoints2 + sprintPoints2;
+      
       progression1.push(cumulative1);
       progression2.push(cumulative2);
     });
@@ -248,7 +289,7 @@ const DriverHeadToHeadPage = () => {
           borderColor: getDriverColor(driver1Name),
           backgroundColor: getDriverColor(driver1Name) + '20',
           borderWidth: 3,
-          pointRadius: 4,
+          pointRadius: 5,
           pointHoverRadius: 8,
           tension: 0.2,
           fill: false
@@ -259,7 +300,7 @@ const DriverHeadToHeadPage = () => {
           borderColor: getDriverColor(driver2Name),
           backgroundColor: getDriverColor(driver2Name) + '20',
           borderWidth: 3,
-          pointRadius: 4,
+          pointRadius: 5,
           pointHoverRadius: 8,
           tension: 0.2,
           fill: false
@@ -268,12 +309,12 @@ const DriverHeadToHeadPage = () => {
     };
   };
 
-  // Enhanced data processing with additional metrics
-  const enhancedComparisonData = useMemo(() => {
+  // Main data processing
+  const comparisonData = useMemo(() => {
     if (!driver1 || !driver2 || processedRaces.length === 0) {
       return {
         quali1: [], quali2: [], sprint1: [], sprint2: [], races1: [], races2: [],
-        summary: null, chartData: null, progressionData: null
+        stats: null, radarData: null, progressionData: null
       };
     }
 
@@ -284,92 +325,91 @@ const DriverHeadToHeadPage = () => {
     const races1 = getDriverResultsByRound(driver1, "race_results", processedRaces);
     const races2 = getDriverResultsByRound(driver2, "race_results", processedRaces);
 
-    // Calculate comprehensive summary statistics
-    const summary = calculateSummaryStats(quali1, quali2, sprint1, sprint2, races1, races2);
-    
-    // Create chart data for visualization
-    const chartData = createComparisonChartData(summary, driver1, driver2);
-    
-    // Create progression data
-    const progressionData = createProgressionData(races1, races2, driver1, driver2);
+    const stats = calculateComprehensiveStats(quali1, quali2, sprint1, sprint2, races1, races2);
+    const radarData = createRadarChartData(stats, driver1, driver2);
+    const progressionData = createPointsProgressionData(races1, races2, sprint1, sprint2, driver1, driver2);
 
     return {
       quali1, quali2, sprint1, sprint2, races1, races2,
-      summary, chartData, progressionData
+      stats, radarData, progressionData
     };
   }, [driver1, driver2, processedRaces]);
 
-  // Enhanced statistics for stats grid
-  const statsData = useMemo(() => {
-    if (!enhancedComparisonData.summary) return [];
+  // Statistics for the grid
+  const statsGridData = useMemo(() => {
+    if (!comparisonData.stats) return [];
 
-    const { summary } = enhancedComparisonData;
+    const { stats } = comparisonData;
     
     return [
       {
-        label: 'Qualifying Battle',
-        value: `${summary.driver1.qualiWins} - ${summary.driver2.qualiWins}`,
-        sublabel: `${driver1} vs ${driver2}`,
-        color: summary.driver1.qualiWins > summary.driver2.qualiWins ? 'green' : 
-               summary.driver1.qualiWins < summary.driver2.qualiWins ? 'red' : 'yellow'
+        label: 'Head-to-Head Record',
+        value: `${stats.driver1.qualiWins + stats.driver1.raceWins + stats.driver1.sprintWins} - ${stats.driver2.qualiWins + stats.driver2.raceWins + stats.driver2.sprintWins}`,
+        sublabel: 'Total Battles Won',
+        color: (stats.driver1.qualiWins + stats.driver1.raceWins + stats.driver1.sprintWins) > 
+               (stats.driver2.qualiWins + stats.driver2.raceWins + stats.driver2.sprintWins) ? 'green' : 
+               (stats.driver1.qualiWins + stats.driver1.raceWins + stats.driver1.sprintWins) < 
+               (stats.driver2.qualiWins + stats.driver2.raceWins + stats.driver2.sprintWins) ? 'red' : 'yellow'
       },
       {
-        label: 'Race Battle',
-        value: `${summary.driver1.raceWins} - ${summary.driver2.raceWins}`,
-        sublabel: 'Head-to-Head Wins',
-        color: summary.driver1.raceWins > summary.driver2.raceWins ? 'green' : 
-               summary.driver1.raceWins < summary.driver2.raceWins ? 'red' : 'yellow'
-      },
-      {
-        label: 'Points Gap',
-        value: Math.abs(summary.driver1.totalPoints - summary.driver2.totalPoints).toString(),
-        sublabel: 'Championship Points',
+        label: 'Championship Points Gap',
+        value: Math.abs(stats.driver1.totalPoints - stats.driver2.totalPoints).toString(),
+        sublabel: 'Total Points Difference',
         color: 'blue'
       },
       {
-        label: 'Avg Performance Gap',
-        value: Math.abs(summary.driver1.avgRace - summary.driver2.avgRace).toFixed(1),
-        sublabel: 'Race Position Difference',
+        label: 'Qualifying Battle',
+        value: `${stats.driver1.qualiWins} - ${stats.driver2.qualiWins}`,
+        sublabel: `${driver1} vs ${driver2}`,
+        color: stats.driver1.qualiWins > stats.driver2.qualiWins ? 'green' : 
+               stats.driver1.qualiWins < stats.driver2.qualiWins ? 'red' : 'yellow'
+      },
+      {
+        label: 'Race Battle',
+        value: `${stats.driver1.raceWins} - ${stats.driver2.raceWins}`,
+        sublabel: 'Sunday Performance',
+        color: stats.driver1.raceWins > stats.driver2.raceWins ? 'green' : 
+               stats.driver1.raceWins < stats.driver2.raceWins ? 'red' : 'yellow'
+      },
+      {
+        label: 'Sprint Battle',
+        value: `${stats.driver1.sprintWins} - ${stats.driver2.sprintWins}`,
+        sublabel: 'Saturday Sprint',
+        color: stats.driver1.sprintWins > stats.driver2.sprintWins ? 'green' : 
+               stats.driver1.sprintWins < stats.driver2.sprintWins ? 'red' : 'yellow'
+      },
+      {
+        label: 'Points Per Race',
+        value: `${stats.driver1.pointsPerRace.toFixed(1)} vs ${stats.driver2.pointsPerRace.toFixed(1)}`,
+        sublabel: 'Average Points Scored',
         color: 'purple'
       }
     ];
-  }, [enhancedComparisonData.summary, driver1, driver2]);
+  }, [comparisonData.stats, driver1, driver2]);
 
   // Chart options
-  const barChartOptions = {
+  const radarChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       title: {
         display: true,
-        text: 'Head-to-Head Performance Comparison',
+        text: 'Performance Comparison Radar',
         font: { size: isMobile ? 14 : 16 },
         color: 'white'
       },
       legend: {
         position: 'top',
         labels: { color: 'white' }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: 'white',
-        bodyColor: 'white',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1
       }
     },
     scales: {
-      x: {
-        ticks: { 
-          color: 'white',
-          maxRotation: isMobile ? 45 : 0
-        },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-      },
-      y: {
+      r: {
         beginAtZero: true,
-        ticks: { color: 'white' },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+        ticks: { color: 'white', backdropColor: 'transparent' },
+        pointLabels: { color: 'white', font: { size: isMobile ? 10 : 12 } }
       }
     }
   };
@@ -387,13 +427,6 @@ const DriverHeadToHeadPage = () => {
       legend: {
         position: 'top',
         labels: { color: 'white' }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: 'white',
-        bodyColor: 'white',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1
       }
     },
     scales: {
@@ -411,15 +444,15 @@ const DriverHeadToHeadPage = () => {
     }
   };
 
-  const { quali1, quali2, sprint1, sprint2, races1, races2 } = enhancedComparisonData;
+  const { quali1, quali2, sprint1, sprint2, races1, races2 } = comparisonData;
 
   return (
     <F1PageLayout
-      title="Enhanced Driver Head-to-Head Analysis"
-      subtitle="Comprehensive statistical comparison between any two drivers across all sessions"
-      className="enhanced-head-to-head"
+      title="Driver Head-to-Head Analysis"
+      subtitle="Comprehensive statistical comparison between drivers across all sessions"
+      className="driver-head-to-head"
     >
-      {/* Enhanced Controls */}
+      {/* Controls */}
       <ControlBar>
         <select 
           value={driver1} 
@@ -431,7 +464,7 @@ const DriverHeadToHeadPage = () => {
             border: "1px solid #555",
             backgroundColor: "#333",
             color: "#fff",
-            minWidth: "200px"
+            minWidth: "180px"
           }}
         >
           {allDrivers.map((d) => (
@@ -441,7 +474,7 @@ const DriverHeadToHeadPage = () => {
 
         <div style={{ 
           padding: "0.75rem",
-          fontSize: "1rem",
+          fontSize: "1.2rem",
           color: "#fff",
           fontWeight: "bold"
         }}>
@@ -458,7 +491,7 @@ const DriverHeadToHeadPage = () => {
             border: "1px solid #555",
             backgroundColor: "#333",
             color: "#fff",
-            minWidth: "200px"
+            minWidth: "180px"
           }}
         >
           {allDrivers.map((d) => (
@@ -467,8 +500,8 @@ const DriverHeadToHeadPage = () => {
         </select>
 
         <select
-          value={comparisonType}
-          onChange={(e) => setComparisonType(e.target.value)}
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value)}
           style={{
             padding: "0.75rem",
             fontSize: "1rem",
@@ -492,7 +525,7 @@ const DriverHeadToHeadPage = () => {
       </ControlBar>
 
       {/* Statistics Grid */}
-      <StatsGrid stats={statsData} className="head-to-head-stats" />
+      <StatsGrid stats={statsGridData} className="head-to-head-stats" />
 
       {/* Visualization Charts */}
       {showVisualization && (
@@ -502,35 +535,35 @@ const DriverHeadToHeadPage = () => {
           gap: '2rem',
           marginBottom: '2rem'
         }}>
-          {/* Performance Comparison Chart */}
-          {enhancedComparisonData.chartData && (
+          {/* Radar Chart */}
+          {comparisonData.radarData && (
             <div style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
               padding: '1rem',
               height: '400px'
             }}>
-              <Bar data={enhancedComparisonData.chartData} options={barChartOptions} />
+              <Radar data={comparisonData.radarData} options={radarChartOptions} />
             </div>
           )}
 
-          {/* Points Progression Chart */}
-          {enhancedComparisonData.progressionData && (
+          {/* Points Progression */}
+          {comparisonData.progressionData && (
             <div style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
               padding: '1rem',
               height: '400px'
             }}>
-              <Line data={enhancedComparisonData.progressionData} options={progressionOptions} />
+              <Line data={comparisonData.progressionData} options={progressionOptions} />
             </div>
           )}
         </div>
       )}
 
-      {/* Enhanced Comparison Tables */}
-      {(comparisonType === 'overview' || comparisonType === 'qualifying') && (
-        <section style={{ marginBottom: '3rem' }}>
+      {/* Detailed Comparisons */}
+      {(viewMode === 'overview' || viewMode === 'qualifying') && (
+        <section style={{ marginBottom: '2rem' }}>
           <h2 style={{ 
             fontSize: isMobile ? '1.3rem' : '1.5rem',
             color: '#fff',
@@ -544,7 +577,6 @@ const DriverHeadToHeadPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {quali1.map((q1, i) => {
                 const q2 = quali2[i];
-                const gridDelta = q1.grid !== null && q2.grid !== null ? q1.grid - q2.grid : null;
                 return (
                   <div key={`q-${i}`} style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -568,7 +600,7 @@ const DriverHeadToHeadPage = () => {
                           fontSize: '1.1rem',
                           color: getWinStyle(q1.grid, q2.grid).color || '#fff' 
                         }}>
-                          P{q1.grid} ({q1.time || "--"})
+                          P{q1.grid || "--"} ({q1.time || "--"})
                         </div>
                       </div>
                       <div style={{
@@ -583,23 +615,10 @@ const DriverHeadToHeadPage = () => {
                           fontSize: '1.1rem',
                           color: getWinStyle(q2.grid, q1.grid).color || '#fff' 
                         }}>
-                          P{q2.grid} ({q2.time || "--"})
+                          P{q2.grid || "--"} ({q2.time || "--"})
                         </div>
                       </div>
                     </div>
-                    {gridDelta !== null && (
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        textAlign: 'center', 
-                        fontSize: '0.9rem', 
-                        color: '#aaa',
-                        padding: '0.5rem',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        borderRadius: '4px'
-                      }}>
-                        Gap: {gridDelta > 0 ? "+" : ""}{gridDelta} positions
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -616,14 +635,14 @@ const DriverHeadToHeadPage = () => {
                     <th style={{ padding: '1rem', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Track</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver1), fontWeight: 'bold' }}>{driver1}</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver2), fontWeight: 'bold' }}>{driver2}</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Grid Gap</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Time Gap</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Winner</th>
                   </tr>
                 </thead>
                 <tbody>
                   {quali1.map((q1, i) => {
                     const q2 = quali2[i];
-                    const gridDelta = q1.grid !== null && q2.grid !== null ? q1.grid - q2.grid : null;
+                    const winner = q1.grid !== null && q2.grid !== null ? 
+                      (q1.grid < q2.grid ? driver1 : q1.grid > q2.grid ? driver2 : 'Tie') : '--';
                     return (
                       <tr key={`q-${i}`} style={{ 
                         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
@@ -635,20 +654,23 @@ const DriverHeadToHeadPage = () => {
                           ...getWinStyle(q1.grid, q2.grid),
                           color: getWinStyle(q1.grid, q2.grid).color || getDriverColor(driver1)
                         }}>
-                          P{q1.grid} ({q1.time ?? "--"})
+                          P{q1.grid || "--"} ({q1.time || "--"})
                         </td>
                         <td style={{ 
                           padding: '1rem', 
                           ...getWinStyle(q2.grid, q1.grid),
                           color: getWinStyle(q2.grid, q1.grid).color || getDriverColor(driver2)
                         }}>
-                          P{q2.grid} ({q2.time ?? "--"})
+                          P{q2.grid || "--"} ({q2.time || "--"})
                         </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {gridDelta !== null ? `${gridDelta > 0 ? "+" : ""}${gridDelta}` : "--"}
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {formatTimeDelta(q1.time, q2.time)}
+                        <td style={{ 
+                          padding: '1rem', 
+                          textAlign: 'center', 
+                          color: winner === driver1 ? getDriverColor(driver1) : 
+                                 winner === driver2 ? getDriverColor(driver2) : '#ccc',
+                          fontWeight: 'bold'
+                        }}>
+                          {winner}
                         </td>
                       </tr>
                     );
@@ -660,9 +682,9 @@ const DriverHeadToHeadPage = () => {
         </section>
       )}
 
-      {/* Sprint Comparison */}
-      {(comparisonType === 'overview' || comparisonType === 'sprint') && (
-        <section style={{ marginBottom: '3rem' }}>
+      {/* Sprint Results */}
+      {(viewMode === 'overview' || viewMode === 'sprint') && (
+        <section style={{ marginBottom: '2rem' }}>
           <h2 style={{ 
             fontSize: isMobile ? '1.3rem' : '1.5rem',
             color: '#fff',
@@ -674,9 +696,9 @@ const DriverHeadToHeadPage = () => {
           </h2>
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {sprint1.map((r1, i) => {
-                const r2 = sprint2[i];
-                const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
+              {sprint1.map((s1, i) => {
+                const s2 = sprint2[i];
+                if (!s1.position && !s2.position) return null; // Skip if no sprint
                 return (
                   <div key={`s-${i}`} style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -685,7 +707,7 @@ const DriverHeadToHeadPage = () => {
                     border: '1px solid rgba(255, 255, 255, 0.1)'
                   }}>
                     <h4 style={{ margin: '0 0 1rem 0', color: '#fff', fontSize: '1.1rem' }}>
-                      {r1.circuit}
+                      {s1.circuit}
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div style={{
@@ -698,9 +720,9 @@ const DriverHeadToHeadPage = () => {
                         <div style={{ 
                           fontWeight: 'bold', 
                           fontSize: '1.1rem',
-                          color: getWinStyle(r1.position, r2.position).color || '#fff' 
+                          color: getWinStyle(s1.position, s2.position).color || '#fff' 
                         }}>
-                          P{r1.position} ({r1.time || "--"})
+                          {s1.position ? `P${s1.position}` : "DNF"} - {s1.points}pts
                         </div>
                       </div>
                       <div style={{
@@ -713,25 +735,12 @@ const DriverHeadToHeadPage = () => {
                         <div style={{ 
                           fontWeight: 'bold', 
                           fontSize: '1.1rem',
-                          color: getWinStyle(r2.position, r1.position).color || '#fff' 
+                          color: getWinStyle(s2.position, s1.position).color || '#fff' 
                         }}>
-                          P{r2.position} ({r2.time || "--"})
+                          {s2.position ? `P${s2.position}` : "DNF"} - {s2.points}pts
                         </div>
                       </div>
                     </div>
-                    {posDelta !== null && (
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        textAlign: 'center', 
-                        fontSize: '0.9rem', 
-                        color: '#aaa',
-                        padding: '0.5rem',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        borderRadius: '4px'
-                      }}>
-                        Gap: {posDelta > 0 ? "+" : ""}{posDelta} positions
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -748,39 +757,43 @@ const DriverHeadToHeadPage = () => {
                     <th style={{ padding: '1rem', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Track</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver1), fontWeight: 'bold' }}>{driver1}</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver2), fontWeight: 'bold' }}>{driver2}</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Position Gap</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Time Gap</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Winner</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sprint1.map((r1, i) => {
-                    const r2 = sprint2[i];
-                    const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
+                  {sprint1.map((s1, i) => {
+                    const s2 = sprint2[i];
+                    if (!s1.position && !s2.position) return null;
+                    const winner = s1.position !== null && s2.position !== null ? 
+                      (s1.position < s2.position ? driver1 : s1.position > s2.position ? driver2 : 'Tie') : '--';
                     return (
                       <tr key={`s-${i}`} style={{ 
                         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                         backgroundColor: i % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
                       }}>
-                        <td style={{ padding: '1rem', color: '#fff', fontWeight: '600' }}>{r1.circuit}</td>
+                        <td style={{ padding: '1rem', color: '#fff', fontWeight: '600' }}>{s1.circuit}</td>
                         <td style={{ 
                           padding: '1rem', 
-                          ...getWinStyle(r1.position, r2.position),
-                          color: getWinStyle(r1.position, r2.position).color || getDriverColor(driver1)
+                          ...getWinStyle(s1.position, s2.position),
+                          color: getWinStyle(s1.position, s2.position).color || getDriverColor(driver1)
                         }}>
-                          P{r1.position} ({r1.time ?? "--"})
+                          {s1.position ? `P${s1.position}` : "DNF"} - {s1.points}pts
                         </td>
                         <td style={{ 
                           padding: '1rem', 
-                          ...getWinStyle(r2.position, r1.position),
-                          color: getWinStyle(r2.position, r1.position).color || getDriverColor(driver2)
+                          ...getWinStyle(s2.position, s1.position),
+                          color: getWinStyle(s2.position, s1.position).color || getDriverColor(driver2)
                         }}>
-                          P{r2.position} ({r2.time ?? "--"})
+                          {s2.position ? `P${s2.position}` : "DNF"} - {s2.points}pts
                         </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {formatTimeDelta(r1.time, r2.time)}
+                        <td style={{ 
+                          padding: '1rem', 
+                          textAlign: 'center', 
+                          color: winner === driver1 ? getDriverColor(driver1) : 
+                                 winner === driver2 ? getDriverColor(driver2) : '#ccc',
+                          fontWeight: 'bold'
+                        }}>
+                          {winner}
                         </td>
                       </tr>
                     );
@@ -792,8 +805,8 @@ const DriverHeadToHeadPage = () => {
         </section>
       )}
 
-      {/* Race Results Comparison */}
-      {(comparisonType === 'overview' || comparisonType === 'race') && (
+      {/* Race Results */}
+      {(viewMode === 'overview' || viewMode === 'race') && (
         <section>
           <h2 style={{ 
             fontSize: isMobile ? '1.3rem' : '1.5rem',
@@ -808,7 +821,6 @@ const DriverHeadToHeadPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {races1.map((r1, i) => {
                 const r2 = races2[i];
-                const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
                 return (
                   <div key={`r-${i}`} style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -832,10 +844,10 @@ const DriverHeadToHeadPage = () => {
                           fontSize: '1.1rem',
                           color: getWinStyle(r1.position, r2.position).color || '#fff' 
                         }}>
-                          P{r1.position} ({r1.time || "--"})
+                          {r1.position ? `P${r1.position}` : "DNF"} - {r1.points}pts
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '0.5rem' }}>
-                          {r1.points} points
+                          {r1.time || "--"}
                         </div>
                       </div>
                       <div style={{
@@ -850,26 +862,13 @@ const DriverHeadToHeadPage = () => {
                           fontSize: '1.1rem',
                           color: getWinStyle(r2.position, r1.position).color || '#fff' 
                         }}>
-                          P{r2.position} ({r2.time || "--"})
+                          {r2.position ? `P${r2.position}` : "DNF"} - {r2.points}pts
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '0.5rem' }}>
-                          {r2.points} points
+                          {r2.time || "--"}
                         </div>
                       </div>
                     </div>
-                    {posDelta !== null && (
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        textAlign: 'center', 
-                        fontSize: '0.9rem', 
-                        color: '#aaa',
-                        padding: '0.5rem',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        borderRadius: '4px'
-                      }}>
-                        Gap: {posDelta > 0 ? "+" : ""}{posDelta} positions
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -886,14 +885,14 @@ const DriverHeadToHeadPage = () => {
                     <th style={{ padding: '1rem', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Track</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver1), fontWeight: 'bold' }}>{driver1}</th>
                     <th style={{ padding: '1rem', textAlign: 'left', color: getDriverColor(driver2), fontWeight: 'bold' }}>{driver2}</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Position Gap</th>
-                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Time Gap</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Winner</th>
                   </tr>
                 </thead>
                 <tbody>
                   {races1.map((r1, i) => {
                     const r2 = races2[i];
-                    const posDelta = r1.position !== null && r2.position !== null ? r1.position - r2.position : null;
+                    const winner = r1.position !== null && r2.position !== null ? 
+                      (r1.position < r2.position ? driver1 : r1.position > r2.position ? driver2 : 'Tie') : '--';
                     return (
                       <tr key={`r-${i}`} style={{ 
                         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
@@ -905,20 +904,23 @@ const DriverHeadToHeadPage = () => {
                           ...getWinStyle(r1.position, r2.position),
                           color: getWinStyle(r1.position, r2.position).color || getDriverColor(driver1)
                         }}>
-                          P{r1.position} ({r1.time ?? "--"}) - {r1.points}pts
+                          {r1.position ? `P${r1.position}` : "DNF"} - {r1.points}pts ({r1.time || "--"})
                         </td>
                         <td style={{ 
                           padding: '1rem', 
                           ...getWinStyle(r2.position, r1.position),
                           color: getWinStyle(r2.position, r1.position).color || getDriverColor(driver2)
                         }}>
-                          P{r2.position} ({r2.time ?? "--"}) - {r2.points}pts
+                          {r2.position ? `P${r2.position}` : "DNF"} - {r2.points}pts ({r2.time || "--"})
                         </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {posDelta !== null ? `${posDelta > 0 ? "+" : ""}${posDelta}` : "--"}
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'center', color: '#ccc' }}>
-                          {formatTimeDelta(r1.time, r2.time)}
+                        <td style={{ 
+                          padding: '1rem', 
+                          textAlign: 'center', 
+                          color: winner === driver1 ? getDriverColor(driver1) : 
+                                 winner === driver2 ? getDriverColor(driver2) : '#ccc',
+                          fontWeight: 'bold'
+                        }}>
+                          {winner}
                         </td>
                       </tr>
                     );
@@ -929,47 +931,8 @@ const DriverHeadToHeadPage = () => {
           )}
         </section>
       )}
-
-      {/* Enhanced Summary */}
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: '8px',
-        padding: '2rem',
-        marginTop: '2rem'
-      }}>
-        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>📊 Enhanced Analysis Summary</h3>
-        <div style={{ color: '#ccc', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: '1rem' }}>
-            This comprehensive head-to-head analysis compares {driver1} and {driver2} across all session types with enhanced visualizations and statistical insights.
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-            gap: '1.5rem'
-          }}>
-            <div>
-              <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Performance Metrics:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Head-to-Head Records</strong>: Win/loss across sessions</li>
-                <li>• <strong>Statistical Analysis</strong>: Average positions and gaps</li>
-                <li>• <strong>Points Progression</strong>: Championship momentum</li>
-                <li>• <strong>Session-Specific Focus</strong>: Detailed breakdowns</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Visual Analysis:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Interactive Charts</strong>: Performance comparison visualization</li>
-                <li>• <strong>Color Coding</strong>: Driver-specific color schemes</li>
-                <li>• <strong>Responsive Design</strong>: Mobile-optimized tables and cards</li>
-                <li>• <strong>Comprehensive Data</strong>: All sessions and statistics</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
     </F1PageLayout>
   );
 };
 
-export default DriverHeadToHeadPage;
+export default NewDriverHeadToHeadPage;
