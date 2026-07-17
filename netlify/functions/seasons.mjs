@@ -1,9 +1,9 @@
 const runtimeEnvKeys = [
-  'AWS_ACCESS_KEY_ID',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_SESSION_TOKEN',
-  'AWS_REGION',
-  'DYNAMODB_TABLE',
+  'F1_AWS_ACCESS_KEY_ID',
+  'F1_AWS_SECRET_ACCESS_KEY',
+  'F1_AWS_SESSION_TOKEN',
+  'F1_AWS_REGION',
+  'F1_DYNAMODB_TABLE',
 ];
 
 const prepareAwsEnvironment = () => {
