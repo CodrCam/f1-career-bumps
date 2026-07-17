@@ -16,6 +16,7 @@
     "pipeline:update:official": "node server/updateRacePipeline.js --official-only",
     "pipeline:backfill": "node server/backfillRaceAnalytics.js",
     "pipeline:rebuild": "node server/rebuildLocalRaceAnalytics.js",
+    "pipeline:sync": "node server/syncLocalRaceAnalyticsToDynamo.js",
     "timing:setup": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-fastf1.txt",
     "db:check:ddb": "node server/checkDynamoDbAccess.js",
     "env:check": "node server/checkEnvFiles.js",
