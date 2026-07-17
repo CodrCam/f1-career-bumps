@@ -6,7 +6,11 @@ import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartCom
 import { SessionSelector, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 import { getSeasonFromParam } from '../utils/seasons.js';
-import { normalizeDriverTeamFields } from '../utils/dataProcessing.js';
+import {
+  getSessionDriverColor,
+  normalizeDriverTeamFields,
+  withColorAlpha,
+} from '../utils/dataProcessing.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement);
 
@@ -208,31 +212,6 @@ const usePitStrategyData = (year) => {
 
 // Enhanced relative performance chart data
 const useRelativePerformanceData = (sessionData, pitStats) => {
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC143C', 'LEC': '#DC143C', 
-    // Red Bull Racing
-    'VER': '#0600EF', 'TSU': '#0600EF', 
-    // McLaren
-    'NOR': '#FF8700', 'PIA': '#FF8700', 
-    // Mercedes
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
-    // Aston Martin
-    'ALO': '#006F62', 'STR': '#006F62', 
-    // Alpine
-    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
-    // Williams
-    'ALB': '#005AFF', 'SAI': '#005AFF', 
-    // Haas
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
-    // Racing Bulls
-    'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Audi
-    'HUL': '#00E676', 'BOR': '#00E676',
-    // Additional fallback colors for any extra drivers
-    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
-  };
-
   return useMemo(() => {
     if (!sessionData.pits || !sessionData.drivers || Object.keys(pitStats.pitsByDriver || {}).length === 0) {
       return null;
@@ -257,15 +236,15 @@ const useRelativePerformanceData = (sessionData, pitStats) => {
           backgroundColor: driversWithData.map((driverNum, index) => {
             const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
             const relativePerf = pitStats.pitsByDriver[driverNum].relativeToAverage;
-            const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+            const baseColor = getSessionDriverColor(driver, index);
             
             // Add performance-based opacity
             const opacity = relativePerf < -2 ? '90' : relativePerf < 0 ? '70' : relativePerf < 2 ? '50' : '30';
-            return baseColor + opacity;
+            return withColorAlpha(baseColor, opacity);
           }),
           borderColor: driversWithData.map((driverNum, index) => {
             const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-            return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+            return getSessionDriverColor(driver, index);
           }),
           borderWidth: 3
         }]
@@ -279,31 +258,6 @@ const useRelativePerformanceData = (sessionData, pitStats) => {
 
 // Enhanced precision time comparison chart
 const usePrecisionTimeData = (sessionData, pitStats) => {
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC143C', 'LEC': '#DC143C', 
-    // Red Bull Racing
-    'VER': '#0600EF', 'TSU': '#0600EF', 
-    // McLaren
-    'NOR': '#FF8700', 'PIA': '#FF8700', 
-    // Mercedes
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
-    // Aston Martin
-    'ALO': '#006F62', 'STR': '#006F62', 
-    // Alpine
-    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
-    // Williams
-    'ALB': '#005AFF', 'SAI': '#005AFF', 
-    // Haas
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
-    // Racing Bulls
-    'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Audi
-    'HUL': '#00E676', 'BOR': '#00E676',
-    // Additional fallback colors for any extra drivers
-    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
-  };
-
   return useMemo(() => {
     if (!sessionData.pits || !sessionData.drivers || Object.keys(pitStats.pitsByDriver || {}).length === 0) {
       return null;
@@ -341,12 +295,12 @@ const usePrecisionTimeData = (sessionData, pitStats) => {
               else if (delta < 0.5) opacity = '50';
               else opacity = '30';
               
-              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
-              return baseColor + opacity;
+              const baseColor = getSessionDriverColor(driver, index);
+              return withColorAlpha(baseColor, opacity);
             }),
             borderColor: driversWithData.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-              return driverColors[driver?.name_acronym] || `hsl(${index * 40}, 70%, 50%)`;
+              return getSessionDriverColor(driver, index);
             }),
             borderWidth: 2
           },
@@ -372,31 +326,6 @@ const usePrecisionTimeData = (sessionData, pitStats) => {
 
 // Enhanced scatter plot with better scaling
 const useEnhancedScatterData = (sessionData, pitStats) => {
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC143C', 'LEC': '#DC143C', 
-    // Red Bull Racing
-    'VER': '#0600EF', 'TSU': '#0600EF', 
-    // McLaren
-    'NOR': '#FF8700', 'PIA': '#FF8700', 
-    // Mercedes
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
-    // Aston Martin
-    'ALO': '#006F62', 'STR': '#006F62', 
-    // Alpine
-    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
-    // Williams
-    'ALB': '#005AFF', 'SAI': '#005AFF', 
-    // Haas
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
-    // Racing Bulls
-    'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Audi
-    'HUL': '#00E676', 'BOR': '#00E676',
-    // Additional fallback colors for any extra drivers
-    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
-  };
-
   return useMemo(() => {
     if (!sessionData.pits || !sessionData.drivers) return null;
 
@@ -431,8 +360,8 @@ const useEnhancedScatterData = (sessionData, pitStats) => {
                 fastestGap: pitStats.sessionFastest ? (pit.pit_duration - pitStats.sessionFastest).toFixed(3) : 'N/A'
               };
             }),
-          backgroundColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
-          borderColor: driverColors[driverName] || `hsl(${index * 30}, 70%, 50%)`,
+          backgroundColor: getSessionDriverColor(driver, index),
+          borderColor: getSessionDriverColor(driver, index),
           pointRadius: 10,
           pointHoverRadius: 14
         });
@@ -694,7 +623,7 @@ const PitStrategyPage = () => {
   if (initialLoading) {
     return (
       <F1PageLayout 
-        title="⛽ Pit Stop Strategy Analysis"
+        title="Pit Stop Strategy"
         showHeader={true}
       >
         <DataLoader 
@@ -738,8 +667,8 @@ const PitStrategyPage = () => {
 
   return (
     <F1PageLayout 
-      title="⛽ Pit Stop Strategy Analysis"
-      subtitle={`${selectedYear} precision timing analysis where every millisecond counts`}
+      title="Pit Stop Strategy"
+      subtitle={`${selectedYear} stop timing, consistency, and race-window comparisons`}
       className="enhanced-pit-strategy-page"
     >
       {/* Enhanced Controls */}
@@ -800,7 +729,7 @@ const PitStrategyPage = () => {
         <div style={{ marginBottom: '2rem' }}>
           {visualizationType === 'relative' && relativeData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px' // Increased height for 20+ drivers
@@ -811,7 +740,7 @@ const PitStrategyPage = () => {
 
           {visualizationType === 'precision' && precisionData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px' // Increased height for 20+ drivers
@@ -822,7 +751,7 @@ const PitStrategyPage = () => {
 
           {visualizationType === 'scatter' && scatterData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px' // Increased height for 20+ drivers
@@ -836,7 +765,7 @@ const PitStrategyPage = () => {
       {/* Performance Table */}
       {Object.keys(pitStats.pitsByDriver || {}).length > 0 && (
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'rgba(17, 20, 25, 0.98)',
           borderRadius: '8px',
           padding: '1.5rem',
           marginTop: '2rem'

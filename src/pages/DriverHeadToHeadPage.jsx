@@ -15,7 +15,11 @@ import {
 import { Bar, Radar, Line } from "react-chartjs-2";
 import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
-import { useProcessedRaceData, getAllDrivers } from "../utils/dataProcessing.js";
+import {
+  getAllDrivers,
+  getDriverColor as getSharedDriverColor,
+  useProcessedRaceData,
+} from "../utils/dataProcessing.js";
 import { getTrackName } from "../utils/raceLabels.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
@@ -31,35 +35,6 @@ ChartJS.register(
   Legend,
   RadialLinearScale
 );
-
-// Enhanced driver color system
-const getDriverColor = (driverName) => {
-  const driverVariations = {
-    'Max Verstappen': '#1E41FF',
-    'Yuki Tsunoda': '#0F2080',
-    'Charles Leclerc': '#DC0000',
-    'Lewis Hamilton': '#B30000',
-    'Lando Norris': '#FF8000',
-    'Oscar Piastri': '#CC6600',
-    'George Russell': '#00D2BE',
-    'Kimi Antonelli': '#00B5A0',
-    'Fernando Alonso': '#006F62',
-    'Lance Stroll': '#004F45',
-    'Pierre Gasly': '#FF69B4',
-    'Franco Colapinto': '#CC4A8C',
-    'Jack Doohan': '#AA3F75',
-    'Alexander Albon': '#005AFF',
-    'Carlos Sainz': '#0040CC',
-    'Esteban Ocon': '#B6BABD',
-    'Oliver Bearman': '#999C9F',
-    'Isack Hadjar': '#ADD8E6',
-    'Liam Lawson': '#8BC5E6',
-    'Nico Hülkenberg': '#00FF00',
-    'Gabriel Bortoleto': '#00CC00'
-  };
-  
-  return driverVariations[driverName] || '#FFFFFF';
-};
 
 const getDriverResultsByRound = (driver, type = "race_results", processedRaces) => {
   return processedRaces.map((race) => {
@@ -102,6 +77,13 @@ const NewDriverHeadToHeadPage = () => {
 
   // Use shared processing utility
   const processedRaces = useProcessedRaceData(races);
+  const getDriverColor = (driverName) => {
+    const result = processedRaces
+      .flatMap((race) => race.race_results ?? [])
+      .find(({ driver }) => driver === driverName);
+
+    return getSharedDriverColor(driverName, result?.team, selectedYear);
+  };
   
   // Memoize all drivers list
   const allDrivers = useMemo(() => getAllDrivers(processedRaces), [processedRaces]);
@@ -535,7 +517,7 @@ const NewDriverHeadToHeadPage = () => {
           {/* Radar Chart */}
           {comparisonData.radarData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: '400px'
@@ -547,7 +529,7 @@ const NewDriverHeadToHeadPage = () => {
           {/* Points Progression */}
           {comparisonData.progressionData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: '400px'
@@ -576,7 +558,7 @@ const NewDriverHeadToHeadPage = () => {
                 const q2 = quali2[i];
                 return (
                   <div key={`q-${i}`} style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: 'rgba(17, 20, 25, 0.98)',
                     borderRadius: '8px',
                     padding: '1.5rem',
                     border: '1px solid rgba(255, 255, 255, 0.1)'
@@ -622,7 +604,7 @@ const NewDriverHeadToHeadPage = () => {
             </div>
           ) : (
             <div style={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               overflow: 'hidden'
             }}>
@@ -698,7 +680,7 @@ const NewDriverHeadToHeadPage = () => {
                 if (!s1.position && !s2.position) return null; // Skip if no sprint
                 return (
                   <div key={`s-${i}`} style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: 'rgba(17, 20, 25, 0.98)',
                     borderRadius: '8px',
                     padding: '1.5rem',
                     border: '1px solid rgba(255, 255, 255, 0.1)'
@@ -744,7 +726,7 @@ const NewDriverHeadToHeadPage = () => {
             </div>
           ) : (
             <div style={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               overflow: 'hidden'
             }}>
@@ -820,7 +802,7 @@ const NewDriverHeadToHeadPage = () => {
                 const r2 = races2[i];
                 return (
                   <div key={`r-${i}`} style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: 'rgba(17, 20, 25, 0.98)',
                     borderRadius: '8px',
                     padding: '1.5rem',
                     border: '1px solid rgba(255, 255, 255, 0.1)'
@@ -872,7 +854,7 @@ const NewDriverHeadToHeadPage = () => {
             </div>
           ) : (
             <div style={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               overflow: 'hidden'
             }}>

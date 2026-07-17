@@ -17,7 +17,11 @@ import driverPitStopData from '../data/Driver_Pitstop.json';
 import { F1PageLayout } from '../components/ChartComponents.jsx';
 import { ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { getSeasonFromParam } from '../utils/seasons.js';
-import { normalizeTeamName as normalizeTeamNameForSeason } from '../utils/dataProcessing.js';
+import {
+  getDriverColor as getSharedDriverColor,
+  getTeamColor,
+  normalizeTeamName as normalizeTeamNameForSeason,
+} from '../utils/dataProcessing.js';
 
 ChartJS.register(
   CategoryScale,
@@ -35,27 +39,27 @@ ChartJS.register(
 
 // Team and driver constants
 const drivers2025 = [
-  { id: "max_verstappen", driver: "Max Verstappen", team: "Red Bull", color: "#1E41FF" },
-  { id: "yuki_tsunoda", driver: "Yuki Tsunoda", team: "Red Bull", color: "#1E41FF" },
-  { id: "leclerc", driver: "Charles Leclerc", team: "Ferrari", color: "#DC0000" },
-  { id: "hamilton", driver: "Lewis Hamilton", team: "Ferrari", color: "#DC0000" },
-  { id: "norris", driver: "Lando Norris", team: "McLaren", color: "#FF8000" },
-  { id: "piastri", driver: "Oscar Piastri", team: "McLaren", color: "#FF8000" },
-  { id: "russell", driver: "George Russell", team: "Mercedes", color: "#00D2BE" },
-  { id: "antonelli", driver: "Kimi Antonelli", team: "Mercedes", color: "#00D2BE" },
-  { id: "alonso", driver: "Fernando Alonso", team: "Aston Martin", color: "#006F62" },
-  { id: "stroll", driver: "Lance Stroll", team: "Aston Martin", color: "#006F62" },
-  { id: "gasly", driver: "Pierre Gasly", team: "Alpine", color: "#FF69B4" },
-  { id: "colapinto", driver: "Franco Colapinto", team: "Alpine", color: "#FF69B4" },
-  { id: "doohan", driver: "Jack Doohan", team: "Alpine", color: "#FF69B4" },
-  { id: "hadjar", driver: "Isack Hadjar", team: "Racing Bulls", color: "#ADD8E6" },
-  { id: "lawson", driver: "Liam Lawson", team: "Racing Bulls", color: "#ADD8E6" },
-  { id: "hulkenberg", driver: "Nico Hulkenberg", team: "Sauber", color: "#00FF00" },
-  { id: "bortoleto", driver: "Gabriel Bortoleto", team: "Sauber", color: "#00FF00" },
-  { id: "ocon", driver: "Esteban Ocon", team: "Haas", color: "#B6BABD" },
-  { id: "bearman", driver: "Oliver Bearman", team: "Haas", color: "#B6BABD" },
-  { id: "albon", driver: "Alexander Albon", team: "Williams", color: "#005AFF" },
-  { id: "sainz", driver: "Carlos Sainz", team: "Williams", color: "#005AFF" },
+  { id: "max_verstappen", driver: "Max Verstappen", team: "Red Bull" },
+  { id: "yuki_tsunoda", driver: "Yuki Tsunoda", team: "Red Bull" },
+  { id: "leclerc", driver: "Charles Leclerc", team: "Ferrari" },
+  { id: "hamilton", driver: "Lewis Hamilton", team: "Ferrari" },
+  { id: "norris", driver: "Lando Norris", team: "McLaren" },
+  { id: "piastri", driver: "Oscar Piastri", team: "McLaren" },
+  { id: "russell", driver: "George Russell", team: "Mercedes" },
+  { id: "antonelli", driver: "Kimi Antonelli", team: "Mercedes" },
+  { id: "alonso", driver: "Fernando Alonso", team: "Aston Martin" },
+  { id: "stroll", driver: "Lance Stroll", team: "Aston Martin" },
+  { id: "gasly", driver: "Pierre Gasly", team: "Alpine" },
+  { id: "colapinto", driver: "Franco Colapinto", team: "Alpine" },
+  { id: "doohan", driver: "Jack Doohan", team: "Alpine" },
+  { id: "hadjar", driver: "Isack Hadjar", team: "Racing Bulls" },
+  { id: "lawson", driver: "Liam Lawson", team: "Racing Bulls" },
+  { id: "hulkenberg", driver: "Nico Hulkenberg", team: "Sauber" },
+  { id: "bortoleto", driver: "Gabriel Bortoleto", team: "Sauber" },
+  { id: "ocon", driver: "Esteban Ocon", team: "Haas" },
+  { id: "bearman", driver: "Oliver Bearman", team: "Haas" },
+  { id: "albon", driver: "Alexander Albon", team: "Williams" },
+  { id: "sainz", driver: "Carlos Sainz", team: "Williams" },
 ];
 
 const normalizePitTeamName = (teamName, seasonYear) => {
@@ -64,21 +68,7 @@ const normalizePitTeamName = (teamName, seasonYear) => {
 };
 
 const getUnifiedTeamColor = (teamName) => {
-  const teamColors = {
-    'Red Bull': '#1E41FF',
-    'Ferrari': '#DC0000',
-    'McLaren': '#FF8000',
-    'Mercedes': '#00D2BE',
-    'Aston Martin': '#006F62',
-    'Alpine': '#FF69B4',
-    'Racing Bulls': '#ADD8E6',
-    'Sauber': '#00FF00',
-    'Audi': '#00E676',
-    'Haas': '#B6BABD',
-    'Williams': '#005AFF'
-  };
-  
-  return teamColors[teamName] || '#FFFFFF';
+  return getTeamColor(teamName);
 };
 
 const getDriverColor = (driverName, teamName) => {
@@ -93,7 +83,9 @@ const getDriverColor = (driverName, teamName) => {
   
   const normalizedName = nameMapping[driverName] || driverName;
   const driver = drivers2025.find(d => d.driver === normalizedName);
-  return driver ? driver.color : '#FFFFFF';
+  return driver
+    ? getSharedDriverColor(driver.driver, driver.team, 2025)
+    : '#FFFFFF';
 };
 
 const getEntityColor = (entity, analysisType, entityStats) => {
@@ -598,7 +590,7 @@ const PerformanceTable = ({ analysisType, processedData, isMobile }) => {
 
   return (
     <div style={{
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      backgroundColor: 'rgba(17, 20, 25, 0.98)',
       borderRadius: '8px',
       padding: '1.5rem',
       height: '400px',
@@ -841,7 +833,7 @@ const PitStopAnalysisPage = () => {
         {/* Trend Analysis Chart */}
         {selectedEntity ? (
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '400px'
@@ -851,7 +843,7 @@ const PitStopAnalysisPage = () => {
         ) : (
           /* Strategy Analysis when no entity selected */
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '400px'
@@ -862,7 +854,7 @@ const PitStopAnalysisPage = () => {
 
         {/* Statistical Forecast Chart */}
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'rgba(17, 20, 25, 0.98)',
           borderRadius: '8px',
           padding: '1rem',
           height: '400px'
@@ -872,7 +864,7 @@ const PitStopAnalysisPage = () => {
 
         {/* Performance vs Consistency Scatter */}
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'rgba(17, 20, 25, 0.98)',
           borderRadius: '8px',
           padding: '1rem',
           height: '400px'

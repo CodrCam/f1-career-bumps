@@ -274,7 +274,11 @@ const DriverResults2025Page = () => {
 
   if (rawRaces.length === 0) {
     return (
-      <F1PageLayout className="race-results-chart">
+      <F1PageLayout
+        className="race-results-chart"
+        title={`${selectedYear} Race Results`}
+        subtitle="Finish-position movement across the season"
+      >
         <SeasonDataState
           status={status}
           error={error}
@@ -285,8 +289,10 @@ const DriverResults2025Page = () => {
   }
 
   return (
-    <F1PageLayout 
+    <F1PageLayout
       className="race-results-chart"
+      title={`${selectedYear} Race Results`}
+      subtitle="Finish-position movement across the season"
     >
       {/* Driver Selector */}
       <ResponsiveDriverSelector

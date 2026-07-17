@@ -16,7 +16,7 @@ import { Bar, Scatter, Radar, Line } from "react-chartjs-2";
 import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
 import { parseDriverStats } from "../utils/parseDriverStats";
-import { useProcessedRaceData } from "../utils/dataProcessing.js";
+import { getDriverColor, useProcessedRaceData } from "../utils/dataProcessing.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
 import TeamCarMark from "../components/TeamCarMark.jsx";
@@ -33,66 +33,6 @@ ChartJS.register(
   Legend,
   RadialLinearScale
 );
-
-// Enhanced team color mapping with consistent colors
-const getTeamColor = (teamName) => {
-  const teamColors = {
-    'McLaren': '#FF8000',
-    'Mercedes': '#00D2BE', 
-    'Red Bull Racing': '#1E41FF',
-    'Ferrari': '#DC0000',
-    'Williams': '#005AFF',
-    'Alpine': '#FF69B4',
-    'Aston Martin': '#006F62',
-    'Haas': '#B6BABD',
-    'Racing Bulls': '#ADD8E6',
-    'Audi': '#00E676',
-    'Kick Sauber': '#00FF00',
-    'Sauber': '#00FF00'
-  };
-  return teamColors[teamName] || '#FFFFFF';
-};
-
-// Enhanced driver color system with teammate variations
-const getDriverColor = (driverName, teamName) => {
-  if (teamName === 'Audi') return getTeamColor(teamName);
-
-  const driverVariations = {
-    // Red Bull
-    'Max Verstappen': '#1E41FF',
-    'Yuki Tsunoda': '#0F2080',
-    // Ferrari  
-    'Charles Leclerc': '#DC0000',
-    'Lewis Hamilton': '#B30000',
-    // McLaren
-    'Lando Norris': '#FF8000',
-    'Oscar Piastri': '#CC6600',
-    // Mercedes
-    'George Russell': '#00D2BE',
-    'Kimi Antonelli': '#00B5A0',
-    // Aston Martin
-    'Fernando Alonso': '#006F62',
-    'Lance Stroll': '#004F45',
-    // Alpine
-    'Pierre Gasly': '#FF69B4',
-    'Franco Colapinto': '#CC4A8C',
-    'Jack Doohan': '#AA3F75',
-    // Williams
-    'Alexander Albon': '#005AFF',
-    'Carlos Sainz': '#0040CC',
-    // Haas
-    'Esteban Ocon': '#B6BABD',
-    'Oliver Bearman': '#999C9F',
-    // Racing Bulls
-    'Isack Hadjar': '#ADD8E6',
-    'Liam Lawson': '#8BC5E6',
-    // Sauber
-    'Nico Hulkenberg': '#00FF00',
-    'Gabriel Bortoleto': '#00CC00'
-  };
-  
-  return driverVariations[driverName] || getTeamColor(teamName);
-};
 
 const DriverStatsPage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -184,7 +124,7 @@ const DriverStatsPage = () => {
         performanceScore: performanceScore.toFixed(1),
         efficiency: efficiency.toFixed(2),
         raceCraft: raceCraft.toFixed(1),
-        color: getDriverColor(driver.name, driver.team)
+        color: getDriverColor(driver.name, driver.team, selectedYear)
       };
 
       allDriversList.push(enhancedDriver);
@@ -215,7 +155,7 @@ const DriverStatsPage = () => {
       driverPerformanceData: enhancedDrivers,
       topPerformers
     };
-  }, [processedRaces]);
+  }, [processedRaces, selectedYear]);
 
   // Enhanced chart data for driver performance scatter
   const performanceScatterData = useMemo(() => {
@@ -752,7 +692,7 @@ const DriverStatsPage = () => {
         {/* Performance Scatter Plot */}
         {performanceScatterData && analysisType === 'performance' && (
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '500px'
@@ -764,7 +704,7 @@ const DriverStatsPage = () => {
         {/* Championship Progression Chart */}
         {championshipProgressionData && analysisType === 'performance' && (
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '500px'
@@ -776,7 +716,7 @@ const DriverStatsPage = () => {
         {/* Team Comparison Chart */}
         {teamComparisonData && analysisType === 'comparison' && (
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '500px',
@@ -789,7 +729,7 @@ const DriverStatsPage = () => {
         {/* Radar Chart */}
         {radarData && showRadarChart && (
           <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backgroundColor: 'rgba(17, 20, 25, 0.98)',
             borderRadius: '8px',
             padding: '1rem',
             height: '500px'
@@ -801,7 +741,7 @@ const DriverStatsPage = () => {
 
       {/* Driver Rankings Table */}
       <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        backgroundColor: 'rgba(17, 20, 25, 0.98)',
         borderRadius: '8px',
         padding: '1.5rem',
         marginTop: '2rem'

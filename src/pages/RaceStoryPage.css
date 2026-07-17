@@ -1,5 +1,5 @@
 .race-story-page {
-  background: #0d0f13;
+  background: transparent;
   color: #f7f8fa;
   min-height: 100vh;
   padding: 2rem clamp(1rem, 3vw, 3rem) 4rem;
@@ -650,4 +650,3 @@
     padding-top: 1rem;
   }
 }
-

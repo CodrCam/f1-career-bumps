@@ -1,9 +1,5 @@
 .about-page {
-  background-color: #0b0d11;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 36px 36px;
+  background: transparent;
   color: #f8fafc;
   min-height: 100vh;
   padding: 4rem 2rem 5rem;

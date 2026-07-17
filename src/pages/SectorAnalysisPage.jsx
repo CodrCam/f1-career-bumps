@@ -7,7 +7,11 @@ import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartCom
 import { SessionSelector, DriverToggleButtons, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 import { getSeasonFromParam } from '../utils/seasons.js';
-import { normalizeDriverTeamFields } from '../utils/dataProcessing.js';
+import {
+  getSessionDriverColor,
+  normalizeDriverTeamFields,
+  withColorAlpha,
+} from '../utils/dataProcessing.js';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement);
 
@@ -273,31 +277,6 @@ const useSectorAnalysis = (year) => {
 
 // Enhanced relative performance chart for sectors
 const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC143C', 'LEC': '#DC143C', 
-    // Red Bull Racing
-    'VER': '#0600EF', 'TSU': '#0600EF', 
-    // McLaren
-    'NOR': '#FF8700', 'PIA': '#FF8700', 
-    // Mercedes
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
-    // Aston Martin
-    'ALO': '#006F62', 'STR': '#006F62', 
-    // Alpine
-    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
-    // Williams
-    'ALB': '#005AFF', 'SAI': '#005AFF', 
-    // Haas
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
-    // Racing Bulls
-    'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Audi
-    'HUL': '#00E676', 'BOR': '#00E676',
-    // Additional fallback colors
-    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
-  };
-
   return React.useMemo(() => {
     if (!sessionData.drivers || Object.keys(sectorStats.driverStats || {}).length === 0) {
       return null;
@@ -338,13 +317,13 @@ const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
             backgroundColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
               const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS1;
-              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 50%)`;
+              const baseColor = getSessionDriverColor(driver, index);
               const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
-              return baseColor + opacity;
+              return withColorAlpha(baseColor, opacity);
             }),
             borderColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 50%)`;
+              return getSessionDriverColor(driver, index);
             }),
             borderWidth: 2
           },
@@ -354,13 +333,13 @@ const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
             backgroundColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
               const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS2;
-              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 45%)`;
+              const baseColor = getSessionDriverColor(driver, index);
               const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
-              return baseColor + opacity;
+              return withColorAlpha(baseColor, opacity);
             }),
             borderColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 45%)`;
+              return getSessionDriverColor(driver, index);
             }),
             borderWidth: 2
           },
@@ -370,13 +349,13 @@ const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
             backgroundColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
               const relativePerf = sectorStats.driverStats[driverNum].relativeToAvgS3;
-              const baseColor = driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 40%)`;
+              const baseColor = getSessionDriverColor(driver, index);
               const opacity = relativePerf < -1 ? '90' : relativePerf < 0 ? '70' : relativePerf < 1 ? '50' : '30';
-              return baseColor + opacity;
+              return withColorAlpha(baseColor, opacity);
             }),
             borderColor: driversToShow.map((driverNum, index) => {
               const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
-              return driverColors[driver?.name_acronym] || `hsl(${index * 15}, 70%, 40%)`;
+              return getSessionDriverColor(driver, index);
             }),
             borderWidth: 2
           }
@@ -754,7 +733,7 @@ const SectorAnalysisPage = () => {
   if (initialLoading) {
     return (
       <F1PageLayout 
-        title="🏁 Sector Time Analysis"
+        title="Sector Time Analysis"
         showHeader={true}
       >
         <DataLoader 
@@ -795,8 +774,8 @@ const SectorAnalysisPage = () => {
 
   return (
     <F1PageLayout 
-      title="🏁 Sector Time Analysis"
-      subtitle={`${selectedYear} precision sector analysis where qualifying pole position is decided by milliseconds`}
+      title="Sector Time Analysis"
+      subtitle={`${selectedYear} sector pace, consistency, and session-relative performance`}
       className="enhanced-sector-analysis-page"
     >
       {/* Enhanced Controls */}
@@ -871,7 +850,7 @@ const SectorAnalysisPage = () => {
         <div style={{ marginBottom: '2rem' }}>
           {visualizationType === 'relative' && relativeData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px'
@@ -882,7 +861,7 @@ const SectorAnalysisPage = () => {
 
           {visualizationType === 'precision' && precisionData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px'
@@ -893,7 +872,7 @@ const SectorAnalysisPage = () => {
 
           {visualizationType === 'strengths' && strengthData && (
             <div style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'rgba(17, 20, 25, 0.98)',
               borderRadius: '8px',
               padding: '1rem',
               height: isMobile ? '600px' : '700px'
@@ -907,7 +886,7 @@ const SectorAnalysisPage = () => {
       {/* Sector Performance Table */}
       {Object.keys(sectorStats.driverStats || {}).length > 0 && (
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'rgba(17, 20, 25, 0.98)',
           borderRadius: '8px',
           padding: '1.5rem',
           marginTop: '2rem'

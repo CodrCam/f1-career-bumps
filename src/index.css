@@ -1,9 +1,32 @@
-.home-container {
-  background-color: #0d0f13;
+:root {
+  --site-background: #0d0f13;
+  --site-surface: #15181d;
+  --site-surface-strong: #111419;
+  --site-border: rgba(255, 255, 255, 0.11);
+  --site-text: #f5f7fa;
+  --site-muted: #9ba3af;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--site-background) !important;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 36px 36px;
+  background-attachment: fixed;
+  color: var(--site-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.home-container {
+  background: transparent;
   color: white;
   min-height: 100vh;
   padding: 2.5rem 2rem 3rem;
@@ -232,20 +255,72 @@
   font-size: 0.9rem;
 }
 
-body {
-  background-color: #111 !important;
-  color: #f5f5f5;
-}
-
 * {
   box-sizing: border-box;
 }
 
 .page-container {
   min-height: 100vh;
-  background-color: #111;
+  background: transparent;
   color: #f5f5f5;
   padding: 2rem;
+}
+
+.f1-page-layout {
+  background: transparent;
+  color: var(--site-text);
+  min-height: 100vh;
+  padding: clamp(1.5rem, 3vw, 3rem) clamp(1rem, 2.6vw, 2.75rem) 4rem;
+}
+
+.f1-page-layout .page-header,
+.f1-page-layout .page-content {
+  margin-inline: auto;
+  max-width: 1440px;
+}
+
+.f1-page-layout .page-header {
+  border-bottom: 1px solid var(--site-border);
+  margin-bottom: 1.35rem;
+  padding-bottom: 1.2rem;
+}
+
+.f1-page-layout .page-title {
+  color: #f7f8fa;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
+.f1-page-layout .page-subtitle {
+  color: var(--site-muted);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.6;
+  margin: 0.6rem 0 0;
+  max-width: 760px;
+}
+
+.f1-page-layout .chart-wrapper {
+  background: rgba(11, 13, 17, 0.97);
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  overflow: hidden;
+  padding: 0.65rem;
+}
+
+.f1-page-layout table {
+  background: rgba(15, 18, 23, 0.98);
+}
+
+.f1-page-layout .control-bar,
+.f1-page-layout .analysis-controls,
+.f1-page-layout .chart-container,
+.f1-page-layout .data-card,
+.f1-page-layout .stat-card {
+  background-color: rgba(21, 24, 29, 0.96);
+  border-color: var(--site-border);
 }
 
 /* Add these to your existing index.css */
@@ -522,6 +597,18 @@ body {
 }
 
 @media (max-width: 768px) {
+  .f1-page-layout {
+    padding: 1.25rem 0.75rem 2.5rem;
+  }
+
+  .f1-page-layout .page-title {
+    font-size: 1.7rem;
+  }
+
+  .f1-page-layout .chart-wrapper {
+    padding: 0.25rem;
+  }
+
   .race-car-badge {
     display: none;
   }
