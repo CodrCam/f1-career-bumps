@@ -39,6 +39,12 @@ export default async (request) => {
     return jsonResponse(200, {
       ok: true,
       dataSource: 'dynamodb',
+      configuration: {
+        accessKeyConfigured: Boolean(process.env.F1_AWS_ACCESS_KEY_ID),
+        secretKeyConfigured: Boolean(process.env.F1_AWS_SECRET_ACCESS_KEY),
+        region: process.env.F1_AWS_REGION ?? null,
+        table: process.env.F1_DYNAMODB_TABLE ?? null,
+      },
     });
   }
 
