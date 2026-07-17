@@ -16,6 +16,9 @@ const response = (statusCode, body) => ({
   headers: {
     ...corsHeaders,
     'Content-Type': 'application/json',
+    'Cache-Control': statusCode === 200
+      ? 'public, max-age=30, stale-while-revalidate=300'
+      : 'no-store',
   },
   body: JSON.stringify(body),
 });

@@ -13,6 +13,8 @@ dist-ssr
 .venv
 .cache
 .data
+.aws-api-build
+f1-api.zip
 .env
 .env.*
 !.env.example
