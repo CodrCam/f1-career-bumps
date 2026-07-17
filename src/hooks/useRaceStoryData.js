@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+import { apiBaseUrl } from '../config/api.js';
 
 const useApiResource = (path, enabled = true) => {
   const [data, setData] = useState(null);
@@ -58,4 +57,3 @@ export const useRaceAnalytics = (year, round) => (
     Number.isInteger(round) && round > 0,
   )
 );
-

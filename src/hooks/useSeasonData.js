@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { apiBaseUrl } from '../config/api.js';
 import fallbackSeasonData from '../data/f1_2025_season.json';
 import { normalizeSeasonTeamNames } from '../utils/dataProcessing.js';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
 const allowJsonFallback = import.meta.env.VITE_ALLOW_JSON_FALLBACK === 'true';
 
 export const useSeasonData = (year = 2025) => {

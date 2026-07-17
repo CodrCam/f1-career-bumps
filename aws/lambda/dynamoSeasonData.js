@@ -5,23 +5,10 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 
-const tableName = process.env.F1_DYNAMODB_TABLE
-  ?? process.env.DYNAMODB_TABLE
-  ?? 'f1-website-data';
-const accessKeyId = process.env.F1_AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.F1_AWS_SECRET_ACCESS_KEY;
-const sessionToken = process.env.F1_AWS_SESSION_TOKEN;
-const credentials = accessKeyId && secretAccessKey
-  ? {
-      accessKeyId,
-      secretAccessKey,
-      ...(sessionToken ? { sessionToken } : {}),
-    }
-  : undefined;
+const tableName = process.env.DYNAMODB_TABLE ?? 'f1-website-data';
 
 const client = new DynamoDBClient({
-  region: process.env.F1_AWS_REGION ?? process.env.AWS_REGION ?? 'us-west-2',
-  credentials,
+  region: process.env.AWS_REGION ?? 'us-west-2',
 });
 
 const documentClient = DynamoDBDocumentClient.from(client);
