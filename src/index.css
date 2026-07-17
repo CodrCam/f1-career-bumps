@@ -465,27 +465,12 @@ body {
   z-index: 1;
 }
 
-.race-finish-overlay {
+.race-car-overlay {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   position: absolute;
   z-index: 2;
-}
-
-.race-finish-line {
-  background:
-    conic-gradient(
-      #f8fafc 0 25%,
-      #111827 0 50%,
-      #f8fafc 0 75%,
-      #111827 0
-    ) 0 0 / 8px 8px;
-  box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.25);
-  opacity: 0.82;
-  position: absolute;
-  transform: translateX(-5px);
-  width: 10px;
 }
 
 .race-stage-car {
@@ -539,12 +524,6 @@ body {
 @media (max-width: 768px) {
   .race-car-badge {
     display: none;
-  }
-
-  .race-finish-line {
-    background-size: 6px 6px;
-    transform: translateX(-4px);
-    width: 8px;
   }
 
   .driver-ranking-identity {

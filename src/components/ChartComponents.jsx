@@ -98,8 +98,6 @@ const RaceStageChart = ({
 
     const nextLayout = {
       finishX,
-      top: chartArea.top,
-      height: chartArea.bottom - chartArea.top,
       cars: standings.map((standing, index) => ({
         ...standing,
         width: carWidth,
@@ -157,16 +155,7 @@ const RaceStageChart = ({
       />
 
       {raceLayout && (
-        <div className="race-finish-overlay" aria-hidden="true">
-          <div
-            className="race-finish-line"
-            style={{
-              height: `${raceLayout.height}px`,
-              left: `${raceLayout.finishX}px`,
-              top: `${raceLayout.top}px`,
-            }}
-          />
-
+        <div className="race-car-overlay" aria-hidden="true">
           {raceLayout.cars.map((car) => (
             <div
               className="race-stage-car"
