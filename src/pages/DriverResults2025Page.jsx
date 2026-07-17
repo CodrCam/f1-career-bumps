@@ -16,7 +16,7 @@ import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useProcessedRaceData, getTeamColor, getAllDriversIncludingOriginals } from "../utils/dataProcessing.js";
 import { getTrackName } from "../utils/raceLabels.js";
-import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
+import { F1PageLayout, ResponsiveChart, SeasonDataState } from "../components/ChartComponents.jsx";
 import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
 ChartJS.register(
@@ -37,7 +37,7 @@ const DriverResults2025Page = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const { races, status } = useSeasonData(selectedYear);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -272,6 +272,18 @@ const DriverResults2025Page = () => {
   const visibleCountSliderValue = Math.min(Math.max(visibleCount, minimumWindow), visibleCountSliderMax);
   const targetWindow = Math.min(9, totalRaces || 9);
 
+  if (rawRaces.length === 0) {
+    return (
+      <F1PageLayout className="race-results-chart">
+        <SeasonDataState
+          status={status}
+          error={error}
+          onRetry={retry}
+        />
+      </F1PageLayout>
+    );
+  }
+
   return (
     <F1PageLayout 
       className="race-results-chart"
@@ -364,8 +376,6 @@ const DriverResults2025Page = () => {
         options={options}
         className="race-results-line-chart"
         style={{ height: isMobile ? '400px' : '600px' }}
-        loading={status === 'loading'}
-        error={!chartData && rawRaces.length === 0 && status !== 'loading' ? "No race data available" : null}
       />
 
     </F1PageLayout>

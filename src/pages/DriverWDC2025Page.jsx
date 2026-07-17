@@ -14,7 +14,7 @@ import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useChampionshipData, useDriverSelection, useAllDrivers } from "../components/F1DataComponents.jsx";
-import { ChampionshipBumpChart } from "../components/ChartComponents.jsx";
+import { ChampionshipBumpChart, F1PageLayout, SeasonDataState } from "../components/ChartComponents.jsx";
 
 ChartJS.register(
   LineElement,
@@ -30,7 +30,7 @@ const DriverWDC2025Page = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const { races } = useSeasonData(selectedYear);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -52,6 +52,21 @@ const DriverWDC2025Page = () => {
     `${selectedYear} Driver World Championship Standings`,
     "driver"
   );
+
+  if (races.length === 0) {
+    return (
+      <F1PageLayout
+        title={`${selectedYear} Driver World Championship Points`}
+        subtitle="Race-by-race progression throughout the season"
+      >
+        <SeasonDataState
+          status={status}
+          error={error}
+          onRetry={retry}
+        />
+      </F1PageLayout>
+    );
+  }
 
   return (
     <div>

@@ -18,6 +18,7 @@ env:
   API_NAME: f1-website-seasons-api
   EXECUTION_ROLE_NAME: f1-website-api-lambda
   CORS_ORIGIN: https://f1datadesktop.com
+  CORS_ORIGINS: https://f1datadesktop.com,https://www.f1datadesktop.com,https://f1data2025.netlify.app,https://main--f1data2025.netlify.app
 
 jobs:
   deploy:
@@ -116,19 +117,27 @@ jobs:
           api_id="$(aws apigatewayv2 get-apis \
             --query "Items[?Name=='${API_NAME}'].ApiId | [0]" \
             --output text)"
+          cors_configuration="$(jq -cn \
+            --arg origins "$CORS_ORIGINS" \
+            '{
+              AllowOrigins: ($origins | split(",")),
+              AllowMethods: ["GET", "OPTIONS"],
+              AllowHeaders: ["content-type"],
+              MaxAge: 300
+            }')"
 
           if [[ -z "$api_id" || "$api_id" == "None" ]]; then
             api_id="$(aws apigatewayv2 create-api \
               --name "$API_NAME" \
               --protocol-type HTTP \
               --target "$function_arn" \
-              --cors-configuration "{\"AllowOrigins\":[\"${CORS_ORIGIN}\"],\"AllowMethods\":[\"GET\",\"OPTIONS\"],\"AllowHeaders\":[\"content-type\"],\"MaxAge\":300}" \
+              --cors-configuration "$cors_configuration" \
               --query ApiId \
               --output text)"
           else
             aws apigatewayv2 update-api \
               --api-id "$api_id" \
-              --cors-configuration "{\"AllowOrigins\":[\"${CORS_ORIGIN}\"],\"AllowMethods\":[\"GET\",\"OPTIONS\"],\"AllowHeaders\":[\"content-type\"],\"MaxAge\":300}"
+              --cors-configuration "$cors_configuration"
           fi
 
           aws apigatewayv2 update-stage \
@@ -159,3 +168,20 @@ jobs:
           curl --fail --silent --show-error \
             "${{ steps.api.outputs.endpoint }}/api/seasons/2026/analytics" \
             >/dev/null
+
+          IFS=',' read -ra allowed_origins <<< "$CORS_ORIGINS"
+          for origin in "${allowed_origins[@]}"; do
+            headers_file="$(mktemp)"
+            curl --fail --silent --show-error \
+              --header "Origin: ${origin}" \
+              --dump-header "$headers_file" \
+              --output /dev/null \
+              "${{ steps.api.outputs.endpoint }}/api/seasons/2026"
+
+            if ! grep --fixed-strings --ignore-case \
+              "access-control-allow-origin: ${origin}" \
+              "$headers_file" >/dev/null; then
+              echo "CORS verification failed for ${origin}" >&2
+              exit 1
+            fi
+          done

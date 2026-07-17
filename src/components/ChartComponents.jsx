@@ -57,6 +57,40 @@ export const ResponsiveChart = ({
   );
 };
 
+export const SeasonDataState = ({
+  status,
+  error,
+  onRetry,
+  hasData = false,
+}) => {
+  if (hasData) return null;
+
+  if (status === 'loading') {
+    return (
+      <div className="season-data-state" role="status">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p>Loading season data...</p>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="season-data-state error" role="alert">
+        <h2>Season data is temporarily unavailable</h2>
+        <p>{error?.message || 'The data request did not complete.'}</p>
+        {onRetry && (
+          <button type="button" onClick={onRetry} className="retry-button">
+            Try again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
+
 // F1-specific driver selector component
 export const DriverSelector = ({ 
   drivers = [],

@@ -14,7 +14,7 @@ import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useConstructorData } from "../components/F1DataComponents.jsx";
-import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
+import { F1PageLayout, ResponsiveChart, SeasonDataState } from "../components/ChartComponents.jsx";
 
 ChartJS.register(
   LineElement,
@@ -30,7 +30,7 @@ const ConstructorBump2025Page = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const { races } = useSeasonData(selectedYear);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -126,6 +126,22 @@ const ConstructorBump2025Page = () => {
     },
   };
 
+  if (races.length === 0) {
+    return (
+      <F1PageLayout
+        title={`${selectedYear} Constructor Championship Bump Chart`}
+        subtitle="Team standings evolution throughout the season"
+        className="constructor-championship"
+      >
+        <SeasonDataState
+          status={status}
+          error={error}
+          onRetry={retry}
+        />
+      </F1PageLayout>
+    );
+  }
+
   return (
     <F1PageLayout 
       title={`${selectedYear} Constructor Championship Bump Chart`}
@@ -138,8 +154,6 @@ const ConstructorBump2025Page = () => {
         options={options}
         className="constructor-line-chart"
         style={{ height: isMobile ? '400px' : '600px' }}
-        loading={!chartData}
-        error={!chartData && races.length === 0 ? "No race data available" : null}
       />
     </F1PageLayout>
   );

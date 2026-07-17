@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiBaseUrl } from '../config/api.js';
 import fallbackSeasonData from '../data/f1_2025_season.json';
 import { normalizeSeasonTeamNames } from '../utils/dataProcessing.js';
+import { fetchSeason } from '../utils/fetchSeason.js';
 
 const allowJsonFallback = import.meta.env.VITE_ALLOW_JSON_FALLBACK === 'true';
 
@@ -11,27 +12,27 @@ export const useSeasonData = (year = 2025) => {
   const [seasonData, setSeasonData] = useState(() => allowJsonFallback ? fallbackData : emptySeasonData);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
+  const [requestVersion, setRequestVersion] = useState(0);
+  const retry = useCallback(() => setRequestVersion((version) => version + 1), []);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadSeason = async () => {
       setStatus('loading');
       setError(null);
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/seasons/${year}`);
-        if (!response.ok) {
-          throw new Error(`Season API returned ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!cancelled) {
+        const data = await fetchSeason({
+          url: `${apiBaseUrl}/api/seasons/${year}`,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
           setSeasonData(data);
           setStatus('ready');
         }
       } catch (loadError) {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setSeasonData(allowJsonFallback ? fallbackData : emptySeasonData);
           setError(loadError);
           setStatus(allowJsonFallback ? 'fallback' : 'error');
@@ -42,9 +43,9 @@ export const useSeasonData = (year = 2025) => {
     loadSeason();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [year, fallbackData, emptySeasonData]);
+  }, [year, fallbackData, emptySeasonData, requestVersion]);
 
   const normalizedSeasonData = useMemo(() => (
     normalizeSeasonTeamNames(seasonData, year)
@@ -56,6 +57,7 @@ export const useSeasonData = (year = 2025) => {
     races,
     status,
     error,
+    retry,
     usingFallback: status === 'fallback',
     apiBaseUrl,
   };

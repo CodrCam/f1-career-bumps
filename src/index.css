@@ -417,6 +417,49 @@ body {
   text-align: center;
 }
 
+.season-data-state {
+  align-items: center;
+  background: rgba(31, 41, 55, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 2rem auto;
+  min-height: 280px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.season-data-state h2,
+.season-data-state p {
+  margin: 0;
+}
+
+.season-data-state p {
+  color: #cbd5e1;
+}
+
+.season-data-state.error {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.retry-button {
+  background: #f8fafc;
+  border: 0;
+  border-radius: 6px;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0.7rem 1rem;
+}
+
+.retry-button:hover {
+  background: #e5e7eb;
+}
+
 /* New icon colors */
 .icon.cyan { color: #06b6d4; }
 .icon.pink { color: #ec4899; }
@@ -515,6 +558,17 @@ body {
 @media (max-width: 768px) {
   .home-container {
     padding: 2rem 1rem 3rem;
+  }
+
+  .race-window-sliders {
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .race-slider-control {
+    width: 100%;
   }
 
   .loading-container {

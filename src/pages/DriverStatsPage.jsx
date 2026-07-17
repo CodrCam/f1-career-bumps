@@ -17,7 +17,7 @@ import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
 import { parseDriverStats } from "../utils/parseDriverStats";
 import { useProcessedRaceData } from "../utils/dataProcessing.js";
-import { F1PageLayout, ResponsiveChart, StatsGrid } from "../components/ChartComponents.jsx";
+import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
 
 ChartJS.register(
@@ -101,7 +101,7 @@ const DriverStatsPage = () => {
   const [showTopDriversOnly, setShowTopDriversOnly] = useState(false);
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const { races } = useSeasonData(selectedYear);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -642,6 +642,22 @@ const DriverStatsPage = () => {
   };
 
   const teamList = Object.keys(teamStats).sort();
+
+  if (races.length === 0) {
+    return (
+      <F1PageLayout
+        title="Driver Performance Analytics"
+        subtitle={`Comprehensive statistical analysis and performance metrics for the ${selectedYear} season`}
+        className="enhanced-driver-stats"
+      >
+        <SeasonDataState
+          status={status}
+          error={error}
+          onRetry={retry}
+        />
+      </F1PageLayout>
+    );
+  }
 
   return (
     <F1PageLayout

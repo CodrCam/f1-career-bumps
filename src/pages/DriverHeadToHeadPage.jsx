@@ -17,7 +17,7 @@ import { useSeasonData } from "../hooks/useSeasonData.js";
 import { getSeasonFromParam } from "../utils/seasons.js";
 import { useProcessedRaceData, getAllDrivers } from "../utils/dataProcessing.js";
 import { getTrackName } from "../utils/raceLabels.js";
-import { F1PageLayout, ResponsiveChart, StatsGrid } from "../components/ChartComponents.jsx";
+import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
 
 ChartJS.register(
@@ -98,7 +98,7 @@ const NewDriverHeadToHeadPage = () => {
   const [viewMode, setViewMode] = useState('overview'); // 'overview', 'qualifying', 'sprint', 'race'
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const { races } = useSeasonData(selectedYear);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
 
   // Use shared processing utility
   const processedRaces = useProcessedRaceData(races);
@@ -426,6 +426,22 @@ const NewDriverHeadToHeadPage = () => {
   };
 
   const { quali1, quali2, sprint1, sprint2, races1, races2 } = comparisonData;
+
+  if (races.length === 0) {
+    return (
+      <F1PageLayout
+        title="Driver Head-to-Head Analysis"
+        subtitle="Comprehensive statistical comparison between drivers across all sessions"
+        className="driver-head-to-head"
+      >
+        <SeasonDataState
+          status={status}
+          error={error}
+          onRetry={retry}
+        />
+      </F1PageLayout>
+    );
+  }
 
   return (
     <F1PageLayout
