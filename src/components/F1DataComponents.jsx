@@ -54,6 +54,7 @@ export const useChampionshipData = (rawRaces, selectedDrivers = [], isMobile = f
 
       return {
         label: driver,
+        team,
         data: points,
         borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
         borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,

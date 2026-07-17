@@ -19,6 +19,8 @@ import { parseDriverStats } from "../utils/parseDriverStats";
 import { useProcessedRaceData } from "../utils/dataProcessing.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
+import TeamCarMark from "../components/TeamCarMark.jsx";
+import { getTeamKeyByName } from "../data/seasonGrid.js";
 
 ChartJS.register(
   CategoryScale, 
@@ -642,6 +644,9 @@ const DriverStatsPage = () => {
   };
 
   const teamList = Object.keys(teamStats).sort();
+  const getDriverCarKey = (teamName) => (
+    selectedYear === 2026 ? getTeamKeyByName(teamName) : null
+  );
 
   if (races.length === 0) {
     return (
@@ -817,11 +822,16 @@ const DriverStatsPage = () => {
                 position: 'relative'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: driver.color }}>
-                      #{index + 1} {driver.name}
+                  <div className="driver-ranking-identity">
+                    {getDriverCarKey(driver.team) && (
+                      <TeamCarMark compact team={getDriverCarKey(driver.team)} />
+                    )}
+                    <div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: driver.color }}>
+                        #{index + 1} {driver.name}
+                      </div>
+                      <div style={{ fontSize: '0.9rem', color: '#ccc' }}>{driver.team}</div>
                     </div>
-                    <div style={{ fontSize: '0.9rem', color: '#ccc' }}>{driver.team}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>
@@ -886,7 +896,14 @@ const DriverStatsPage = () => {
                     backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
                   }}>
                     <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>#{index + 1}</td>
-                    <td style={{ padding: '1rem', color: driver.color, fontWeight: 'bold' }}>{driver.name}</td>
+                    <td style={{ padding: '0.6rem 1rem', color: driver.color, fontWeight: 'bold' }}>
+                      <div className="driver-table-identity">
+                        {getDriverCarKey(driver.team) && (
+                          <TeamCarMark compact team={getDriverCarKey(driver.team)} />
+                        )}
+                        <span>{driver.name}</span>
+                      </div>
+                    </td>
                     <td style={{ padding: '1rem', color: '#ccc' }}>{driver.team}</td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>{driver.points}</td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>{driver.performanceScore}/100</td>

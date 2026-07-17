@@ -460,6 +460,100 @@ body {
   background: #e5e7eb;
 }
 
+.race-stage-chart > canvas {
+  position: relative;
+  z-index: 1;
+}
+
+.race-finish-overlay {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.race-finish-line {
+  background:
+    conic-gradient(
+      #f8fafc 0 25%,
+      #111827 0 50%,
+      #f8fafc 0 75%,
+      #111827 0
+    ) 0 0 / 8px 8px;
+  box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.25);
+  opacity: 0.82;
+  position: absolute;
+  transform: translateX(-5px);
+  width: 10px;
+}
+
+.race-stage-car {
+  align-items: center;
+  display: flex;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
+  position: absolute;
+  transition: left 500ms ease, top 500ms ease;
+}
+
+.race-stage-car .team-car-mark {
+  height: auto;
+  max-height: none;
+  width: 100%;
+}
+
+.race-car-badge {
+  background: rgba(9, 11, 14, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  color: #f8fafc;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0.2rem 0.25rem;
+  position: absolute;
+  right: calc(100% + 3px);
+}
+
+.driver-table-identity,
+.driver-ranking-identity {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.driver-table-identity .team-car-mark {
+  flex: 0 0 54px;
+  max-height: 22px;
+  width: 54px;
+}
+
+.driver-ranking-identity .team-car-mark {
+  flex: 0 0 64px;
+  max-height: 25px;
+  width: 64px;
+}
+
+@media (max-width: 768px) {
+  .race-car-badge {
+    display: none;
+  }
+
+  .race-finish-line {
+    background-size: 6px 6px;
+    transform: translateX(-4px);
+    width: 8px;
+  }
+
+  .driver-ranking-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
+
 /* New icon colors */
 .icon.cyan { color: #06b6d4; }
 .icon.pink { color: #ec4899; }

@@ -81,6 +81,7 @@ const DriverWDC2025Page = () => {
         allDrivers={allDrivers}
         isMobile={isMobile}
         maxDrivers={5}
+        showRaceCars={selectedYear === 2026}
       />
     </div>
   );

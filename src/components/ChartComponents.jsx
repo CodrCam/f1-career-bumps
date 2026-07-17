@@ -2,6 +2,11 @@
 import React from 'react';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
 import { getTeamColor } from '../utils/dataProcessing.js';
+import {
+  getLatestConstructorStandings,
+  getLatestDriverStandings,
+} from '../utils/constructorRace.js';
+import TeamCarMark from './TeamCarMark.jsx';
 
 // Generic responsive chart wrapper
 export const ResponsiveChart = ({ 
@@ -54,6 +59,183 @@ export const ResponsiveChart = ({
     <div className={`chart-wrapper ${className} fade-in`} style={style}>
       <ChartComponent data={data} options={options} />
     </div>
+  );
+};
+
+const RaceStageChart = ({
+  data,
+  options,
+  standings,
+  pluginId,
+  className = '',
+  style = {},
+  isMobile = false,
+  desktopCarWidth = 78,
+  mobileCarWidth = 48,
+  desktopMaxStagger = 132,
+  mobileMaxStagger = 56,
+  desktopStaggerRatio = 0.16,
+  mobileStaggerRatio = 0.22,
+}) => {
+  const chartRef = React.useRef(null);
+  const [raceLayout, setRaceLayout] = React.useState(null);
+
+  const syncRaceLayout = React.useCallback((chart = chartRef.current) => {
+    const yScale = chart?.scales?.y;
+    const chartArea = chart?.chartArea;
+    if (!yScale || !chartArea || standings.length === 0) return;
+
+    const carWidth = isMobile ? mobileCarWidth : desktopCarWidth;
+    const carHeight = carWidth * (70 / 224);
+    const finishX = chartArea.right - (isMobile ? 4 : 8);
+    const availableStagger = Math.min(
+      chartArea.width * (isMobile ? mobileStaggerRatio : desktopStaggerRatio),
+      isMobile ? mobileMaxStagger : desktopMaxStagger,
+    );
+    const staggerStep = standings.length > 1
+      ? availableStagger / (standings.length - 1)
+      : 0;
+
+    const nextLayout = {
+      finishX,
+      top: chartArea.top,
+      height: chartArea.bottom - chartArea.top,
+      cars: standings.map((standing, index) => ({
+        ...standing,
+        width: carWidth,
+        left: finishX - carWidth - (index * staggerStep),
+        top: yScale.getPixelForValue(standing.position) - (carHeight / 2),
+      })),
+    };
+    const signature = JSON.stringify(nextLayout);
+
+    setRaceLayout((current) => (
+      current?.signature === signature
+        ? current
+        : { ...nextLayout, signature }
+    ));
+  }, [
+    desktopCarWidth,
+    desktopMaxStagger,
+    desktopStaggerRatio,
+    isMobile,
+    mobileCarWidth,
+    mobileMaxStagger,
+    mobileStaggerRatio,
+    standings,
+  ]);
+
+  const raceGridPlugin = React.useMemo(() => ({
+    id: pluginId,
+    afterRender: syncRaceLayout,
+    resize: syncRaceLayout,
+  }), [pluginId, syncRaceLayout]);
+
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => syncRaceLayout());
+    return () => window.cancelAnimationFrame(frame);
+  }, [syncRaceLayout]);
+
+  const raceOptions = React.useMemo(() => ({
+    ...options,
+    plugins: {
+      ...options?.plugins,
+      legend: {
+        ...options?.plugins?.legend,
+        display: false,
+      },
+    },
+  }), [options]);
+
+  return (
+    <div className={`chart-wrapper race-stage-chart ${className} fade-in`} style={style}>
+      <Line
+        ref={chartRef}
+        data={data}
+        options={raceOptions}
+        plugins={[raceGridPlugin]}
+      />
+
+      {raceLayout && (
+        <div className="race-finish-overlay" aria-hidden="true">
+          <div
+            className="race-finish-line"
+            style={{
+              height: `${raceLayout.height}px`,
+              left: `${raceLayout.finishX}px`,
+              top: `${raceLayout.top}px`,
+            }}
+          />
+
+          {raceLayout.cars.map((car) => (
+            <div
+              className="race-stage-car"
+              key={car.key}
+              style={{
+                left: `${car.left}px`,
+                top: `${car.top}px`,
+                width: `${car.width}px`,
+              }}
+            >
+              <span className="race-car-badge">{car.badge}</span>
+              <TeamCarMark compact team={car.teamKey} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const ConstructorRaceChart = (props) => {
+  const standings = React.useMemo(
+    () => getLatestConstructorStandings(props.data).map((standing) => ({
+      ...standing,
+      badge: `P${standing.position}`,
+      key: standing.teamKey,
+    })),
+    [props.data],
+  );
+
+  return (
+    <RaceStageChart
+      {...props}
+      standings={standings}
+      pluginId="constructor-race-grid"
+    />
+  );
+};
+
+export const DriverRaceChart = ({
+  selectedDrivers = [],
+  ...props
+}) => {
+  const standings = React.useMemo(() => {
+    const latestStandings = getLatestDriverStandings(props.data);
+    const featuredDrivers = selectedDrivers.length > 0
+      ? latestStandings.filter(({ label }) => selectedDrivers.includes(label))
+      : latestStandings.slice(0, 5);
+
+    return featuredDrivers.map((standing) => ({
+      ...standing,
+      badge: standing.code,
+      key: standing.label,
+      position: standing.points,
+    }));
+  }, [props.data, selectedDrivers]);
+
+  return (
+    <RaceStageChart
+      {...props}
+      standings={standings}
+      pluginId="driver-race-grid"
+      desktopCarWidth={62}
+      mobileCarWidth={42}
+      desktopMaxStagger={76}
+      mobileMaxStagger={36}
+      desktopStaggerRatio={0.1}
+      mobileStaggerRatio={0.14}
+    />
   );
 };
 
@@ -255,7 +437,8 @@ export const ChampionshipBumpChart = ({
   selectedDrivers = [],
   onDriverSelect,
   allDrivers = [],
-  isMobile = false
+  isMobile = false,
+  showRaceCars = false,
 }) => {
   const chartTitle = title || `${type === 'driver' ? 'Driver' : 'Constructor'} Championship Standings`;
   
@@ -278,13 +461,24 @@ export const ChampionshipBumpChart = ({
       )}
 
       {/* Chart */}
-      <ResponsiveChart 
-        type="line" 
-        data={data} 
-        options={options}
-        className="championship-line-chart"
-        style={{ height: isMobile ? '400px' : '600px' }}
-      />
+      {showRaceCars ? (
+        <DriverRaceChart
+          data={data}
+          options={options}
+          selectedDrivers={selectedDrivers}
+          className="championship-line-chart"
+          style={{ height: isMobile ? '400px' : '600px' }}
+          isMobile={isMobile}
+        />
+      ) : (
+        <ResponsiveChart
+          type="line"
+          data={data}
+          options={options}
+          className="championship-line-chart"
+          style={{ height: isMobile ? '400px' : '600px' }}
+        />
+      )}
     </F1PageLayout>
   );
 };
