@@ -1,27 +1,49 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Info, Timer, Target, Zap } from "lucide-react";
+import { Rocket, BarChart3, Users2, Timer, Target, Zap, CalendarClock, BookOpenText } from "lucide-react";
+import SeasonGrid from "../components/SeasonGrid.jsx";
+import { AVAILABLE_SEASONS, CURRENT_SEASON, getSeasonPath } from "../utils/seasons.js";
 
 const Home = () => {
   return (
     <div className="home-container">
       <div className="home-content">
-        <h1 className="home-title">F1 Performance Dashboard</h1>
-        <p className="home-subtitle">
-          Explore comprehensive F1 analytics including driver standings, race analysis, and real-time telemetry insights.
-        </p>
+        <div className="season-strip" aria-label="Available seasons">
+          <CalendarClock size={18} />
+          {AVAILABLE_SEASONS.map((year) => (
+            <Link key={year} to={getSeasonPath(year, 'drivers')} className="season-pill">
+              {year}
+            </Link>
+          ))}
+        </div>
+
+        <SeasonGrid />
+
+        <div className="home-tools-heading">
+          <span className="section-kicker">Explore the season</span>
+          <h2>Race and championship analysis</h2>
+        </div>
 
         <div className="card-grid">
-          {/* Original Analytics */}
-          <Link to="/2025-drivers" className="card">
-            <BarChart3 className="icon blue" />
+          <Link to={getSeasonPath(CURRENT_SEASON, 'race-story')} className="card race-story-card">
+            <BookOpenText className="icon red" />
             <div>
-              <h3>Driver Bump Chart</h3>
-              <p>See 2025 standings evolve round by round</p>
+              <h3>Race Story</h3>
+              <p>Overtakes, traffic, strategy and race-shaping events</p>
+              <span className="new-badge">New</span>
             </div>
           </Link>
 
-          <Link to="/2025-constructors" className="card">
+          {/* Original Analytics */}
+          <Link to={getSeasonPath(CURRENT_SEASON, 'drivers')} className="card">
+            <BarChart3 className="icon blue" />
+            <div>
+              <h3>Driver Bump Chart</h3>
+              <p>See standings evolve round by round</p>
+            </div>
+          </Link>
+
+          <Link to={getSeasonPath(CURRENT_SEASON, 'constructors')} className="card">
             <Rocket className="icon green" />
             <div>
               <h3>Constructor Bump Chart</h3>
@@ -29,7 +51,7 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/driver-results" className="card">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'driver-results')} className="card">
             <Users2 className="icon purple" />
             <div>
               <h3>Driver Results Table</h3>
@@ -37,7 +59,7 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/driver-stats" className="card">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'driver-stats')} className="card">
             <Users2 className="icon orange" />
             <div>
               <h3>Driver Stat Comparison</h3>
@@ -45,7 +67,7 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/head-to-head" className="card">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'head-to-head')} className="card">
             <BarChart3 className="icon red" />
             <div>
               <h3>Head-to-Head Comparison</h3>
@@ -54,7 +76,7 @@ const Home = () => {
           </Link>
 
           {/* New Live Analysis Features */}
-          <Link to="/sector-analysis" className="card live-analysis">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'sector-analysis')} className="card live-analysis">
             <Timer className="icon cyan" />
             <div>
               <h3>Sector Time Analysis</h3>
@@ -63,7 +85,7 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/pit-strategy" className="card live-analysis">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'pit-strategy')} className="card live-analysis">
             <Target className="icon pink" />
             <div>
               <h3>Pit Stop Strategy</h3>
@@ -72,42 +94,14 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/pit-stop-analysis" className="card live-analysis featured">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'pit-stop-analysis')} className="card live-analysis featured">
             <Zap className="icon yellow" />
             <div>
-              <h3>AI Pit Stop Analytics</h3>
-              <p>Advanced ML predictions with comprehensive data analysis</p>
-              <span className="new-badge">Enhanced</span>
+              <h3>Pit Stop Trend Forecasts</h3>
+              <p>Heuristic scoring from historical pit stop performance</p>
+              <span className="new-badge">Model</span>
             </div>
           </Link>
-
-          <Link to="/about" className="card">
-            <Info className="icon gray" />
-            <div>
-              <h3>About This Project</h3>
-              <p>Tech stack, goals & data sources</p>
-            </div>
-          </Link>
-        </div>
-
-        <div className="feature-highlight">
-          <h2>🚀 Enhanced: Advanced AI Pit Stop Prediction Engine</h2>
-          <p>
-            Our latest update introduces a sophisticated machine learning model for pit stop predictions using comprehensive 
-            2025 season data from all drivers and teams. The algorithm employs advanced statistical techniques including 
-            linear regression, trend analysis, consistency metrics, and weighted moving averages to generate predictive 
-            scores. Features include team vs driver analysis, performance trend tracking, speed vs consistency scatter plots, 
-            and confidence ratings with mathematically-sound forecasting capabilities.
-          </p>
-        </div>
-
-        <div className="feature-highlight">
-          <h2>🏁 Enhanced F1 Analysis Suite</h2>
-          <p>
-            Powered by OpenF1 API and comprehensive 2025 season data, our analysis tools provide deep insights into 
-            sector times, pit strategies, and performance predictions. Experience F1 data like never before with 
-            interactive visualizations and comprehensive telemetry analysis.
-          </p>
         </div>
       </div>
     </div>

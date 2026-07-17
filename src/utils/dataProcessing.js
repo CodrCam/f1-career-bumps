@@ -11,8 +11,69 @@ export const TEAM_COLORS = {
   "Alpine": "#FF69B4",
   "Aston Martin": "#006F62",
   "Haas": "#B6BABD",
+  "Haas F1 Team": "#B6BABD",
   "Racing Bulls": "#2B4562",
+  "Audi": "#00E676",
+  "Cadillac": "#D4AF37",
   "Kick Sauber": "#00F500",
+  "Sauber": "#00F500",
+};
+
+const AUDI_TEAM_PATTERN = /\b(sauber|kick|stake)\b/i;
+
+export const normalizeTeamName = (teamName, seasonYear) => {
+  if (!teamName) return teamName;
+
+  const normalizedYear = Number(seasonYear);
+  if (normalizedYear >= 2026 && AUDI_TEAM_PATTERN.test(teamName)) {
+    return "Audi";
+  }
+
+  return teamName;
+};
+
+export const normalizeSeasonTeamNames = (seasonData, seasonYear) => {
+  if (!seasonData?.races) return seasonData;
+
+  const resultKeys = [
+    "race_results",
+    "qualifying_results",
+    "sprint_results",
+    "sprint_qualifying_results",
+  ];
+
+  return {
+    ...seasonData,
+    races: seasonData.races.map((race) => {
+      const normalizedRace = { ...race };
+
+      resultKeys.forEach((key) => {
+        if (!Array.isArray(normalizedRace[key])) return;
+
+        normalizedRace[key] = normalizedRace[key].map((result) => ({
+          ...result,
+          team: normalizeTeamName(result.team, seasonYear),
+        }));
+      });
+
+      return normalizedRace;
+    }),
+  };
+};
+
+export const normalizeDriverTeamFields = (drivers, seasonYear) => {
+  if (!Array.isArray(drivers)) return drivers;
+
+  return drivers.map((driver) => {
+    const normalizedTeam = normalizeTeamName(driver.team_name, seasonYear);
+    const color = TEAM_COLORS[normalizedTeam]?.replace("#", "");
+
+    return {
+      ...driver,
+      team_name: normalizedTeam,
+      team_colour: color ?? driver.team_colour,
+    };
+  });
 };
 
 // Driver change configuration with timing

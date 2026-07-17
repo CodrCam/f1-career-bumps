@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { Maximize2, RotateCcw, SlidersHorizontal } from "lucide-react";
 import {
   Chart as ChartJS,
   LineElement,
@@ -9,9 +11,11 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import f1SeasonData from "../data/f1_2025_season.json";
+import { useSeasonData } from "../hooks/useSeasonData.js";
+import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useProcessedRaceData, getTeamColor, getAllDriversIncludingOriginals } from "../utils/dataProcessing.js";
+import { getTrackName } from "../utils/raceLabels.js";
 import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
 import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
@@ -27,7 +31,13 @@ ChartJS.register(
 
 const DriverResults2025Page = () => {
   const [selectedDrivers, setSelectedDrivers] = useState([]);
+  const [visibleStart, setVisibleStart] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(9);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
+  const { races, status } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -36,27 +46,74 @@ const DriverResults2025Page = () => {
   }, []);
 
   // Get both raw and processed race data
-  const rawRaces = useMemo(() => f1SeasonData.races, []);
+  const rawRaces = useMemo(() => races, [races]);
   const processedRaces = useProcessedRaceData(rawRaces);
+  const totalRaces = rawRaces.length;
+  const minimumWindow = Math.min(totalRaces || 1, 3);
+  const defaultWindow = Math.min(totalRaces || 9, 9);
+
+  useEffect(() => {
+    if (totalRaces === 0) return;
+
+    setVisibleCount((current) => {
+      const nextCount = Math.min(Math.max(current || defaultWindow, minimumWindow), totalRaces);
+      setVisibleStart((currentStart) => Math.min(currentStart, Math.max(0, totalRaces - nextCount)));
+      return nextCount;
+    });
+  }, [defaultWindow, minimumWindow, totalRaces]);
   
   // Get all drivers including both original and replacement drivers (should be 21 total)
   const allDrivers = useMemo(() => {
     return getAllDriversIncludingOriginals(rawRaces, processedRaces);
   }, [rawRaces, processedRaces]);
 
+  const maxFinishPosition = useMemo(() => {
+    const positions = rawRaces.flatMap((race) => (
+      race.race_results ?? []
+    ).map((result) => result.position).filter((position) => typeof position === 'number'));
+
+    return Math.max(20, ...positions);
+  }, [rawRaces]);
+
+  const visibleRaceIndexes = useMemo(() => {
+    return rawRaces
+      .map((_, index) => index)
+      .slice(visibleStart, visibleStart + visibleCount);
+  }, [rawRaces, visibleCount, visibleStart]);
+
+  const visibleRaces = useMemo(() => {
+    return visibleRaceIndexes.map((raceIndex) => rawRaces[raceIndex]).filter(Boolean);
+  }, [rawRaces, visibleRaceIndexes]);
+
+  const updateRaceWindow = (nextCount, nextStart = visibleStart) => {
+    if (totalRaces === 0) return;
+
+    const clampedCount = Math.min(totalRaces, Math.max(minimumWindow, nextCount));
+    const maxStart = Math.max(0, totalRaces - clampedCount);
+    setVisibleCount(clampedCount);
+    setVisibleStart(Math.min(Math.max(0, nextStart), maxStart));
+  };
+
+  const showAllRaces = () => updateRaceWindow(totalRaces, 0);
+  const showLatestRaces = () => updateRaceWindow(defaultWindow, Math.max(0, totalRaces - defaultWindow));
+  const resetRaceWindow = () => updateRaceWindow(defaultWindow, 0);
+
+  const handleVisibleCountChange = (event) => {
+    const nextCount = Number(event.target.value);
+    const center = visibleStart + (visibleCount / 2);
+    updateRaceWindow(nextCount, Math.round(center - (nextCount / 2)));
+  };
+
+  const handleVisibleStartChange = (event) => {
+    updateRaceWindow(visibleCount, Number(event.target.value));
+  };
+
   // Create chart data that shows both original and replacement drivers correctly
   const chartData = useMemo(() => {
     if (!rawRaces || rawRaces.length === 0) return null;
 
     const standings = new Map();
-    const raceLabels = [];
-
-    // Build race labels
-    rawRaces.forEach((round) => {
-      const { circuit } = round;
-      const circuitLabel = circuit?.split(" ")[0] || `R${round.round}`;
-      raceLabels.push(circuitLabel);
-    });
+    const raceLabels = visibleRaces.map((round) => getTrackName(round));
 
     // Process each race to build driver standings
     rawRaces.forEach((round, raceIndex) => {
@@ -124,10 +181,11 @@ const DriverResults2025Page = () => {
       }
 
       const isSelected = selectedDrivers.length === 0 || selectedDrivers.includes(driver);
+      if (showSelectedOnly && selectedDrivers.length > 0 && !isSelected) return null;
 
       return {
         label: driver,
-        data: positions,
+        data: positions.slice(visibleStart, visibleStart + visibleCount),
         borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
         borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
         pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
@@ -136,10 +194,10 @@ const DriverResults2025Page = () => {
         tension: 0,
         spanGaps: false, // Don't connect points across null values
       };
-    });
+    }).filter(Boolean);
 
     return { labels: raceLabels, datasets };
-  }, [rawRaces, processedRaces, selectedDrivers, isMobile]);
+  }, [isMobile, processedRaces, rawRaces, selectedDrivers, showSelectedOnly, visibleCount, visibleRaces, visibleStart]);
 
   // Handle driver selection for mobile/desktop
   const handleDriverChange = (index, value) => {
@@ -156,7 +214,7 @@ const DriverResults2025Page = () => {
   const options = {
     ...createResponsiveChartOptions(
       isMobile, 
-      "2025 Driver Race Results Bump Chart",
+      `${selectedYear} Driver Race Results Bump Chart`,
       "results"
     ),
     // Override the tooltip for this specific chart
@@ -171,7 +229,7 @@ const DriverResults2025Page = () => {
           label: function (context) {
             const driver = context.dataset.label;
             const position = context.raw;
-            const raceIndex = context.dataIndex;
+            const raceIndex = visibleRaceIndexes[context.dataIndex];
             
             if (position === null) return `${driver}: Did not participate`;
 
@@ -202,10 +260,17 @@ const DriverResults2025Page = () => {
         reverse: true,
         beginAtZero: false,
         min: 1,
-        max: 20,
+        max: maxFinishPosition,
       },
     },
   };
+
+  const isShowingAllRaces = totalRaces > 0 && visibleCount >= totalRaces;
+  const windowEnd = Math.min(totalRaces, visibleStart + visibleCount);
+  const maxVisibleStart = Math.max(0, totalRaces - visibleCount);
+  const visibleCountSliderMax = Math.max(minimumWindow, totalRaces);
+  const visibleCountSliderValue = Math.min(Math.max(visibleCount, minimumWindow), visibleCountSliderMax);
+  const targetWindow = Math.min(9, totalRaces || 9);
 
   return (
     <F1PageLayout 
@@ -219,16 +284,88 @@ const DriverResults2025Page = () => {
         maxDrivers={2}
         isMobile={isMobile}
       />
+
+      <div className="race-results-controls">
+        <div className="race-window-sliders" aria-label="Race result chart window controls">
+          <label className="race-slider-control">
+            <span>
+              <SlidersHorizontal size={16} />
+              Races shown
+            </span>
+            <input
+              type="range"
+              min={minimumWindow}
+              max={visibleCountSliderMax}
+              step="1"
+              value={visibleCountSliderValue}
+              onChange={handleVisibleCountChange}
+              disabled={totalRaces <= minimumWindow}
+              aria-label="Number of races shown"
+            />
+            <div className="race-slider-scale" aria-hidden="true">
+              <span>{minimumWindow}</span>
+              <span>{targetWindow}</span>
+              <span>All</span>
+            </div>
+          </label>
+
+          <label className={`race-slider-control ${isShowingAllRaces ? 'disabled' : ''}`}>
+            <span>Window position</span>
+            <input
+              type="range"
+              min="0"
+              max={maxVisibleStart}
+              step="1"
+              value={visibleStart}
+              onChange={handleVisibleStartChange}
+              disabled={isShowingAllRaces}
+              aria-label="Race window position"
+            />
+            <div className="race-slider-scale" aria-hidden="true">
+              <span>Start</span>
+              <span>Mid</span>
+              <span>Latest</span>
+            </div>
+          </label>
+        </div>
+
+        <div className="race-window-control-group" aria-label="Race result chart presets">
+          <button type="button" onClick={showAllRaces} disabled={isShowingAllRaces}>
+            <Maximize2 size={16} />
+            All
+          </button>
+          <button type="button" onClick={showLatestRaces} disabled={totalRaces <= defaultWindow && visibleStart === Math.max(0, totalRaces - defaultWindow)}>
+            Latest
+          </button>
+          <button type="button" onClick={resetRaceWindow} disabled={visibleStart === 0 && visibleCount === defaultWindow}>
+            <RotateCcw size={16} />
+            Reset
+          </button>
+          <label className={`race-window-toggle ${selectedDrivers.length === 0 ? 'disabled' : ''}`}>
+            <input
+              type="checkbox"
+              checked={showSelectedOnly}
+              disabled={selectedDrivers.length === 0}
+              onChange={(event) => setShowSelectedOnly(event.target.checked)}
+            />
+            Selected only
+          </label>
+        </div>
+
+        <div className="race-window-status">
+          Races {totalRaces === 0 ? 0 : visibleStart + 1}-{windowEnd} of {totalRaces}
+        </div>
+      </div>
       
       {/* Race Results Chart */}
-      <ResponsiveChart 
-        type="line" 
-        data={chartData} 
+      <ResponsiveChart
+        type="line"
+        data={chartData}
         options={options}
         className="race-results-line-chart"
         style={{ height: isMobile ? '400px' : '600px' }}
-        loading={!chartData}
-        error={!chartData && rawRaces.length === 0 ? "No race data available" : null}
+        loading={status === 'loading'}
+        error={!chartData && rawRaces.length === 0 && status !== 'loading' ? "No race data available" : null}
       />
 
     </F1PageLayout>

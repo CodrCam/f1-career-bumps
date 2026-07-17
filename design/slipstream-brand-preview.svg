@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">Slipstream brand preview</title>
+  <desc id="desc">A dark racing analytics header preview with a lime and cyan Slipstream mark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#070a0d"/>
+      <stop offset="1" stop-color="#10161b"/>
+    </linearGradient>
+    <linearGradient id="nav" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#070a0d"/>
+      <stop offset=".55" stop-color="#0c1216"/>
+      <stop offset="1" stop-color="#101820"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#22d3ee" flood-opacity=".22"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="560" fill="url(#bg)"/>
+  <path d="M0 0h1200v122H0Z" fill="url(#nav)"/>
+  <path d="M0 121h1200" stroke="rgba(190,242,100,.28)" stroke-width="1"/>
+  <path d="M0 123h1200" stroke="rgba(34,211,238,.14)" stroke-width="1"/>
+
+  <g transform="translate(92 36)" filter="url(#glow)">
+    <path d="M16 7h66l16 17-16 17H16L6 24 16 7Z" fill="none" stroke="rgba(190,242,100,.32)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24 9h16L28 39H12L24 9Z" fill="#bef264"/>
+    <path d="M38 9h40l-7 11H34l4-11Z" fill="#bef264"/>
+    <path d="M33 23h31l-6 10H29l4-10Z" fill="#bef264"/>
+    <path d="M80 12c14 0 20 8 10 15-5 3-16 5-22 8-5 2-2 5 8 5h18" fill="none" stroke="rgba(0,0,0,.52)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M78 9c15 0 22 9 11 16-6 4-18 6-25 9-5 3-2 7 10 7h22" fill="none" stroke="#22d3ee" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5 14h14M2 24h16M8 34h12" fill="none" stroke="#f8fafc" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="220" y="62" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="900">Slipstream</text>
+  <text x="222" y="88" fill="#a7f3d0" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="800" letter-spacing="2.5">F1 ANALYTICS</text>
+
+  <g transform="translate(748 42)" fill="#dbeafe" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">
+    <text x="0" y="24">2026 Season</text>
+    <text x="150" y="24">Driver Analysis</text>
+    <text x="320" y="24">Live Analysis</text>
+  </g>
+
+  <g transform="translate(118 204)">
+    <text x="0" y="0" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="900">Motorsport data, stripped down.</text>
+    <text x="0" y="42" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="18">A cleaner Slipstream identity: live-timing colors, sharper mark, no fake F1 badge.</text>
+  </g>
+
+  <g transform="translate(118 318)">
+    <rect width="230" height="82" rx="8" fill="rgba(255,255,255,.055)" stroke="rgba(255,255,255,.12)"/>
+    <text x="22" y="36" fill="#bef264" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="900">Driver Bump Chart</text>
+    <text x="22" y="59" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="13">Round-by-round movement</text>
+  </g>
+  <g transform="translate(376 318)">
+    <rect width="230" height="82" rx="8" fill="rgba(255,255,255,.055)" stroke="rgba(255,255,255,.12)"/>
+    <text x="22" y="36" fill="#22d3ee" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="900">Race Results</text>
+    <text x="22" y="59" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="13">Quali, race, and points</text>
+  </g>
+  <g transform="translate(634 318)">
+    <rect width="230" height="82" rx="8" fill="rgba(255,255,255,.055)" stroke="rgba(255,255,255,.12)"/>
+    <text x="22" y="36" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="900">Pit Trends</text>
+    <text x="22" y="59" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="13">Historical trend scoring</text>
+  </g>
+</svg>

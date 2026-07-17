@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,8 +13,10 @@ import {
   RadialLinearScale,
 } from "chart.js";
 import { Bar, Radar, Line } from "react-chartjs-2";
-import f1SeasonData from "../data/f1_2025_season.json";
+import { useSeasonData } from "../hooks/useSeasonData.js";
+import { getSeasonFromParam } from "../utils/seasons.js";
 import { useProcessedRaceData, getAllDrivers } from "../utils/dataProcessing.js";
+import { getTrackName } from "../utils/raceLabels.js";
 import { F1PageLayout, ResponsiveChart, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
 
@@ -58,43 +61,11 @@ const getDriverColor = (driverName) => {
   return driverVariations[driverName] || '#FFFFFF';
 };
 
-const parseTimeToSeconds = (time) => {
-  if (!time || time === "No Time" || time === "DNF" || time === "DNS") return null;
-  if (time.includes("lap")) return 9999;
-  if (time.includes(":")) {
-    const parts = time.replace("+", "").replace("s", "").split(":");
-    if (parts.length === 2) {
-      const [min, sec] = parts.map(parseFloat);
-      return min * 60 + sec;
-    }
-    if (parts.length === 3) {
-      const [hr, min, sec] = parts.map(parseFloat);
-      return hr * 3600 + min * 60 + sec;
-    }
-  }
-  return parseFloat(time.replace("+", "").replace("s", ""));
-};
-
-const isRelativeTime = (time) => typeof time === "string" && time.trim().startsWith("+");
-
-const formatTimeDelta = (time1, time2) => {
-  const t1 = parseTimeToSeconds(time1);
-  const t2 = parseTimeToSeconds(time2);
-
-  if (t1 === null || t2 === null) return "--";
-
-  if (isRelativeTime(time1) && !isRelativeTime(time2)) return time1;
-  if (!isRelativeTime(time1) && isRelativeTime(time2)) return `-${time2}`;
-
-  const delta = (t1 - t2).toFixed(3);
-  return `${delta > 0 ? "+" : ""}${delta}s`;
-};
-
 const getDriverResultsByRound = (driver, type = "race_results", processedRaces) => {
   return processedRaces.map((race) => {
     const result = race[type]?.find((r) => r.driver === driver);
     return {
-      circuit: race.circuit.split(" ")[0],
+      circuit: getTrackName(race),
       position: result?.position ?? null,
       points: result?.points ?? 0,
       time: result?.time ?? null,
@@ -106,7 +77,7 @@ const getQualifyingResultsByRound = (driver, processedRaces) => {
   return processedRaces.map((race) => {
     const result = race.qualifying_results?.find((q) => q.driver === driver);
     return {
-      circuit: race.circuit.split(" ")[0],
+      circuit: getTrackName(race),
       grid: result?.position ?? null,
       time: result?.time ?? null,
     };
@@ -122,18 +93,28 @@ const getWinStyle = (val1, val2, isLowerBetter = true) => {
 };
 
 const NewDriverHeadToHeadPage = () => {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile] = useState(window.innerWidth < 768);
   const [showVisualization, setShowVisualization] = useState(true);
   const [viewMode, setViewMode] = useState('overview'); // 'overview', 'qualifying', 'sprint', 'race'
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
+  const { races } = useSeasonData(selectedYear);
 
   // Use shared processing utility
-  const processedRaces = useProcessedRaceData(f1SeasonData.races);
+  const processedRaces = useProcessedRaceData(races);
   
   // Memoize all drivers list
   const allDrivers = useMemo(() => getAllDrivers(processedRaces), [processedRaces]);
 
   const [driver1, setDriver1] = useState(allDrivers[0] || "");
   const [driver2, setDriver2] = useState(allDrivers[1] || "");
+
+  useEffect(() => {
+    if (allDrivers.length > 0 && (!driver1 || !driver2)) {
+      setDriver1((current) => current || allDrivers[0] || "");
+      setDriver2((current) => current || allDrivers[1] || allDrivers[0] || "");
+    }
+  }, [allDrivers, driver1, driver2]);
 
   // Calculate comprehensive statistics
   const calculateComprehensiveStats = (quali1, quali2, sprint1, sprint2, races1, races2) => {
@@ -385,7 +366,7 @@ const NewDriverHeadToHeadPage = () => {
         color: 'purple'
       }
     ];
-  }, [comparisonData.stats, driver1, driver2]);
+  }, [comparisonData, driver1, driver2]);
 
   // Chart options
   const radarChartOptions = {

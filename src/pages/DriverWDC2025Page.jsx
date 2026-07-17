@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Chart as ChartJS,
   LineElement,
@@ -9,7 +10,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import f1SeasonData from "../data/f1_2025_season.json";
+import { useSeasonData } from "../hooks/useSeasonData.js";
+import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useChampionshipData, useDriverSelection, useAllDrivers } from "../components/F1DataComponents.jsx";
 import { ChampionshipBumpChart } from "../components/ChartComponents.jsx";
@@ -26,6 +28,9 @@ ChartJS.register(
 
 const DriverWDC2025Page = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
+  const { races } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -34,17 +39,17 @@ const DriverWDC2025Page = () => {
   }, []);
 
   // Get all drivers from the data
-  const allDrivers = useAllDrivers(f1SeasonData.races);
+  const allDrivers = useAllDrivers(races);
   
   // Handle driver selection - increased from 2 to 5 drivers
   const { selectedDrivers, handleDriverSelect } = useDriverSelection(allDrivers, 5);
   
   // Get championship data
-  const chartData = useChampionshipData(f1SeasonData.races, selectedDrivers, isMobile);
+  const chartData = useChampionshipData(races, selectedDrivers, isMobile);
 
   const options = createResponsiveChartOptions(
     isMobile, 
-    "2025 Driver World Championship Standings",
+    `${selectedYear} Driver World Championship Standings`,
     "driver"
   );
 
@@ -55,7 +60,7 @@ const DriverWDC2025Page = () => {
         data={chartData}
         options={options}
         type="driver"
-        title="2025 Driver World Championship Points"
+        title={`${selectedYear} Driver World Championship Points`}
         selectedDrivers={selectedDrivers}
         onDriverSelect={handleDriverSelect}
         allDrivers={allDrivers}

@@ -1,5 +1,4 @@
 import React from "react";
-import { getTeamColor } from "./dataProcessing.js";
 
 export const createResponsiveChartOptions = (isMobile, title, chartType = 'line') => {
   const baseOptions = {
@@ -30,7 +29,7 @@ export const createResponsiveChartOptions = (isMobile, title, chartType = 'line'
             size: isMobile ? 10 : 12
           },
           // Limit legend items on mobile
-          filter: isMobile ? function(legendItem, chartData) {
+          filter: isMobile ? function(legendItem) {
             return legendItem.datasetIndex < 10;
           } : undefined
         },
@@ -64,7 +63,7 @@ export const createResponsiveChartOptions = (isMobile, title, chartType = 'line'
       x: {
         title: {
           display: !isMobile,
-          text: "Circuit",
+          text: "Track",
           font: {
             size: isMobile ? 10 : 12
           }

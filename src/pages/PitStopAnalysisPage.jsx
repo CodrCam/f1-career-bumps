@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -13,9 +14,10 @@ import {
   ArcElement,
 } from 'chart.js';
 import driverPitStopData from '../data/Driver_Pitstop.json';
-import { getTeamColor } from '../utils/dataProcessing.js';
 import { F1PageLayout } from '../components/ChartComponents.jsx';
 import { ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
+import { getSeasonFromParam } from '../utils/seasons.js';
+import { normalizeTeamName as normalizeTeamNameForSeason } from '../utils/dataProcessing.js';
 
 ChartJS.register(
   CategoryScale,
@@ -56,12 +58,9 @@ const drivers2025 = [
   { id: "sainz", driver: "Carlos Sainz", team: "Williams", color: "#005AFF" },
 ];
 
-const normalizeTeamName = (teamName) => {
-  const teamMapping = {
-    'Kick Sauber': 'Sauber',
-    'Sauber': 'Sauber'
-  };
-  return teamMapping[teamName] || teamName;
+const normalizePitTeamName = (teamName, seasonYear) => {
+  const legacyName = teamName === 'Kick Sauber' ? 'Sauber' : teamName;
+  return normalizeTeamNameForSeason(legacyName, seasonYear);
 };
 
 const getUnifiedTeamColor = (teamName) => {
@@ -74,15 +73,17 @@ const getUnifiedTeamColor = (teamName) => {
     'Alpine': '#FF69B4',
     'Racing Bulls': '#ADD8E6',
     'Sauber': '#00FF00',
+    'Audi': '#00E676',
     'Haas': '#B6BABD',
     'Williams': '#005AFF'
   };
   
-  const normalizedTeam = normalizeTeamName(teamName);
-  return teamColors[normalizedTeam] || '#FFFFFF';
+  return teamColors[teamName] || '#FFFFFF';
 };
 
-const getDriverColor = (driverName) => {
+const getDriverColor = (driverName, teamName) => {
+  if (teamName) return getUnifiedTeamColor(teamName);
+
   const nameMapping = {
     'Alexander Albon': 'Alexander Albon',
     'Alex Albon': 'Alexander Albon',
@@ -95,11 +96,11 @@ const getDriverColor = (driverName) => {
   return driver ? driver.color : '#FFFFFF';
 };
 
-const getEntityColor = (entity, analysisType, entityStats = null) => {
+const getEntityColor = (entity, analysisType, entityStats) => {
   if (analysisType === 'team') {
     return getUnifiedTeamColor(entity);
   } else {
-    return getDriverColor(entity);
+    return getDriverColor(entity, entityStats?.team);
   }
 };
 
@@ -131,7 +132,7 @@ const calculateRecentFormScore = (recentForm) => {
 
 // ===== DATA PROCESSING FUNCTION =====
 
-const processRaceData = () => {
+const processRaceData = (seasonYear) => {
   const teamStats = new Map();
   const driverStats = new Map();
   const roundData = [];
@@ -155,7 +156,7 @@ const processRaceData = () => {
       pitStop.stops.forEach(stop => {
         if (stop.time < fastestTime) {
           fastestTime = stop.time;
-          roundInfo.fastestTeam = normalizeTeamName(pitStop.team);
+          roundInfo.fastestTeam = normalizePitTeamName(pitStop.team, seasonYear);
           roundInfo.fastestDriver = pitStop.driver;
         }
       });
@@ -166,7 +167,7 @@ const processRaceData = () => {
     // Process team and driver statistics
     round.pit_stops.forEach(pitStop => {
       const { driver, stops, average_time } = pitStop;
-      const team = normalizeTeamName(pitStop.team);
+      const team = normalizePitTeamName(pitStop.team, seasonYear);
       allTeams.add(team);
       allDrivers.add(driver);
 
@@ -182,7 +183,7 @@ const processRaceData = () => {
           trend: 0,
           winRate: 0,
           recentForm: [],
-          predictiveScore: 0,
+          forecastScore: 0,
           fastestRoundWins: 0
         });
       }
@@ -200,7 +201,7 @@ const processRaceData = () => {
           trend: 0,
           winRate: 0,
           recentForm: [],
-          predictiveScore: 0,
+          forecastScore: 0,
           fastestRoundWins: 0
         });
       }
@@ -230,7 +231,7 @@ const processRaceData = () => {
 
   // Calculate metrics for teams and drivers
   [teamStats, driverStats].forEach(statsMap => {
-    statsMap.forEach((stats, entity) => {
+    statsMap.forEach((stats) => {
       const n = stats.averageTimes.length;
       if (n === 0) return;
 
@@ -252,14 +253,14 @@ const processRaceData = () => {
       const totalRounds = roundData.length;
       stats.winRate = (stats.fastestRoundWins / totalRounds) * 100;
       
-      // Enhanced Predictive Score
+      // Weighted forecast score
       const historicalWinScore = (stats.fastestRoundWins / totalRounds) * 40;
       const speedScore = Math.max(0, Math.min(25, (3.5 - stats.averageTime) * 12.5));
       const consistencyScore = Math.max(0, Math.min(20, (0.8 - stats.consistency) * 25));
       const trendScore = Math.max(0, Math.min(10, -stats.trend * 20));
       const recentFormScore = Math.min(5, calculateRecentFormScore(stats.recentForm) / 4);
       
-      stats.predictiveScore = historicalWinScore + speedScore + consistencyScore + trendScore + recentFormScore;
+      stats.forecastScore = historicalWinScore + speedScore + consistencyScore + trendScore + recentFormScore;
     });
   });
 
@@ -308,17 +309,17 @@ const generateTrendData = (selectedEntity, analysisType, processedData) => {
   };
 };
 
-const generatePredictionData = (analysisType, processedData) => {
+const generateForecastData = (analysisType, processedData) => {
   const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
   const sortedEntities = Array.from(stats.entries())
-    .sort((a, b) => b[1].predictiveScore - a[1].predictiveScore)
+    .sort((a, b) => b[1].forecastScore - a[1].forecastScore)
     .slice(0, 10);
 
   return {
     labels: sortedEntities.map(([entity]) => entity),
     datasets: [{
-      label: 'Predictive Score (0-100)',
-      data: sortedEntities.map(([, stat]) => stat.predictiveScore.toFixed(1)),
+      label: 'Forecast Score (0-100)',
+      data: sortedEntities.map(([, stat]) => stat.forecastScore.toFixed(1)),
       backgroundColor: sortedEntities.map(([entity, stat]) => 
         getEntityColor(entity, analysisType, stat)
       ),
@@ -367,7 +368,7 @@ const generateStrategyData = (analysisType, processedData) => {
         y: stat.totalStops / stat.rounds.length,
         label: entity,
         team: analysisType === 'team' ? entity : stat.team,
-        predictiveScore: stat.predictiveScore
+        forecastScore: stat.forecastScore
       })),
       backgroundColor: entities.map(([entity, stat]) => 
         getEntityColor(entity, analysisType, stat)
@@ -375,7 +376,7 @@ const generateStrategyData = (analysisType, processedData) => {
       borderColor: entities.map(([entity, stat]) => 
         getEntityColor(entity, analysisType, stat)
       ),
-      pointRadius: entities.map(([entity, stat]) => 8 + (stat.predictiveScore / 100) * 4),
+      pointRadius: entities.map(([, stat]) => 8 + (stat.forecastScore / 100) * 4),
       pointHoverRadius: 12
     }]
   };
@@ -383,7 +384,7 @@ const generateStrategyData = (analysisType, processedData) => {
 
 // ===== CHART OPTIONS =====
 
-const getChartOptions = (type, selectedEntity, isMobile, analysisType) => {
+const getChartOptions = (type, selectedEntity, isMobile) => {
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -427,18 +428,18 @@ const getChartOptions = (type, selectedEntity, isMobile, analysisType) => {
           ...baseOptions.plugins,
           title: {
             display: true,
-            text: `Statistical Prediction Model - Next Race Forecast`,
+            text: `Weighted Trend Score - Next Race Forecast`,
             font: { size: isMobile ? 14 : 16 }
           },
           tooltip: {
             callbacks: {
-              label: (context) => `Predictive Score: ${context.raw}/100`
+              label: (context) => `Forecast Score: ${context.raw}/100`
             }
           }
         },
         scales: {
           y: {
-            title: { display: true, text: 'Predictive Score (0-100)' },
+            title: { display: true, text: 'Forecast Score (0-100)' },
             beginAtZero: true,
             max: 100
           }
@@ -500,7 +501,7 @@ const getChartOptions = (type, selectedEntity, isMobile, analysisType) => {
                   `${point.label}`,
                   `Avg Speed: ${point.x.toFixed(2)}s`,
                   `Stops/Race: ${point.y.toFixed(1)}`,
-                  `Prediction Score: ${point.predictiveScore.toFixed(1)}/100`
+                  `Forecast Score: ${point.forecastScore.toFixed(1)}/100`
                 ];
               }
             }
@@ -527,12 +528,12 @@ const getChartOptions = (type, selectedEntity, isMobile, analysisType) => {
 
 // ===== UI COMPONENTS =====
 
-const PredictionSummary = ({ showPredictions, analysisType, processedData, isMobile }) => {
-  if (!showPredictions) return null;
+const ForecastSummary = ({ showForecast, analysisType, processedData, isMobile }) => {
+  if (!showForecast) return null;
 
   const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const topPredictions = Array.from(stats.entries())
-    .sort((a, b) => b[1].predictiveScore - a[1].predictiveScore)
+  const topForecasts = Array.from(stats.entries())
+    .sort((a, b) => b[1].forecastScore - a[1].forecastScore)
     .slice(0, 5);
 
   return (
@@ -544,16 +545,16 @@ const PredictionSummary = ({ showPredictions, analysisType, processedData, isMob
       border: '1px solid rgba(99, 102, 241, 0.3)'
     }}>
       <h3 style={{ color: '#fff', marginBottom: '1rem', textAlign: 'center' }}>
-        🏁 Statistical Next Race Predictions ({analysisType === 'team' ? 'Teams' : 'Drivers'})
+        🏁 Pit Stop Trend Forecast ({analysisType === 'team' ? 'Teams' : 'Drivers'})
       </h3>
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '1rem'
       }}>
-        {topPredictions.map(([entity, entityStats], index) => {
-          const confidence = entityStats.predictiveScore > 75 ? 'High' : 
-                           entityStats.predictiveScore > 50 ? 'Medium' : 'Low';
+        {topForecasts.map(([entity, entityStats], index) => {
+          const confidence = entityStats.forecastScore > 75 ? 'High' : 
+                           entityStats.forecastScore > 50 ? 'Medium' : 'Low';
           return (
             <div key={entity} style={{
               padding: '1.5rem',
@@ -569,7 +570,7 @@ const PredictionSummary = ({ showPredictions, analysisType, processedData, isMob
                 </span>
               </div>
               <div style={{ color: '#ccc', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                Score: {entityStats.predictiveScore.toFixed(1)}/100
+                Score: {entityStats.forecastScore.toFixed(1)}/100
               </div>
               <div style={{ color: '#ccc', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
                 Avg: {entityStats.averageTime.toFixed(2)}s | Fastest: {entityStats.fastestTime.toFixed(2)}s
@@ -677,10 +678,10 @@ const PerformanceTable = ({ analysisType, processedData, isMobile }) => {
                 <span style={{ 
                   textAlign: 'center',
                   fontWeight: 'bold',
-                  color: entityStats.predictiveScore > 75 ? '#10B981' : 
-                         entityStats.predictiveScore > 50 ? '#F59E0B' : '#EF4444'
+                  color: entityStats.forecastScore > 75 ? '#10B981' : 
+                         entityStats.forecastScore > 50 ? '#F59E0B' : '#EF4444'
                 }}>
-                  {entityStats.predictiveScore.toFixed(0)}
+                  {entityStats.forecastScore.toFixed(0)}
                 </span>
               )}
             </div>
@@ -705,60 +706,16 @@ const PerformanceTable = ({ analysisType, processedData, isMobile }) => {
   );
 };
 
-const MethodologySection = ({ analysisType, isMobile }) => (
-  <div style={{
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '8px',
-    padding: '2rem',
-    marginTop: '2rem'
-  }}>
-    <h3 style={{ color: '#fff', marginBottom: '1rem' }}>📊 Enhanced Statistical Prediction Methodology</h3>
-    <div style={{ color: '#ccc', lineHeight: '1.6' }}>
-      <p style={{ marginBottom: '1rem' }}>
-        Our enhanced prediction engine analyzes comprehensive pit stop data using advanced statistical modeling with improved weighting based on historical performance:
-      </p>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: '1.5rem'
-      }}>
-        <div>
-          <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Core Metrics:</h4>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li>• <strong>Historical Wins (40%)</strong>: Actual fastest pit stop victories per round</li>
-            <li>• <strong>Speed Performance (25%)</strong>: Average pit stop time analysis</li>
-            <li>• <strong>Consistency (20%)</strong>: Standard deviation and reliability metrics</li>
-            <li>• <strong>Recent Trend (10%)</strong>: Performance trajectory over last 5 races</li>
-            <li>• <strong>Recent Form (5%)</strong>: Latest 3 races vs historical average</li>
-          </ul>
-        </div>
-        <div>
-          <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Model Improvements:</h4>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li>• <strong>Team Normalization</strong>: Sauber/Kick Sauber unified as single entity</li>
-            <li>• <strong>Historical Weighting</strong>: Past wins heavily influence predictions</li>
-            <li>• <strong>Realistic Scoring</strong>: 0-100 scale based on actual performance data</li>
-            <li>• <strong>Validated Model</strong>: Predictions align with Ferrari's 80% win rate</li>
-          </ul>
-        </div>
-      </div>
-      <p style={{ marginTop: '1rem', fontStyle: 'italic' }}>
-        The model uses statistical analysis including linear regression, trend analysis, and 
-        weighted historical performance to predict which {analysisType === 'team' ? 'teams' : 'drivers'} are most likely to achieve 
-        the fastest pit stops in upcoming races. Historical dominance is the strongest predictor.
-      </p>
-    </div>
-  </div>
-);
-
 // ===== MAIN COMPONENT =====
 
 const PitStopAnalysisPage = () => {
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [selectedEntity, setSelectedEntity] = useState('');
-  const [showPredictions, setShowPredictions] = useState(true);
+  const [showForecast, setShowForecast] = useState(true);
   const [analysisType, setAnalysisType] = useState('team');
-  const [predictionModel, setPredictionModel] = useState('advanced');
+  const [forecastModel, setForecastModel] = useState('weighted');
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -766,7 +723,7 @@ const PitStopAnalysisPage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const processedData = useMemo(() => processRaceData(), []);
+  const processedData = useMemo(() => processRaceData(selectedYear), [selectedYear]);
 
   // Generate chart data
   const trendData = useMemo(() => 
@@ -774,8 +731,8 @@ const PitStopAnalysisPage = () => {
     [selectedEntity, analysisType, processedData]
   );
 
-  const predictionData = useMemo(() => 
-    generatePredictionData(analysisType, processedData), 
+  const forecastData = useMemo(() => 
+    generateForecastData(analysisType, processedData), 
     [analysisType, processedData]
   );
 
@@ -790,17 +747,17 @@ const PitStopAnalysisPage = () => {
   );
 
   // Chart options
-  const lineOptions = getChartOptions('line', selectedEntity, isMobile, analysisType);
-  const barOptions = getChartOptions('bar', selectedEntity, isMobile, analysisType);
-  const scatterOptions = getChartOptions('scatter', selectedEntity, isMobile, analysisType);
-  const strategyOptions = getChartOptions('strategy', selectedEntity, isMobile, analysisType);
+  const lineOptions = getChartOptions('line', selectedEntity, isMobile);
+  const barOptions = getChartOptions('bar', selectedEntity, isMobile);
+  const scatterOptions = getChartOptions('scatter', selectedEntity, isMobile);
+  const strategyOptions = getChartOptions('strategy', selectedEntity, isMobile);
 
   const entityList = analysisType === 'team' ? processedData.allTeams : processedData.allDrivers;
 
   return (
     <F1PageLayout
-      title="Advanced F1 Pit Stop Analytics & Performance Predictions"
-      subtitle="Mathematical modeling and statistical analysis for next-race pit stop performance forecasting"
+      title={`${selectedYear} Pit Stop Trends & Forecasts`}
+      subtitle="Weighted historical scoring for next-race pit stop performance"
       className="enhanced-pit-stop-analysis"
     >
       {/* Controls */}
@@ -844,8 +801,8 @@ const PitStopAnalysisPage = () => {
         </select>
 
         <select
-          value={predictionModel}
-          onChange={(e) => setPredictionModel(e.target.value)}
+          value={forecastModel}
+          onChange={(e) => setForecastModel(e.target.value)}
           style={{
             padding: "0.75rem",
             fontSize: "1rem",
@@ -855,20 +812,20 @@ const PitStopAnalysisPage = () => {
             color: "#fff"
           }}
         >
-          <option value="advanced">Enhanced Statistical Model</option>
+          <option value="weighted">Weighted Trend Model</option>
           <option value="basic">Basic Statistical Model</option>
         </select>
 
         <ToggleSwitch
-          checked={showPredictions}
-          onChange={(e) => setShowPredictions(e.target.checked)}
-          label="Show Predictions"
+          checked={showForecast}
+          onChange={(e) => setShowForecast(e.target.checked)}
+          label="Show Forecast"
         />
       </ControlBar>
 
-      {/* Prediction Summary */}
-      <PredictionSummary 
-        showPredictions={showPredictions}
+        {/* Forecast Summary */}
+      <ForecastSummary 
+        showForecast={showForecast}
         analysisType={analysisType}
         processedData={processedData}
         isMobile={isMobile}
@@ -903,14 +860,14 @@ const PitStopAnalysisPage = () => {
           </div>
         )}
 
-        {/* Statistical Prediction Chart */}
+        {/* Statistical Forecast Chart */}
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '8px',
           padding: '1rem',
           height: '400px'
         }}>
-          <Bar data={predictionData} options={barOptions} />
+          <Bar data={forecastData} options={barOptions} />
         </div>
 
         {/* Performance vs Consistency Scatter */}
@@ -930,9 +887,6 @@ const PitStopAnalysisPage = () => {
           isMobile={isMobile}
         />
       </div>
-
-      {/* Methodology Section */}
-      <MethodologySection analysisType={analysisType} isMobile={isMobile} />
     </F1PageLayout>
   );
 };

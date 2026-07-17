@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Bar, Scatter, Line } from 'react-chartjs-2';
 import '../components/Analysis.css';
 import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
 import { SessionSelector, DriverToggleButtons, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
+import { getSeasonFromParam } from '../utils/seasons.js';
+import { normalizeDriverTeamFields } from '../utils/dataProcessing.js';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement);
 
 // Custom hook for enhanced sector analysis data
-const useSectorAnalysis = () => {
+const useSectorAnalysis = (year) => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [sessionData, setSessionData] = useState({});
@@ -26,7 +29,7 @@ const useSectorAnalysis = () => {
       setInitialLoading(true);
       setError('');
       
-      const response = await fetch(`${apiBase}/sessions?year=2025`);
+      const response = await fetch(`${apiBase}/sessions?year=${year}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -34,16 +37,24 @@ const useSectorAnalysis = () => {
       
       const data = await response.json();
       
-      const raceSessions = data.filter(s => 
-        s.session_name === 'Race' || 
-        s.session_name === 'Qualifying' ||
-        s.session_name === 'Sprint'
-      ).slice(-20);
+      const now = Date.now();
+      const raceSessions = data
+        .filter(s => 
+          s.session_name === 'Race' || 
+          s.session_name === 'Qualifying' ||
+          s.session_name === 'Sprint'
+        )
+        .filter((session) => {
+          const sessionEnd = new Date(session.date_end || session.date_start).getTime();
+          return Number.isFinite(sessionEnd) && sessionEnd <= now;
+        })
+        .sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
       
       if (raceSessions.length === 0) {
-        throw new Error('No race sessions found for 2025');
+        throw new Error(`No race sessions found for ${year}`);
       }
       
+      setSelectedSession('');
       setSessions(raceSessions);
     } catch (err) {
       console.error('Failed to load sessions:', err);
@@ -77,7 +88,7 @@ const useSectorAnalysis = () => {
       }
 
       const laps = await lapsResponse.json();
-      const drivers = await driversResponse.json();
+      const drivers = normalizeDriverTeamFields(await driversResponse.json(), year);
 
       if (!Array.isArray(laps) || !Array.isArray(drivers)) {
         throw new Error('Invalid data format received from API');
@@ -281,8 +292,8 @@ const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
     'OCO': '#B6BABD', 'BEA': '#B6BABD', 
     // Racing Bulls
     'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Kick Sauber
-    'HUL': '#00F500', 'BOR': '#00F500',
+    // Audi
+    'HUL': '#00E676', 'BOR': '#00E676',
     // Additional fallback colors
     'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
   };
@@ -380,31 +391,6 @@ const useRelativeSectorData = (sessionData, sectorStats, selectedDrivers) => {
 
 // Precision gap analysis chart
 const usePrecisionGapData = (sessionData, sectorStats, selectedDrivers) => {
-  const driverColors = {
-    // Ferrari
-    'HAM': '#DC143C', 'LEC': '#DC143C', 
-    // Red Bull Racing
-    'VER': '#0600EF', 'TSU': '#0600EF', 
-    // McLaren
-    'NOR': '#FF8700', 'PIA': '#FF8700', 
-    // Mercedes
-    'RUS': '#00D2BE', 'ANT': '#00D2BE', 
-    // Aston Martin
-    'ALO': '#006F62', 'STR': '#006F62', 
-    // Alpine
-    'GAS': '#0090FF', 'COL': '#0090FF', 'DOO': '#0090FF',
-    // Williams
-    'ALB': '#005AFF', 'SAI': '#005AFF', 
-    // Haas
-    'OCO': '#B6BABD', 'BEA': '#B6BABD', 
-    // Racing Bulls
-    'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Kick Sauber
-    'HUL': '#00F500', 'BOR': '#00F500',
-    // Additional fallback colors
-    'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
-  };
-
   return React.useMemo(() => {
     if (!sessionData.drivers || Object.keys(sectorStats.driverStats || {}).length === 0) {
       return null;
@@ -529,6 +515,8 @@ const useSectorStrengthData = (sessionData, sectorStats) => {
 };
 
 const SectorAnalysisPage = () => {
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [visualizationType, setVisualizationType] = useState('relative'); // 'relative', 'precision', 'strengths'
   const [showConsistency, setShowConsistency] = useState(false);
@@ -546,7 +534,7 @@ const SectorAnalysisPage = () => {
     initialLoading,
     loadSessions,
     loadSessionData
-  } = useSectorAnalysis();
+  } = useSectorAnalysis(selectedYear);
 
   const relativeData = useRelativeSectorData(sessionData, sectorStats, selectedDrivers);
   const precisionData = usePrecisionGapData(sessionData, sectorStats, selectedDrivers);
@@ -557,7 +545,7 @@ const SectorAnalysisPage = () => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [selectedYear]);
 
   const formatTime = (seconds) => {
     if (!seconds || seconds === 0) return '--:--';
@@ -766,12 +754,12 @@ const SectorAnalysisPage = () => {
   if (initialLoading) {
     return (
       <F1PageLayout 
-        title="🏁 Enhanced Sector Time Analysis"
+        title="🏁 Sector Time Analysis"
         showHeader={true}
       >
         <DataLoader 
           message="Loading F1 Sessions..." 
-          submessage="Fetching 2025 race sessions from OpenF1 API"
+          submessage={`Fetching ${selectedYear} race sessions`}
         />
       </F1PageLayout>
     );
@@ -807,8 +795,8 @@ const SectorAnalysisPage = () => {
 
   return (
     <F1PageLayout 
-      title="🏁 Enhanced Sector Time Analysis"
-      subtitle="Precision sector analysis where qualifying pole position is decided by milliseconds"
+      title="🏁 Sector Time Analysis"
+      subtitle={`${selectedYear} precision sector analysis where qualifying pole position is decided by milliseconds`}
       className="enhanced-sector-analysis-page"
     >
       {/* Enhanced Controls */}
@@ -916,7 +904,7 @@ const SectorAnalysisPage = () => {
         </div>
       )}
 
-      {/* Enhanced Sector Performance Table */}
+      {/* Sector Performance Table */}
       {Object.keys(sectorStats.driverStats || {}).length > 0 && (
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -1065,46 +1053,6 @@ const SectorAnalysisPage = () => {
           )}
         </div>
       )}
-
-      {/* Enhanced Methodology */}
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: '8px',
-        padding: '2rem',
-        marginTop: '2rem'
-      }}>
-        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>🔬 Advanced Sector Analysis Methodology</h3>
-        <div style={{ color: '#ccc', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: '1rem' }}>
-            In Formula 1 qualifying, pole position is often decided by thousandths of a second across three sectors. 
-            Our enhanced analysis reveals these critical micro-differences and identifies where each driver gains or loses time.
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-            gap: '1.5rem'
-          }}>
-            <div>
-              <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Precision Analysis:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Millisecond Accuracy</strong>: Gap analysis to fastest sector times</li>
-                <li>• <strong>Relative Performance</strong>: Percentage differences from session averages</li>
-                <li>• <strong>Sector Strengths</strong>: Identifies where drivers excel or struggle</li>
-                <li>• <strong>Consistency Tracking</strong>: Standard deviation across multiple laps</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Advanced Metrics:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Performance Visualization</strong>: Multiple chart types for different insights</li>
-                <li>• <strong>All Driver Coverage</strong>: Complete field analysis (20-21 drivers)</li>
-                <li>• <strong>Session Comparisons</strong>: Qualifying, race, and sprint sessions</li>
-                <li>• <strong>Interactive Filtering</strong>: Focus on specific drivers or sectors</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
     </F1PageLayout>
   );
 };

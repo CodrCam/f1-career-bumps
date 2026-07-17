@@ -1,6 +1,7 @@
 // src/components/F1DataComponents.jsx
 import React, { useMemo } from 'react';
 import { useProcessedRaceData, getAllDrivers, getTeamColor } from '../utils/dataProcessing.js';
+import { getTrackName } from '../utils/raceLabels.js';
 
 // Hook for building championship data
 export const useChampionshipData = (rawRaces, selectedDrivers = [], isMobile = false) => {
@@ -13,7 +14,7 @@ export const useChampionshipData = (rawRaces, selectedDrivers = [], isMobile = f
     const raceLabels = [];
 
     processedRaces.forEach((race, i) => {
-      const circuitLabel = race.circuit?.split(" ")[0] ?? `R${race.round}`;
+      const circuitLabel = getTrackName(race);
       raceLabels.push(circuitLabel);
 
       const sprintMap = new Map();
@@ -36,7 +37,7 @@ export const useChampionshipData = (rawRaces, selectedDrivers = [], isMobile = f
       });
 
       // Fill missing data
-      for (const [driver, arr] of pointsMap.entries()) {
+      for (const arr of pointsMap.values()) {
         if (arr.length < raceLabels.length) {
           const last = arr[arr.length - 1] || 0;
           arr.push(last);
@@ -88,7 +89,7 @@ export const useRaceResultsData = (rawRaces, selectedDrivers = [], isMobile = fa
         standings.get(driver).push(position);
       });
 
-      for (const [driver, posArr] of standings.entries()) {
+      for (const posArr of standings.values()) {
         if (posArr.length < raceRounds.length) {
           posArr.push(null);
         }
@@ -128,9 +129,7 @@ export const useConstructorData = (rawRaces, isMobile = false) => {
     const allConstructors = new Set();
     const pointsHistory = [];
 
-    const raceRounds = processedRaces.map((race) => {
-      return race.circuit?.split(" ")[0] || `R${race.round}`;
-    });
+    const raceRounds = processedRaces.map((race) => getTrackName(race));
 
     processedRaces.forEach((round) => {
       const roundPoints = new Map();

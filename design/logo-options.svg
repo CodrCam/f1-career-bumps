@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Logo direction options for the F1 analytics site</title>
+  <desc id="desc">Three dark header-style logo concepts labeled Apex One, Slipstream, and Sector One.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#07090d"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#ff3737"/>
+      <stop offset="1" stop-color="#b91c1c"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="720" fill="#080a0f"/>
+  <path d="M0 92h1200" stroke="#1f2937" stroke-width="1"/>
+  <text x="64" y="64" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800">Three Logo Directions</text>
+  <text x="64" y="94" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="15">Different from the current mark. Built to feel racing-adjacent without copying the official F1 logo.</text>
+
+  <g transform="translate(64 140)" filter="url(#soft-shadow)">
+    <rect width="332" height="470" rx="12" fill="url(#panel)" stroke="#263142"/>
+    <text x="26" y="44" fill="#38bdf8" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" letter-spacing="2">OPTION A</text>
+    <text x="26" y="78" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900">Apex One</text>
+    <text x="26" y="106" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="14">Sharp F + clean red numeral</text>
+
+    <g transform="translate(34 166) scale(1.45)">
+      <path d="M2 18h34M0 33h28M9 48h19" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+      <path d="M44 5h58l-7 13H61l-3 9h28l-7 13H54l-9 31H25L44 5Z" fill="#f8fafc"/>
+      <path d="M103 5h34l-8 13h-9l-22 53H80l22-53H86l8-13h9Z" fill="url(#red)"/>
+      <path d="M116 12 94 64" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <rect x="26" y="342" width="280" height="76" rx="8" fill="#0b111a" stroke="#1f2937"/>
+    <g transform="translate(46 363)">
+      <path d="M0 8h22M-2 19h17M5 30h13" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M29 0h38l-5 8H39l-2 6h18l-5 9H35l-6 21H17L29 0Z" fill="#f8fafc"/>
+      <path d="M68 0h22l-5 8h-6L66 44H54L67 8H56l5-8h7Z" fill="#ef4444"/>
+    </g>
+    <text x="148" y="390" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900">Apex One</text>
+    <text x="148" y="410" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="800" letter-spacing="2">F1 ANALYTICS</text>
+  </g>
+
+  <g transform="translate(434 140)" filter="url(#soft-shadow)">
+    <rect width="332" height="470" rx="12" fill="url(#panel)" stroke="#263142"/>
+    <text x="26" y="44" fill="#38bdf8" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" letter-spacing="2">OPTION B</text>
+    <text x="26" y="78" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900">Slipstream</text>
+    <text x="26" y="106" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="14">Wordmark-first, faster and cleaner</text>
+
+    <g transform="translate(32 178)">
+      <path d="M0 20h84M18 44h74M38 68h46" fill="none" stroke="#38bdf8" stroke-width="7" stroke-linecap="round"/>
+      <path d="M102 4h86l-9 17h-52l-5 15h42l-9 17h-38l-12 38H75L102 4Z" fill="#f8fafc"/>
+      <path d="M195 4h48l-10 17h-12l-30 70h-29l30-70h-18l10-17h11Z" fill="#ef4444"/>
+      <path d="M232 4h24l-36 87h-24L232 4Z" fill="#ef4444" opacity=".35"/>
+    </g>
+
+    <rect x="26" y="342" width="280" height="76" rx="8" fill="#0b111a" stroke="#1f2937"/>
+    <g transform="translate(48 368)">
+      <path d="M0 10h52M14 24h42" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+      <path d="M68 0h52l-6 11H82l-3 9h27l-6 11H76l-7 24H52L68 0Z" fill="#f8fafc"/>
+      <path d="M126 0h28l-6 11h-7l-18 44h-17l18-44h-11l6-11h7Z" fill="#ef4444"/>
+    </g>
+    <text x="168" y="390" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900">Slipstream</text>
+    <text x="168" y="410" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="800" letter-spacing="2">F1 ANALYTICS</text>
+  </g>
+
+  <g transform="translate(804 140)" filter="url(#soft-shadow)">
+    <rect width="332" height="470" rx="12" fill="url(#panel)" stroke="#263142"/>
+    <text x="26" y="44" fill="#38bdf8" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" letter-spacing="2">OPTION C</text>
+    <text x="26" y="78" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900">Sector One</text>
+    <text x="26" y="106" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="14">Compact badge, dashboard-friendly</text>
+
+    <g transform="translate(37 170)">
+      <path d="M30 16h190l28 38-28 38H30L2 54 30 16Z" fill="#0b111a" stroke="#334155" stroke-width="4"/>
+      <path d="M28 54h52M38 35h80M52 73h52" fill="none" stroke="#38bdf8" stroke-width="7" stroke-linecap="round"/>
+      <path d="M94 27h70l-8 14h-42l-4 10h33l-8 14h-30l-8 26H73L94 27Z" fill="#f8fafc"/>
+      <path d="M169 27h43l-8 14h-11l-21 50h-24l21-50h-15l8-14h7Z" fill="#ef4444"/>
+    </g>
+
+    <rect x="26" y="342" width="280" height="76" rx="8" fill="#0b111a" stroke="#1f2937"/>
+    <g transform="translate(44 365)">
+      <path d="M9 8h96l15 21-15 21H9L-6 29 9 8Z" fill="#111827" stroke="#334155" stroke-width="2"/>
+      <path d="M9 29h28M18 19h42M22 39h30" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M51 14h38l-5 8H61l-3 6h19l-5 8H56l-5 16H38L51 14Z" fill="#f8fafc"/>
+      <path d="M90 14h24l-5 8h-6L91 52H78l12-30h-8l5-8h3Z" fill="#ef4444"/>
+    </g>
+    <text x="178" y="390" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900">Sector One</text>
+    <text x="178" y="410" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="800" letter-spacing="2">F1 ANALYTICS</text>
+  </g>
+</svg>

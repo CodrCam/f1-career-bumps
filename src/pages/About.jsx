@@ -1,25 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Info, Smartphone, Monitor, Timer, Target, Zap, Brain, Database, Cpu } from "lucide-react";
+import { Rocket, BarChart3, Users2, Info, Smartphone, Monitor, Timer, Target, Zap, TrendingUp, Database, Cpu } from "lucide-react";
+import { CURRENT_SEASON, getSeasonPath } from "../utils/seasons.js";
 
 const About = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white px-6 py-16">
       <div className="max-w-4xl mx-auto space-y-10">
         <header>
-          <h1 className="text-4xl font-bold mb-3">About F1 Performance Dashboard</h1>
+          <h1 className="text-4xl font-bold mb-3">About Slipstream</h1>
           <p className="text-gray-300 text-lg">
-            A comprehensive Formula 1 analytics platform combining historical season data with real-time telemetry analysis. 
-            Built with modern React architecture, this dashboard delivers advanced AI-powered insights, live sector analysis, 
-            pit strategy optimization, and mobile-first visualizations that reveal the hidden patterns in F1 performance data.
+            A Formula 1 analytics platform combining season results, championship movement, pit stop trends, and live telemetry analysis.
+            Built with modern React architecture, this dashboard focuses on clear visualizations and practical race-weekend context.
           </p>
           <p className="text-gray-400 mt-4 text-sm">
-            Created by Cameron Griffin — Enhanced with AI Analytics & Live Data Integration | 2025
+            Created by Cameron Griffin — Season data, telemetry tools, and pit stop trend modeling
           </p>
         </header>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-2">🔧 Advanced Tech Stack</h2>
+          <h2 className="text-2xl font-semibold mb-2">🔧 Tech Stack</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gray-800 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -27,7 +27,7 @@ const About = () => {
                 <h3 className="font-semibold text-blue-400">Core Technologies</h3>
               </div>
               <ul className="text-sm text-gray-300 space-y-1">
-                <li>• <strong>React 18 + Vite:</strong> Modern build system with fast HMR</li>
+                <li>• <strong>React 19 + Vite:</strong> Modern build system with fast HMR</li>
                 <li>• <strong>Chart.js + react-chartjs-2:</strong> Interactive data visualizations</li>
                 <li>• <strong>React Router DOM:</strong> Client-side routing</li>
                 <li>• <strong>Custom CSS + Mobile CSS:</strong> Responsive design system</li>
@@ -40,41 +40,40 @@ const About = () => {
                 <h3 className="font-semibold text-green-400">Data & Analytics</h3>
               </div>
               <ul className="text-sm text-gray-300 space-y-1">
-                <li>• <strong>OpenF1 API:</strong> Real-time telemetry and session data</li>
-                <li>• <strong>Custom F1 Dataset:</strong> Comprehensive 2025 season results</li>
-                <li>• <strong>AI/ML Algorithms:</strong> Predictive analytics engine</li>
-                <li>• <strong>Statistical Modeling:</strong> Linear regression & trend analysis</li>
-                <li>• <strong>Data Processing:</strong> Advanced mathematical computations</li>
+                <li>• <strong>Season API:</strong> Hosted season data by year</li>
+                <li>• <strong>Formula1.com:</strong> Official completed-race results updates</li>
+                <li>• <strong>Trend Modeling:</strong> Weighted pit stop scoring</li>
+                <li>• <strong>Data Processing:</strong> Race and championship transformations</li>
               </ul>
             </div>
           </div>
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-2">🧠 AI-Powered Analytics Features</h2>
+          <h2 className="text-2xl font-semibold mb-2">Pit Stop Trend Forecasting</h2>
           <div className="bg-gradient-to-r from-purple-900 to-blue-900 p-6 rounded-lg">
             <div className="flex items-center gap-2 mb-3">
-              <Brain className="w-6 h-6 text-yellow-400" />
-              <h3 className="font-semibold text-yellow-400 text-lg">Advanced Machine Learning Engine</h3>
+              <TrendingUp className="w-6 h-6 text-yellow-400" />
+              <h3 className="font-semibold text-yellow-400 text-lg">Weighted Statistical Model</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-200">
               <div>
-                <h4 className="font-semibold mb-2">Predictive Algorithms:</h4>
+                <h4 className="font-semibold mb-2">Forecast Inputs:</h4>
                 <ul className="space-y-1">
-                  <li>• Linear regression trend analysis</li>
+                  <li>• Trend direction over recent races</li>
                   <li>• Weighted moving averages</li>
                   <li>• Consistency scoring algorithms</li>
-                  <li>• Performance trajectory modeling</li>
-                  <li>• Statistical confidence ratings</li>
+                  <li>• Performance trajectory scoring</li>
+                  <li>• Confidence bands from historical consistency</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Analytics Capabilities:</h4>
+                <h4 className="font-semibold mb-2">Forecast Outputs:</h4>
                 <ul className="space-y-1">
-                  <li>• Next-race performance forecasting</li>
+                  <li>• Next-race pit stop trend forecast</li>
                   <li>• Speed vs consistency analysis</li>
                   <li>• Strategic pattern recognition</li>
-                  <li>• Real-time confidence scoring</li>
+                  <li>• Transparent confidence scoring</li>
                   <li>• Comprehensive driver/team metrics</li>
                 </ul>
               </div>
@@ -106,11 +105,11 @@ const About = () => {
               </div>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Full-featured data tables with sorting</li>
-                <li>• Advanced multi-chart visualizations</li>
-                <li>• Enhanced tooltip information</li>
+                <li>• Multi-chart visualizations</li>
+                <li>• Detailed tooltip information</li>
                 <li>• Multi-driver/team comparisons</li>
                 <li>• Larger visual real estate utilization</li>
-                <li>• Advanced filtering and controls</li>
+                <li>• Filtering and controls</li>
               </ul>
             </div>
           </div>
@@ -125,7 +124,7 @@ const About = () => {
               <h3 className="text-lg font-semibold text-blue-400">Historical Season Analytics</h3>
               
               <div>
-                <Link to="/2025-drivers" className="hover:text-blue-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'drivers')} className="hover:text-blue-400 font-semibold flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-400" />
                   Driver WDC Bump Chart
                 </Link>
@@ -133,7 +132,7 @@ const About = () => {
               </div>
               
               <div>
-                <Link to="/2025-constructors" className="hover:text-green-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'constructors')} className="hover:text-green-400 font-semibold flex items-center gap-2">
                   <Rocket className="w-5 h-5 text-green-400" />
                   Constructor Championship
                 </Link>
@@ -141,7 +140,7 @@ const About = () => {
               </div>
               
               <div>
-                <Link to="/driver-results" className="hover:text-purple-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'driver-results')} className="hover:text-purple-400 font-semibold flex items-center gap-2">
                   <Users2 className="w-5 h-5 text-purple-400" />
                   Race Results Bump Chart
                 </Link>
@@ -149,7 +148,7 @@ const About = () => {
               </div>
               
               <div>
-                <Link to="/driver-stats" className="hover:text-orange-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'driver-stats')} className="hover:text-orange-400 font-semibold flex items-center gap-2">
                   <Users2 className="w-5 h-5 text-orange-400" />
                   Performance Analytics
                 </Link>
@@ -157,7 +156,7 @@ const About = () => {
               </div>
               
               <div>
-                <Link to="/head-to-head" className="hover:text-red-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'head-to-head')} className="hover:text-red-400 font-semibold flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-red-400" />
                   Head-to-Head Analysis
                 </Link>
@@ -167,28 +166,28 @@ const About = () => {
 
             {/* Live Analysis Features */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-cyan-400">Live Telemetry & AI Analytics</h3>
+              <h3 className="text-lg font-semibold text-cyan-400">Live Telemetry & Pit Trends</h3>
               
               <div>
-                <Link to="/pit-stop-analysis" className="hover:text-yellow-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'pit-stop-analysis')} className="hover:text-yellow-400 font-semibold flex items-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
-                  AI Pit Stop Analytics
-                  <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded">Enhanced</span>
+                  Pit Stop Trend Forecasts
+                  <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded">Model</span>
                 </Link>
-                <p className="text-sm ml-7">Advanced ML predictions with comprehensive statistical modeling</p>
+                <p className="text-sm ml-7">Weighted historical forecasts from pit stop performance data</p>
               </div>
               
               <div>
-                <Link to="/sector-analysis" className="hover:text-cyan-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'sector-analysis')} className="hover:text-cyan-400 font-semibold flex items-center gap-2">
                   <Timer className="w-5 h-5 text-cyan-400" />
                   Sector Time Analysis
                   <span className="text-xs bg-cyan-500 text-black px-2 py-1 rounded">Live</span>
                 </Link>
-                <p className="text-sm ml-7">Real-time sector performance comparison via OpenF1 API</p>
+                <p className="text-sm ml-7">Sector performance comparison for selected race sessions</p>
               </div>
               
               <div>
-                <Link to="/pit-strategy" className="hover:text-pink-400 font-semibold flex items-center gap-2">
+                <Link to={getSeasonPath(CURRENT_SEASON, 'pit-strategy')} className="hover:text-pink-400 font-semibold flex items-center gap-2">
                   <Target className="w-5 h-5 text-pink-400" />
                   Pit Stop Strategy
                   <span className="text-xs bg-pink-500 text-black px-2 py-1 rounded">Live</span>
@@ -208,7 +207,7 @@ const About = () => {
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-2">🚀 Advanced Features & Capabilities</h2>
+          <h2 className="text-2xl font-semibold mb-2">🚀 Dashboard Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-gray-800 p-4 rounded-lg">
               <h3 className="font-semibold text-purple-400 mb-2">Data Visualization</h3>
@@ -222,9 +221,9 @@ const About = () => {
               </ul>
             </div>
             <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-semibold text-green-400 mb-2">AI & Analytics</h3>
+              <h3 className="font-semibold text-green-400 mb-2">Trend Forecasting</h3>
               <ul className="text-sm text-gray-300 space-y-1">
-                <li>• Predictive scoring algorithms (0-100 scale)</li>
+                <li>• Heuristic scoring system (0-100 scale)</li>
                 <li>• Mathematical trend analysis and forecasting</li>
                 <li>• Consistency metrics with standard deviation</li>
                 <li>• Performance trajectory modeling</li>
@@ -239,21 +238,21 @@ const About = () => {
           <h2 className="text-2xl font-semibold mb-2">📁 Comprehensive Data Sources</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-400 mb-2">Historical Season Data (2025)</h3>
+              <h3 className="font-semibold text-blue-400 mb-2">Season Results Data</h3>
               <div className="text-sm text-gray-300">
-                <p className="mb-2">Complete 9-round dataset covering:</p>
+                <p className="mb-2">Hosted season records covering:</p>
                 <ul className="space-y-1">
-                  <li>• Australian GP, Chinese GP* (Sprint), Japanese GP</li>
-                  <li>• Bahrain GP, Saudi Arabian GP, Miami GP* (Sprint)</li>
-                  <li>• Emilia-Romagna GP, Monaco GP, Spanish GP</li>
-                  <li>• 21 drivers across 10 teams</li>
-                  <li>• Race results, qualifying, sprint races</li>
-                  <li>• Championship points and standings</li>
+                  <li>• 2025 and 2026 season routes</li>
+                  <li>• Race, qualifying, sprint, and sprint qualifying results</li>
+                  <li>• Driver and constructor championship movement</li>
+                  <li>• Formula1.com updater for completed race weekends</li>
+                  <li>• Season data organized by year and round</li>
+                  <li>• Local JSON fallback for development</li>
                 </ul>
               </div>
             </div>
             <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-semibold text-cyan-400 mb-2">Live Telemetry (OpenF1 API)</h3>
+              <h3 className="font-semibold text-cyan-400 mb-2">Race-Weekend Session Data</h3>
               <div className="text-sm text-gray-300">
                 <p className="mb-2">Real-time session data including:</p>
                 <ul className="space-y-1">
@@ -285,7 +284,7 @@ const About = () => {
               <div>
                 <h4 className="font-semibold text-green-400 mb-2">Data Processing</h4>
                 <ul className="text-gray-300 space-y-1">
-                  <li>• Advanced mathematical modeling</li>
+                  <li>• Mathematical trend scoring</li>
                   <li>• Statistical analysis algorithms</li>
                   <li>• Real-time API integration</li>
                   <li>• Error handling and validation</li>
@@ -306,13 +305,13 @@ const About = () => {
 
         <footer className="pt-6 border-t border-gray-700">
           <p className="text-sm text-gray-500 mb-2">
-            Advanced F1 Analytics Platform designed, developed, and continuously enhanced by Cameron Griffin.
+            F1 Analytics Platform designed, developed, and continuously improved by Cameron Griffin.
           </p>
           <p className="text-xs text-gray-600 mb-2">
-            Featuring cutting-edge AI prediction algorithms, real-time telemetry integration, and responsive design excellence.
+            Featuring season-aware data, Formula1.com result sync, automatic updates, and responsive design.
           </p>
           <p className="text-xs text-gray-600">
-            Built as a comprehensive showcase of modern React development, machine learning integration, data visualization mastery, and Formula 1 analytics innovation.
+            Built as a showcase of modern React development, data visualization, and Formula 1 analytics.
           </p>
         </footer>
       </div>

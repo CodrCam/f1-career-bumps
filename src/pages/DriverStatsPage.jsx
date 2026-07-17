@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +13,8 @@ import {
   RadialLinearScale,
 } from "chart.js";
 import { Bar, Scatter, Radar, Line } from "react-chartjs-2";
-import f1SeasonData from "../data/f1_2025_season.json";
+import { useSeasonData } from "../hooks/useSeasonData.js";
+import { getSeasonFromParam } from "../utils/seasons.js";
 import { parseDriverStats } from "../utils/parseDriverStats";
 import { useProcessedRaceData } from "../utils/dataProcessing.js";
 import { F1PageLayout, ResponsiveChart, StatsGrid } from "../components/ChartComponents.jsx";
@@ -42,6 +44,7 @@ const getTeamColor = (teamName) => {
     'Aston Martin': '#006F62',
     'Haas': '#B6BABD',
     'Racing Bulls': '#ADD8E6',
+    'Audi': '#00E676',
     'Kick Sauber': '#00FF00',
     'Sauber': '#00FF00'
   };
@@ -50,6 +53,8 @@ const getTeamColor = (teamName) => {
 
 // Enhanced driver color system with teammate variations
 const getDriverColor = (driverName, teamName) => {
+  if (teamName === 'Audi') return getTeamColor(teamName);
+
   const driverVariations = {
     // Red Bull
     'Max Verstappen': '#1E41FF',
@@ -94,6 +99,9 @@ const DriverStatsPage = () => {
   const [sortBy, setSortBy] = useState('points');
   const [analysisType, setAnalysisType] = useState('performance');
   const [showTopDriversOnly, setShowTopDriversOnly] = useState(false);
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
+  const { races } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -102,7 +110,7 @@ const DriverStatsPage = () => {
   }, []);
 
   // Use shared processing utility
-  const processedRaces = useProcessedRaceData(f1SeasonData.races);
+  const processedRaces = useProcessedRaceData(races);
   
   // Calculate recent performance trend
   const calculateRecentPerformance = (driverName, races, recentCount) => {
@@ -242,33 +250,41 @@ const DriverStatsPage = () => {
   const championshipProgressionData = useMemo(() => {
     if (!processedRaces.length || !allDrivers.length) return null;
 
-    // Get drivers to show based on filters
-    let driversToShow = selectedTeam 
+    const driversToShow = (selectedTeam
       ? allDrivers.filter(d => d.team === selectedTeam)
-      : allDrivers;
+      : allDrivers
+    ).slice(0, 8);
 
-    if (showTopDriversOnly) {
-      driversToShow = driversToShow.slice(0, 8);
-    } else {
-      driversToShow = driversToShow.slice(0, 12); // Limit for readability
-    }
+    const cumulativeByDriver = new Map(allDrivers.map(driver => [driver.name, 0]));
+    const pointsByDriver = new Map(allDrivers.map(driver => [driver.name, [0]]));
+    const leaderPointsByRound = [0];
 
-    // Calculate cumulative points for each driver across all races
-    const driverProgressions = driversToShow.map(driver => {
-      const progression = [0]; // Start with 0 points
-      let cumulativePoints = 0;
+    processedRaces.forEach(race => {
+      const roundPoints = new Map();
 
-      processedRaces.forEach(race => {
-        const result = race.race_results.find(r => r.driver === driver.name);
-        if (result) {
-          cumulativePoints += result.points || 0;
-        }
-        progression.push(cumulativePoints);
+      ['sprint_results', 'race_results'].forEach(resultType => {
+        race[resultType]?.forEach(({ driver, points }) => {
+          roundPoints.set(driver, (roundPoints.get(driver) || 0) + (points || 0));
+        });
       });
+
+      allDrivers.forEach(driver => {
+        const nextTotal = (cumulativeByDriver.get(driver.name) || 0) + (roundPoints.get(driver.name) || 0);
+        cumulativeByDriver.set(driver.name, nextTotal);
+        pointsByDriver.get(driver.name).push(nextTotal);
+      });
+
+      leaderPointsByRound.push(Math.max(0, ...cumulativeByDriver.values()));
+    });
+
+    const driverProgressions = driversToShow.map(driver => {
+      const cumulativePoints = pointsByDriver.get(driver.name) ?? [0];
+      const gapToLeader = cumulativePoints.map((points, index) => leaderPointsByRound[index] - points);
 
       return {
         label: driver.name,
-        data: progression,
+        data: gapToLeader,
+        cumulativePoints,
         borderColor: driver.color,
         backgroundColor: driver.color + '20',
         borderWidth: 3,
@@ -285,7 +301,7 @@ const DriverStatsPage = () => {
       labels,
       datasets: driverProgressions
     };
-  }, [processedRaces, allDrivers, selectedTeam, showTopDriversOnly]);
+  }, [processedRaces, allDrivers, selectedTeam]);
 
   // Radar chart data for top performers comparison
   const radarData = useMemo(() => {
@@ -485,7 +501,7 @@ const DriverStatsPage = () => {
     plugins: {
       title: {
         display: true,
-        text: 'Championship Points Progression',
+        text: 'Top 8 Gap to Championship Leader',
         font: { size: isMobile ? 14 : 16 },
         color: 'white'
       },
@@ -508,9 +524,13 @@ const DriverStatsPage = () => {
         callbacks: {
           label: (context) => {
             const driverName = context.dataset.label;
-            const points = context.raw;
+            const gap = Number(context.raw);
+            const points = context.dataset.cumulativePoints?.[context.dataIndex] ?? 0;
             const round = context.label;
-            return `${driverName}: ${points} points after ${round}`;
+            if (gap === 0) {
+              return `${driverName}: leader, ${points} pts after ${round}`;
+            }
+            return `${driverName}: ${gap} pts behind, ${points} pts after ${round}`;
           }
         }
       }
@@ -531,11 +551,15 @@ const DriverStatsPage = () => {
       y: {
         title: { 
           display: true, 
-          text: 'Cumulative Championship Points', 
+          text: 'Points Behind Leader', 
           color: 'white' 
         },
         beginAtZero: true,
-        ticks: { color: 'white' },
+        reverse: true,
+        ticks: {
+          color: 'white',
+          callback: (value) => Number(value) === 0 ? 'Leader' : `+${value}`
+        },
         grid: { color: 'rgba(255, 255, 255, 0.1)' }
       }
     },
@@ -551,7 +575,7 @@ const DriverStatsPage = () => {
     plugins: {
       title: {
         display: true,
-        text: 'Enhanced Driver Performance Metrics',
+        text: 'Driver Performance Metrics',
         font: { size: isMobile ? 14 : 16 },
         color: 'white'
       },
@@ -621,8 +645,8 @@ const DriverStatsPage = () => {
 
   return (
     <F1PageLayout
-      title="Enhanced Driver Performance Analytics"
-      subtitle="Comprehensive statistical analysis and performance metrics for the 2025 season"
+      title="Driver Performance Analytics"
+      subtitle={`Comprehensive statistical analysis and performance metrics for the ${selectedYear} season`}
       className="enhanced-driver-stats"
     >
       {/* Enhanced Controls */}
@@ -754,7 +778,7 @@ const DriverStatsPage = () => {
         )}
       </div>
 
-      {/* Enhanced Driver Rankings Table */}
+      {/* Driver Rankings Table */}
       <div style={{
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderRadius: '8px',
@@ -762,7 +786,7 @@ const DriverStatsPage = () => {
         marginTop: '2rem'
       }}>
         <h3 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: '1.2rem' }}>
-          📈 Enhanced Driver Performance Rankings
+          📈 Driver Performance Rankings
         </h3>
         
         {isMobile ? (
@@ -860,47 +884,6 @@ const DriverStatsPage = () => {
             </table>
           </div>
         )}
-      </div>
-
-      {/* Enhanced Methodology */}
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: '8px',
-        padding: '2rem',
-        marginTop: '2rem'
-      }}>
-        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>📊 Enhanced Analytics Methodology</h3>
-        <div style={{ color: '#ccc', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: '1rem' }}>
-            Our enhanced driver performance system uses advanced statistical analysis to provide comprehensive insights into driver capabilities and potential.
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-            gap: '1.5rem'
-          }}>
-            <div>
-              <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Performance Metrics:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Performance Score</strong>: Composite 0-100 rating</li>
-                <li>• <strong>Consistency</strong>: Statistical variation analysis</li>
-                <li>• <strong>Efficiency</strong>: Points earned per grid position</li>
-                <li>• <strong>Race Craft</strong>: Qualifying vs race performance</li>
-                <li>• <strong>Championship Progression</strong>: Cumulative points tracking</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Visualization Types:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Performance Matrix</strong>: Qualifying vs race scatter plot</li>
-                <li>• <strong>Points Progression</strong>: Season momentum tracking</li>
-                <li>• <strong>Multi-dimensional</strong>: Radar chart analysis</li>
-                <li>• <strong>Team Comparisons</strong>: Direct teammate analysis</li>
-                <li>• <strong>Interactive Filtering</strong>: Dynamic data exploration</li>
-              </ul>
-            </div>
-          </div>
-        </div>
       </div>
     </F1PageLayout>
   );

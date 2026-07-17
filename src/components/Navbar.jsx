@@ -1,10 +1,26 @@
 // src/components/Navbar.jsx
 import React, { useState, useEffect, useRef } from "react";
+import {
+  BarChart3,
+  ChartNoAxesCombined,
+  Clock3,
+  Fuel,
+  Gauge,
+  GitCompareArrows,
+  Route,
+  Trophy,
+  Users,
+  Wrench,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { AVAILABLE_SEASONS, CURRENT_SEASON, getSeasonFromParam, getSeasonPath } from "../utils/seasons.js";
+import BrandLogo from "./BrandLogo.jsx";
 import "./Navbar.css";
 
 const Navbar = () => {
   const location = useLocation();
+  const seasonMatch = location.pathname.match(/^\/(\d{4})(?:\/|$)/);
+  const activeSeason = getSeasonFromParam(seasonMatch?.[1] ?? CURRENT_SEASON);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -61,34 +77,49 @@ const Navbar = () => {
   const navItems = [
     {
       type: 'dropdown',
-      label: '2025 Season',
+      label: `${activeSeason} Season`,
       key: 'season',
-      paths: ['/2025-constructors', '/2025-drivers'],
+      paths: [getSeasonPath(activeSeason, 'constructors'), getSeasonPath(activeSeason, 'drivers')],
       items: [
-        { path: '/2025-constructors', label: 'Constructor Championship', icon: '🏆' },
-        { path: '/2025-drivers', label: 'Driver Championship', icon: '🏁' }
+        { path: getSeasonPath(activeSeason, 'drivers'), label: 'Driver Championship', icon: Trophy },
+        { path: getSeasonPath(activeSeason, 'constructors'), label: 'Constructor Championship', icon: Users },
+        ...AVAILABLE_SEASONS
+          .filter((year) => year !== activeSeason)
+          .map((year) => ({ path: getSeasonPath(year, 'drivers'), label: `Switch to ${year}`, icon: Clock3 }))
       ]
     },
     {
       type: 'dropdown',
       label: 'Driver Analysis',
       key: 'drivers',
-      paths: ['/driver-results', '/driver-stats', '/head-to-head'],
+      paths: [
+        getSeasonPath(activeSeason, 'driver-results'),
+        getSeasonPath(activeSeason, 'driver-stats'),
+        getSeasonPath(activeSeason, 'head-to-head')
+      ],
       items: [
-        { path: '/driver-results', label: 'Race Results', icon: '📊' },
-        { path: '/driver-stats', label: 'Performance Stats', icon: '📈' },
-        { path: '/head-to-head', label: 'Head to Head', icon: '⚔️' }
+        { path: getSeasonPath(activeSeason, 'driver-results'), label: 'Race Results', icon: BarChart3 },
+        { path: getSeasonPath(activeSeason, 'driver-stats'), label: 'Performance Stats', icon: ChartNoAxesCombined },
+        { path: getSeasonPath(activeSeason, 'head-to-head'), label: 'Head to Head', icon: GitCompareArrows }
       ]
     },
     {
       type: 'dropdown',
       label: 'Live Analysis',
       key: 'live',
-      paths: ['/sector-analysis', '/pit-strategy', '/pit-stop-analysis'],
+      paths: [
+        getSeasonPath(activeSeason, 'sector-analysis'),
+        getSeasonPath(activeSeason, 'pit-strategy'),
+        getSeasonPath(activeSeason, 'pit-stop-analysis'),
+        ...(activeSeason === 2026 ? [getSeasonPath(activeSeason, 'race-story')] : [])
+      ],
       items: [
-        { path: '/sector-analysis', label: 'Sector Times', icon: '⏱️' },
-        { path: '/pit-strategy', label: 'Pit Strategy', icon: '🔧' },
-        { path: '/pit-stop-analysis', label: 'Pit Predictions', icon: '⛽' }
+        ...(activeSeason === 2026
+          ? [{ path: getSeasonPath(activeSeason, 'race-story'), label: 'Race Story', icon: Route, badge: 'New' }]
+          : []),
+        { path: getSeasonPath(activeSeason, 'sector-analysis'), label: 'Sector Times', icon: Gauge },
+        { path: getSeasonPath(activeSeason, 'pit-strategy'), label: 'Pit Strategy', icon: Wrench },
+        { path: getSeasonPath(activeSeason, 'pit-stop-analysis'), label: 'Pit Forecasts', icon: Fuel }
       ]
     }
   ];
@@ -97,9 +128,12 @@ const Navbar = () => {
     <header className="navbar">
       <div className="navbar-inner">
         <div className="nav-title">
-          <Link to="/" className="nav-brand">
-            <span className="brand-icon">🏎️</span>
-            <span className="brand-text">F1 Desktop</span>
+          <Link to="/" className="nav-brand" aria-label="Slipstream home">
+            <BrandLogo className="nav-brand-logo" />
+            <span className="brand-copy">
+              <span className="brand-text">Slipstream</span>
+              <span className="brand-subtext">F1 analytics</span>
+            </span>
           </Link>
         </div>
         
@@ -139,17 +173,21 @@ const Navbar = () => {
                     onMouseEnter={() => !isMobile && setActiveDropdown(item.key)}
                     onMouseLeave={() => !isMobile && setActiveDropdown(null)}
                   >
-                    {item.items.map((subItem) => (
-                      <Link
-                        key={subItem.path}
-                        to={subItem.path}
-                        className={`dropdown-item ${location.pathname === subItem.path ? 'active' : ''}`}
-                        onClick={closeDropdown}
-                      >
-                        <span className="item-icon">{subItem.icon}</span>
-                        <span className="item-label">{subItem.label}</span>
-                      </Link>
-                    ))}
+                    {item.items.map((subItem) => {
+                      const ItemIcon = subItem.icon;
+                      return (
+                        <Link
+                          key={subItem.path}
+                          to={subItem.path}
+                          className={`dropdown-item ${location.pathname === subItem.path ? 'active' : ''}`}
+                          onClick={closeDropdown}
+                        >
+                          <span className="item-icon"><ItemIcon aria-hidden="true" size={16} /></span>
+                          <span className="item-label">{subItem.label}</span>
+                          {subItem.badge && <span className="nav-item-badge">{subItem.badge}</span>}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Bar, Line } from 'react-chartjs-2';
 import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
 import { SessionSelector, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
+import { getSeasonFromParam } from '../utils/seasons.js';
+import { normalizeDriverTeamFields } from '../utils/dataProcessing.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement);
 
 // Custom hook for pit strategy data
-const usePitStrategyData = () => {
+const usePitStrategyData = (year) => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [sessionData, setSessionData] = useState({});
@@ -24,7 +27,7 @@ const usePitStrategyData = () => {
       setInitialLoading(true);
       setError('');
       
-      const response = await fetch(`${apiBase}/sessions?year=2025`);
+      const response = await fetch(`${apiBase}/sessions?year=${year}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -32,14 +35,20 @@ const usePitStrategyData = () => {
       
       const data = await response.json();
       
-      const raceSessions = data.filter(s => 
-        s.session_name === 'Race' || s.session_name === 'Sprint'
-      ).slice(-15);
+      const now = Date.now();
+      const raceSessions = data
+        .filter(s => s.session_name === 'Race' || s.session_name === 'Sprint')
+        .filter((session) => {
+          const sessionEnd = new Date(session.date_end || session.date_start).getTime();
+          return Number.isFinite(sessionEnd) && sessionEnd <= now;
+        })
+        .sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
       
       if (raceSessions.length === 0) {
-        throw new Error('No race sessions found for 2025');
+        throw new Error(`No race sessions found for ${year}`);
       }
       
+      setSelectedSession('');
       setSessions(raceSessions);
     } catch (err) {
       console.error('Failed to load sessions:', err);
@@ -78,7 +87,7 @@ const usePitStrategyData = () => {
       }
 
       const pits = await pitResponse.json();
-      const drivers = await driversResponse.json();
+      const drivers = normalizeDriverTeamFields(await driversResponse.json(), year);
       const laps = await lapsResponse.json();
 
       if (!Array.isArray(pits) || !Array.isArray(drivers) || !Array.isArray(laps)) {
@@ -100,7 +109,7 @@ const usePitStrategyData = () => {
     }
   };
 
-  const calculatePitStats = (pits, drivers) => {
+  const calculatePitStats = (pits, _drivers) => {
     try {
       const stats = {
         totalPitStops: pits.length,
@@ -218,8 +227,8 @@ const useRelativePerformanceData = (sessionData, pitStats) => {
     'OCO': '#B6BABD', 'BEA': '#B6BABD', 
     // Racing Bulls
     'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Kick Sauber
-    'HUL': '#00F500', 'BOR': '#00F500',
+    // Audi
+    'HUL': '#00E676', 'BOR': '#00E676',
     // Additional fallback colors for any extra drivers
     'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
   };
@@ -289,8 +298,8 @@ const usePrecisionTimeData = (sessionData, pitStats) => {
     'OCO': '#B6BABD', 'BEA': '#B6BABD', 
     // Racing Bulls
     'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Kick Sauber
-    'HUL': '#00F500', 'BOR': '#00F500',
+    // Audi
+    'HUL': '#00E676', 'BOR': '#00E676',
     // Additional fallback colors for any extra drivers
     'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
   };
@@ -382,8 +391,8 @@ const useEnhancedScatterData = (sessionData, pitStats) => {
     'OCO': '#B6BABD', 'BEA': '#B6BABD', 
     // Racing Bulls
     'HAD': '#2B4562', 'LAW': '#2B4562', 
-    // Kick Sauber
-    'HUL': '#00F500', 'BOR': '#00F500',
+    // Audi
+    'HUL': '#00E676', 'BOR': '#00E676',
     // Additional fallback colors for any extra drivers
     'KVY': '#9932CC', 'RIC': '#FF4500', 'MAG': '#8B0000', 'ZHO': '#FF69B4'
   };
@@ -406,7 +415,6 @@ const useEnhancedScatterData = (sessionData, pitStats) => {
       Object.keys(driverPits).forEach((driverNum, index) => {
         const driver = sessionData.drivers.find(d => d.driver_number == driverNum);
         const driverName = driver?.name_acronym || `#${driverNum}`;
-        const driverData = pitStats.pitsByDriver?.[driverNum];
         
         datasets.push({
           label: driverName,
@@ -439,6 +447,8 @@ const useEnhancedScatterData = (sessionData, pitStats) => {
 };
 
 const PitStrategyPage = () => {
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [visualizationType, setVisualizationType] = useState('relative'); // 'relative', 'precision', 'scatter'
   const [showConsistency, setShowConsistency] = useState(false);
@@ -454,7 +464,7 @@ const PitStrategyPage = () => {
     initialLoading,
     loadSessions,
     loadSessionData
-  } = usePitStrategyData();
+  } = usePitStrategyData(selectedYear);
 
   const relativeData = useRelativePerformanceData(sessionData, pitStats);
   const precisionData = usePrecisionTimeData(sessionData, pitStats);
@@ -465,7 +475,7 @@ const PitStrategyPage = () => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [selectedYear]);
 
   const formatTime = (seconds) => {
     if (!seconds || seconds === 0) return '--:--';
@@ -684,12 +694,12 @@ const PitStrategyPage = () => {
   if (initialLoading) {
     return (
       <F1PageLayout 
-        title="⛽ Enhanced Pit Stop Strategy Analysis"
+        title="⛽ Pit Stop Strategy Analysis"
         showHeader={true}
       >
         <DataLoader 
           message="Loading F1 Sessions..." 
-          submessage="Fetching race and sprint sessions from OpenF1 API"
+          submessage={`Fetching ${selectedYear} race and sprint sessions`}
         />
       </F1PageLayout>
     );
@@ -728,8 +738,8 @@ const PitStrategyPage = () => {
 
   return (
     <F1PageLayout 
-      title="⛽ Enhanced Pit Stop Strategy Analysis"
-      subtitle="Precision timing analysis where every millisecond counts"
+      title="⛽ Pit Stop Strategy Analysis"
+      subtitle={`${selectedYear} precision timing analysis where every millisecond counts`}
       className="enhanced-pit-strategy-page"
     >
       {/* Enhanced Controls */}
@@ -823,7 +833,7 @@ const PitStrategyPage = () => {
         </div>
       )}
 
-      {/* Enhanced Performance Table */}
+      {/* Performance Table */}
       {Object.keys(pitStats.pitsByDriver || {}).length > 0 && (
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -975,47 +985,6 @@ const PitStrategyPage = () => {
           )}
         </div>
       )}
-
-      {/* Enhanced Methodology */}
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: '8px',
-        padding: '2rem',
-        marginTop: '2rem'
-      }}>
-        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>🔬 Precision Analysis Methodology</h3>
-        <div style={{ color: '#ccc', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: '1rem' }}>
-            In Formula 1, pit stop differences of 0.01 seconds can determine race positions. Our enhanced visualization 
-            techniques reveal these critical micro-differences that traditional charts obscure. <strong>Analysis includes 
-            all 20-21 participating drivers</strong>, including mid-season replacements like Franco Colapinto.
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-            gap: '1.5rem'
-          }}>
-            <div>
-              <h4 style={{ color: '#60A5FA', marginBottom: '0.5rem' }}>Visualization Techniques:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Relative Performance</strong>: Percentage differences from session average</li>
-                <li>• <strong>Precision Timing</strong>: Millisecond-accurate delta analysis</li>
-                <li>• <strong>Enhanced Scaling</strong>: Amplified views of small time differences</li>
-                <li>• <strong>Color Gradient Coding</strong>: Performance-based visual hierarchy</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ color: '#34D399', marginBottom: '0.5rem' }}>Advanced Metrics:</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>• <strong>Consistency Analysis</strong>: Standard deviation tracking</li>
-                <li>• <strong>Session Benchmarking</strong>: Multiple reference points</li>
-                <li>• <strong>Strategic Context</strong>: Lap timing correlation</li>
-                <li>• <strong>Performance Rankings</strong>: Precision-based standings</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
     </F1PageLayout>
   );
 };

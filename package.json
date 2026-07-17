@@ -6,6 +6,20 @@
   "homepage": "https://codrcam.github.io/f1-career-bumps",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node server/index.js",
+    "dev:local": "node server/devLocal.js",
+    "db:seed": "node server/seedDatabase.js",
+    "db:seed:ddb": "node server/seedDynamoDb.js",
+    "db:update:f1": "node server/updateDynamoFromFormula1.js",
+    "db:update:formula1": "node server/updateDynamoFromFormula1.js",
+    "pipeline:update": "node server/updateRacePipeline.js",
+    "pipeline:update:official": "node server/updateRacePipeline.js --official-only",
+    "pipeline:backfill": "node server/backfillRaceAnalytics.js",
+    "pipeline:rebuild": "node server/rebuildLocalRaceAnalytics.js",
+    "timing:setup": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-fastf1.txt",
+    "db:check:ddb": "node server/checkDynamoDbAccess.js",
+    "env:check": "node server/checkEnvFiles.js",
+    "test": "node --test server/*.test.js",
     "build": "vite build",
     "postbuild": "cp dist/index.html dist/404.html",
     "preview": "vite preview",
@@ -13,13 +27,19 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1088.0",
+    "@aws-sdk/client-s3": "^3.1089.0",
+    "@aws-sdk/lib-dynamodb": "^3.1088.0",
     "axios": "^1.9.0",
     "chart.js": "^4.4.9",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "lucide-react": "^0.510.0",
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.5.3"
+    "react-router-dom": "^7.5.3",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

@@ -83,7 +83,7 @@ export function parseDriverStats(f1Data) {
     });
 
     const roundTeamDrivers = teamDriversByRound[round.round];
-    Object.entries(roundTeamDrivers).forEach(([team, teamDrivers]) => {
+    Object.entries(roundTeamDrivers).forEach(([, teamDrivers]) => {
       // For teams with exactly 2 drivers in this round
       if (teamDrivers.length === 2) {
         const [d1, d2] = teamDrivers;

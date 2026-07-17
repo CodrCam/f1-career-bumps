@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Chart as ChartJS,
   LineElement,
@@ -9,7 +10,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import f1SeasonData from "../data/f1_2025_season.json";
+import { useSeasonData } from "../hooks/useSeasonData.js";
+import { getSeasonFromParam } from "../utils/seasons.js";
 import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useConstructorData } from "../components/F1DataComponents.jsx";
 import { F1PageLayout, ResponsiveChart } from "../components/ChartComponents.jsx";
@@ -26,6 +28,9 @@ ChartJS.register(
 
 const ConstructorBump2025Page = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { seasonYear } = useParams();
+  const selectedYear = getSeasonFromParam(seasonYear);
+  const { races } = useSeasonData(selectedYear);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -34,18 +39,25 @@ const ConstructorBump2025Page = () => {
   }, []);
 
   // Get constructor championship data
-  const { chartData, cumulativeMap } = useConstructorData(f1SeasonData.races, isMobile);
+  const { chartData, cumulativeMap } = useConstructorData(races, isMobile);
+  const maxConstructorPosition = Math.max(
+    11,
+    ...(chartData?.datasets ?? [])
+      .flatMap((dataset) => dataset.data)
+      .filter((position) => Number.isFinite(position))
+  );
+  const baseOptions = createResponsiveChartOptions(
+    isMobile,
+    `${selectedYear} Constructor Championship Standings`,
+    "constructor"
+  );
 
   // Create custom options with enhanced tooltips
   const options = {
-    ...createResponsiveChartOptions(
-      isMobile, 
-      "2025 Constructor Championship Standings",
-      "constructor"
-    ),
+    ...baseOptions,
     // Override tooltip to show both position and points
     plugins: {
-      ...createResponsiveChartOptions(isMobile, "", "constructor").plugins,
+      ...baseOptions.plugins,
       tooltip: {
         enabled: true,
         callbacks: {
@@ -101,11 +113,22 @@ const ConstructorBump2025Page = () => {
         },
       },
     },
+    scales: {
+      ...baseOptions.scales,
+      y: {
+        ...baseOptions.scales.y,
+        max: maxConstructorPosition,
+        ticks: {
+          ...baseOptions.scales.y.ticks,
+          stepSize: 1,
+        },
+      },
+    },
   };
 
   return (
     <F1PageLayout 
-      title="2025 Constructor Championship Bump Chart"
+      title={`${selectedYear} Constructor Championship Bump Chart`}
       subtitle="Team standings evolution throughout the season"
       className="constructor-championship"
     >
@@ -116,7 +139,7 @@ const ConstructorBump2025Page = () => {
         className="constructor-line-chart"
         style={{ height: isMobile ? '400px' : '600px' }}
         loading={!chartData}
-        error={!chartData && f1SeasonData.races.length === 0 ? "No race data available" : null}
+        error={!chartData && races.length === 0 ? "No race data available" : null}
       />
     </F1PageLayout>
   );
