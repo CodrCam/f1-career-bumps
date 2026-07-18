@@ -1,5 +1,5 @@
 import React from 'react';
-import { TEAM_CAR_CONFIG } from '../data/seasonGrid.js';
+import { getTeamCarConfig } from '../data/seasonGrid.js';
 
 const LiveryPattern = ({ config }) => {
   switch (config.pattern) {
@@ -45,10 +45,11 @@ const LiveryPattern = ({ config }) => {
 
 const TeamCarMark = ({
   team,
+  year = 2026,
   compact = false,
   className = '',
 }) => {
-  const config = TEAM_CAR_CONFIG[team];
+  const config = getTeamCarConfig(team, year);
   if (!config) return null;
 
   return (

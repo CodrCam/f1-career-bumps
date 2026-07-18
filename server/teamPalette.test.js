@@ -6,6 +6,7 @@ import {
   getDriverColor,
   normalizeDriverTeamFields,
 } from "../src/utils/dataProcessing.js";
+import { getTeamCarConfig } from "../src/data/seasonGrid.js";
 
 test("2026 team palette keeps similar liveries visually distinct", () => {
   assert.equal(TEAM_COLORS.Audi, "#929CAA");
@@ -31,4 +32,6 @@ test("Sauber stays green historically and becomes Audi silver in 2026", () => {
   assert.equal(current.team_colour, "929CAA");
   assert.equal(getDriverColor("Nico Hulkenberg", "Kick Sauber", 2025), "#00F500");
   assert.equal(getDriverColor("Nico Hulkenberg", "Kick Sauber", 2026), "#AEB7C4");
+  assert.equal(getTeamCarConfig("audi", 2025).name, "Kick Sauber");
+  assert.equal(getTeamCarConfig("audi", 2026).name, "Audi");
 });

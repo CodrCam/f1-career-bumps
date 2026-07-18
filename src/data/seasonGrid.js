@@ -111,6 +111,22 @@ export const TEAM_CAR_CONFIG = {
   },
 };
 
+export const getTeamCarConfig = (teamKey, seasonYear = 2026) => {
+  if (Number(seasonYear) < 2026 && teamKey === 'audi') {
+    return {
+      ...TEAM_CAR_CONFIG.audi,
+      name: 'Kick Sauber',
+      primary: '#0f1110',
+      secondary: '#111513',
+      accent: '#52e252',
+      trim: '#b8ff4f',
+      pattern: 'bolt',
+    };
+  }
+
+  return TEAM_CAR_CONFIG[teamKey];
+};
+
 export const SEASON_2026_GRID = [
   { team: 'mercedes', drivers: ['George Russell', 'Kimi Antonelli'] },
   { team: 'ferrari', drivers: ['Charles Leclerc', 'Lewis Hamilton'] },

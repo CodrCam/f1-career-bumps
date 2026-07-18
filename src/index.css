@@ -598,6 +598,8 @@ body {
   border-color: rgba(255, 255, 255, 0.58);
 }
 
+.race-stage-car:hover,
+.race-stage-car:focus-within,
 .race-stage-car.is-active {
   z-index: 10;
 }
@@ -612,18 +614,37 @@ body {
   width: 100%;
 }
 
-.race-car-badge {
+.race-car-end-label {
+  align-items: center;
   background: rgba(9, 11, 14, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 4px;
   color: #f8fafc;
+  display: inline-flex;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 0.28rem;
+  height: 29px;
+  padding: 0.2rem 0.3rem;
+  position: absolute;
+  right: calc(100% + 5px);
+  white-space: nowrap;
+}
+
+.race-car-end-label__position {
   font-size: 0.62rem;
   font-weight: 900;
   line-height: 1;
-  padding: 0.2rem 0.25rem;
-  position: absolute;
-  right: calc(100% + 3px);
+}
+
+.race-car-end-label__marks {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.16rem;
+}
+
+.race-car-end-label .driver-brand-logo,
+.race-car-end-label .team-logo {
+  filter: none;
 }
 
 .race-car-tooltip {
@@ -655,6 +676,8 @@ body {
   top: calc(100% + 13px);
 }
 
+.race-stage-car:hover .race-car-tooltip,
+.race-stage-car:focus-visible .race-car-tooltip,
 .race-stage-car.is-active .race-car-tooltip {
   opacity: 1;
   transform: translateY(0);
@@ -665,6 +688,13 @@ body {
   align-items: center;
   display: flex;
   gap: 0.6rem;
+}
+
+.race-car-tooltip__marks {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.28rem;
 }
 
 .race-car-tooltip__header > span:last-child {
@@ -703,11 +733,18 @@ body {
   font-size: 0.9rem;
 }
 
-.race-car-tooltip__context {
+.race-car-tooltip__gaps {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.race-car-tooltip__gaps > span {
+  border-left: 2px solid rgba(255, 255, 255, 0.24);
   color: #d1d5db;
   font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.45;
+  font-weight: 750;
+  line-height: 1.35;
+  padding-left: 0.5rem;
 }
 
 .race-car-tooltip__round {
@@ -757,6 +794,119 @@ body {
   padding: 0.75rem;
 }
 
+.championship-driver-filter {
+  background: #15181d;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 6px;
+  display: grid;
+  gap: 0.8rem 1rem;
+  grid-template-columns: minmax(145px, 0.35fr) minmax(220px, 0.65fr);
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+}
+
+.championship-driver-filter__header {
+  align-items: center;
+  display: flex;
+  gap: 0.7rem;
+  justify-content: space-between;
+}
+
+.championship-driver-filter__header > span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.championship-driver-filter__header small,
+.championship-driver-filter__add > span {
+  color: #979da8;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.championship-driver-filter__header strong {
+  font-size: 0.93rem;
+}
+
+.championship-driver-filter__reset,
+.championship-driver-filter__pick button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  color: #d7dbe2;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 0;
+}
+
+.championship-driver-filter__reset {
+  height: 32px;
+  width: 32px;
+}
+
+.championship-driver-filter__reset:hover,
+.championship-driver-filter__pick button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.championship-driver-filter__add {
+  align-items: center;
+  display: grid;
+  gap: 0.15rem 0.55rem;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.championship-driver-filter__add select {
+  background: #20242a;
+  border: 1px solid #505762;
+  border-radius: 5px;
+  color: #f8fafc;
+  font: inherit;
+  min-height: 38px;
+  min-width: 0;
+  padding: 0.45rem 2rem 0.45rem 0.65rem;
+}
+
+.championship-driver-filter__add select:disabled {
+  color: #7d8490;
+  cursor: not-allowed;
+}
+
+.championship-driver-filter__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  grid-column: 1 / -1;
+}
+
+.championship-driver-filter__pick {
+  align-items: center;
+  background: color-mix(in srgb, var(--driver-selector-color) 12%, #20242a);
+  border: 1px solid color-mix(in srgb, var(--driver-selector-color) 62%, #4a505a);
+  border-radius: 5px;
+  display: inline-flex;
+  gap: 0.38rem;
+  min-height: 34px;
+  padding: 0.28rem 0.32rem 0.28rem 0.42rem;
+}
+
+.championship-driver-filter__pick > span:not(.driver-brand-logo, .team-logo) {
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.championship-driver-filter__pick button {
+  height: 24px;
+  margin-left: 0.12rem;
+  width: 24px;
+}
+
 .driver-comparison-pick {
   align-items: center;
   display: grid;
@@ -790,7 +940,17 @@ body {
     padding: 0.25rem;
   }
 
-  .race-car-badge {
+  .race-car-end-label {
+    height: 25px;
+    padding: 0.16rem 0.22rem;
+    right: calc(100% + 3px);
+  }
+
+  .race-car-end-label__position {
+    display: none;
+  }
+
+  .race-car-end-label--driver .team-logo {
     display: none;
   }
 
@@ -809,6 +969,14 @@ body {
 
   .driver-ranking-identity {
     align-items: center;
+  }
+
+  .championship-driver-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .championship-driver-filter__picks {
+    grid-column: 1;
   }
 }
 

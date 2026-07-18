@@ -1,0 +1,50 @@
+.driver-brand-logo {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 58px;
+  height: 38px;
+  justify-content: center;
+  overflow: hidden;
+  width: 58px;
+}
+
+.driver-brand-logo__art {
+  background: var(--driver-brand-color, #f8fafc);
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.58));
+  height: 100%;
+  -webkit-mask: var(--driver-brand-image) center / contain no-repeat;
+  mask: var(--driver-brand-image) center / contain no-repeat;
+  width: 100%;
+}
+
+.driver-brand-logo--xs {
+  flex-basis: 30px;
+  height: 20px;
+  width: 30px;
+}
+
+.driver-brand-logo--sm {
+  flex-basis: 42px;
+  height: 28px;
+  width: 42px;
+}
+
+.driver-brand-logo--lg {
+  flex-basis: 76px;
+  height: 48px;
+  width: 76px;
+}
+
+.driver-brand-logo__fallback.driver-mark--xs {
+  flex-basis: 30px;
+  height: 18px;
+  width: 30px;
+}
+
+.driver-brand-logo__fallback.driver-mark--sm {
+  flex-basis: 42px;
+  height: 24px;
+  width: 42px;
+}
+

@@ -17,7 +17,6 @@ import { useConstructorData } from "../components/F1DataComponents.jsx";
 import {
   ConstructorRaceChart,
   F1PageLayout,
-  ResponsiveChart,
   SeasonDataState,
 } from "../components/ChartComponents.jsx";
 
@@ -153,24 +152,14 @@ const ConstructorBump2025Page = () => {
       subtitle="Team standings evolution throughout the season"
       className="constructor-championship"
     >
-      {selectedYear === 2026 ? (
-        <ConstructorRaceChart
-          data={chartData}
-          options={options}
-          className="constructor-line-chart"
-          style={{ height: isMobile ? '400px' : '600px' }}
-          isMobile={isMobile}
-          seasonYear={selectedYear}
-        />
-      ) : (
-        <ResponsiveChart
-          type="line"
-          data={chartData}
-          options={options}
-          className="constructor-line-chart"
-          style={{ height: isMobile ? '400px' : '600px' }}
-        />
-      )}
+      <ConstructorRaceChart
+        data={chartData}
+        options={options}
+        className="constructor-line-chart"
+        style={{ height: isMobile ? '400px' : '600px' }}
+        isMobile={isMobile}
+        seasonYear={selectedYear}
+      />
     </F1PageLayout>
   );
 };

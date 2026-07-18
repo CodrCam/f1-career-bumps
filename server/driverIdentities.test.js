@@ -5,6 +5,7 @@ import {
   getDriverMarkConfig,
   getSeasonDriverMarks,
 } from '../src/data/driverIdentities.js';
+import { getDriverBrandLogo } from '../src/data/driverBrandLogos.js';
 
 test('provides a complete 22-driver identity set for 2026', () => {
   const drivers = getSeasonDriverMarks(2026);
@@ -34,6 +35,20 @@ test('ships every configured driver mark with the site', () => {
 
   assert.deepEqual(
     marks.filter(({ path }) => !existsSync(new URL(`../public/${path}`, import.meta.url))),
+    [],
+  );
+});
+
+test('ships personal brand marks for the 2026 grid with one intentional fallback', () => {
+  const drivers = getSeasonDriverMarks(2026);
+  const brandLogos = drivers
+    .map(({ label }) => ({ label, path: getDriverBrandLogo(label) }))
+    .filter(({ path }) => path);
+
+  assert.equal(brandLogos.length, 21);
+  assert.equal(getDriverBrandLogo('Arvid Lindblad'), null);
+  assert.deepEqual(
+    brandLogos.filter(({ path }) => !existsSync(new URL(`../public/${path}`, import.meta.url))),
     [],
   );
 });

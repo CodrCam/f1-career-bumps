@@ -1,14 +1,19 @@
 // src/components/ChartComponents.jsx
 import React from 'react';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
+import { RotateCcw, X } from 'lucide-react';
 import { getTeamColor } from '../utils/dataProcessing.js';
 import {
   getLatestConstructorStandings,
   getLatestDriverStandings,
 } from '../utils/constructorRace.js';
-import DriverMark from './DriverMark.jsx';
+import DriverBrandLogo from './DriverBrandLogo.jsx';
 import TeamCarMark from './TeamCarMark.jsx';
 import TeamLogo from './TeamLogo.jsx';
+
+const formatPointTotal = (value) => (
+  `${value} ${Number(value) === 1 ? 'point' : 'points'}`
+);
 
 // Generic responsive chart wrapper
 export const ResponsiveChart = ({ 
@@ -155,14 +160,36 @@ const RaceStageChart = ({
   }), [options]);
   const activeCarKey = hoveredCarKey || pinnedCarKey;
   const latestRound = data?.labels?.at(-1);
+  const getStandingPosition = React.useCallback(
+    (car) => (kind === 'driver' ? car.championshipPosition : car.position),
+    [kind],
+  );
+  const getGapFacts = React.useCallback((car) => {
+    const standingPosition = getStandingPosition(car);
+    if (standingPosition === 1) {
+      return Number.isFinite(car.leadOverNext)
+        ? [`Lead over P2: ${formatPointTotal(car.leadOverNext)}`]
+        : [];
+    }
+
+    return [
+      Number.isFinite(car.gapToLeader)
+        ? `Gap to P1: ${formatPointTotal(car.gapToLeader)}`
+        : null,
+      standingPosition > 2 && Number.isFinite(car.gapToAhead)
+        ? `Gap to P${standingPosition - 1}: ${formatPointTotal(car.gapToAhead)}`
+        : null,
+    ].filter(Boolean);
+  }, [getStandingPosition]);
 
   const getCarSummary = React.useCallback((car) => {
     if (kind === 'driver') {
       return [
         car.label,
         `P${car.championshipPosition}`,
-        `${car.points} points`,
+        formatPointTotal(car.points),
         car.team,
+        ...getGapFacts(car),
         latestRound,
       ].filter(Boolean).join(', ');
     }
@@ -170,10 +197,11 @@ const RaceStageChart = ({
     return [
       car.label,
       `P${car.position}`,
-      Number.isFinite(car.points) ? `${car.points} points` : null,
+      Number.isFinite(car.points) ? formatPointTotal(car.points) : null,
+      ...getGapFacts(car),
       latestRound,
     ].filter(Boolean).join(', ');
-  }, [kind, latestRound]);
+  }, [getGapFacts, kind, latestRound]);
 
   return (
     <div className={`chart-wrapper race-stage-chart ${className} fade-in`} style={style}>
@@ -189,6 +217,8 @@ const RaceStageChart = ({
           {raceLayout.cars.map((car) => {
             const isActive = activeCarKey === car.key;
             const tooltipId = `${pluginId}-${String(car.key).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-details`;
+            const standingPosition = getStandingPosition(car);
+            const gapFacts = getGapFacts(car);
 
             return (
               <button
@@ -217,6 +247,8 @@ const RaceStageChart = ({
                 }}
                 onMouseEnter={() => setHoveredCarKey(car.key)}
                 onMouseLeave={() => setHoveredCarKey(null)}
+                onPointerEnter={() => setHoveredCarKey(car.key)}
+                onPointerLeave={() => setHoveredCarKey(null)}
                 style={{
                   left: `${car.left}px`,
                   top: `${car.top}px`,
@@ -224,8 +256,33 @@ const RaceStageChart = ({
                 }}
                 type="button"
               >
-                <span className="race-car-badge">{car.badge}</span>
-                <TeamCarMark compact team={car.teamKey} />
+                <span className={`race-car-end-label race-car-end-label--${kind}`}>
+                  <span className="race-car-end-label__position">P{standingPosition}</span>
+                  {kind === 'driver' ? (
+                    <span className="race-car-end-label__marks">
+                      <DriverBrandLogo
+                        driver={car.label}
+                        size="xs"
+                        team={car.team}
+                        year={seasonYear}
+                      />
+                      <TeamLogo
+                        size="xs"
+                        team={car.team}
+                        tone="team"
+                        year={seasonYear}
+                      />
+                    </span>
+                  ) : (
+                    <TeamLogo
+                      size="xs"
+                      team={car.label}
+                      tone="team"
+                      year={seasonYear}
+                    />
+                  )}
+                </span>
+                <TeamCarMark compact team={car.teamKey} year={seasonYear} />
 
                 <span
                   className={`race-car-tooltip race-car-tooltip--${car.tooltipPlacement}`}
@@ -234,12 +291,20 @@ const RaceStageChart = ({
                 >
                   <span className="race-car-tooltip__header">
                     {kind === 'driver' ? (
-                      <DriverMark
-                        driver={car.label}
-                        size="sm"
-                        team={car.team}
-                        year={seasonYear}
-                      />
+                      <span className="race-car-tooltip__marks">
+                        <DriverBrandLogo
+                          driver={car.label}
+                          size="sm"
+                          team={car.team}
+                          year={seasonYear}
+                        />
+                        <TeamLogo
+                          size="xs"
+                          team={car.team}
+                          tone="team"
+                          year={seasonYear}
+                        />
+                      </span>
                     ) : (
                       <TeamLogo
                         size="sm"
@@ -256,22 +321,15 @@ const RaceStageChart = ({
                   <span className="race-car-tooltip__stats">
                     <span>
                       <small>Standing</small>
-                      <strong>
-                        P{kind === 'driver' ? car.championshipPosition : car.position}
-                      </strong>
+                      <strong>P{standingPosition}</strong>
                     </span>
                     <span>
                       <small>Points</small>
                       <strong>{Number.isFinite(car.points) ? car.points : '--'}</strong>
                     </span>
                   </span>
-                  <span className="race-car-tooltip__context">
-                    {car.gapToLeader === 0 && Number.isFinite(car.leadOverNext)
-                      ? `Leads P2 by ${car.leadOverNext} pts`
-                      : `Gap to leader: ${car.gapToLeader ?? '--'} pts`}
-                    {Number.isFinite(car.gapToAhead) && car.gapToAhead !== car.gapToLeader
-                      ? ` · ${car.gapToAhead} pts to the place ahead`
-                      : ''}
+                  <span className="race-car-tooltip__gaps">
+                    {gapFacts.map((fact) => <span key={fact}>{fact}</span>)}
                   </span>
                   {latestRound && (
                     <span className="race-car-tooltip__round">After {latestRound}</span>
@@ -290,7 +348,6 @@ export const ConstructorRaceChart = (props) => {
   const standings = React.useMemo(
     () => getLatestConstructorStandings(props.data).map((standing) => ({
       ...standing,
-      badge: `P${standing.position}`,
       key: standing.teamKey,
     })),
     [props.data],
@@ -318,7 +375,6 @@ export const DriverRaceChart = ({
 
     return featuredDrivers.map((standing) => ({
       ...standing,
-      badge: standing.code,
       key: standing.label,
       position: standing.points,
     }));
@@ -380,7 +436,6 @@ export const DriverSelector = ({
   selectedDrivers = [],
   onDriverSelect,
   maxDrivers = 2,
-  isMobile = false,
   title = "Select Drivers to Compare",
   teamByDriver = new Map(),
   seasonYear = 2026,
@@ -389,108 +444,89 @@ export const DriverSelector = ({
     teamByDriver instanceof Map ? teamByDriver.get(driver) : teamByDriver[driver]
   );
 
-  if (isMobile) {
-    // Mobile dropdown version
-    return (
-      <div className="driver-selector mobile">
-        <h3>{title} (max {maxDrivers}):</h3>
-        <div style={{ 
-          display: "flex", 
-          flexDirection: "column", 
-          gap: "0.5rem", 
-          marginBottom: "1rem",
-          padding: "0 1rem"
-        }}>
-          {Array.from({ length: maxDrivers }, (_, i) => (
-            <label className="driver-select-field" key={i}>
-              <DriverMark
-                driver={selectedDrivers[i]}
-                size="sm"
-                team={getDriverTeam(selectedDrivers[i])}
-                year={seasonYear}
-              />
-              <select
-                aria-label={`Select driver ${i + 1}`}
-                value={selectedDrivers[i] || ''}
-                onChange={(e) => onDriverSelect && onDriverSelect(i, e.target.value)}
-              >
-                <option value="">Select Driver {i + 1}</option>
-                {drivers.map((driver) => (
-                  <option key={driver} value={driver}>{driver}</option>
-                ))}
-              </select>
-            </label>
-          ))}
-          <button 
-            onClick={() => onDriverSelect && onDriverSelect('reset')}
-            style={{
-              padding: "0.75rem",
-              fontSize: "1rem",
-              borderRadius: "6px",
-              border: "none",
-              backgroundColor: "#666",
-              color: "#fff",
-              cursor: "pointer"
-            }}
-          >
-            Reset Selection
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const selectionIsFull = selectedDrivers.length >= maxDrivers;
+  const selectionLabel = selectedDrivers.length > 0
+    ? `${selectedDrivers.length} of ${maxDrivers}`
+    : `Top ${Math.min(maxDrivers, drivers.length)}`;
 
-  // Desktop button version
   return (
-    <div className="driver-selector desktop">
-      <h3>{title} (max {maxDrivers}):</h3>
-      <div className="driver-buttons" style={{ 
-        display: 'flex', 
-        flexWrap: 'wrap', 
-        gap: '0.5rem', 
-        justifyContent: 'center',
-        marginBottom: '1rem'
-      }}>
-        {drivers.map(driver => {
-          const isSelected = selectedDrivers.includes(driver);
-          return (
-            <button
+    <div className="driver-selector championship-driver-filter">
+      <div className="championship-driver-filter__header">
+        <span>
+          <small>{title}</small>
+          <strong>{selectionLabel}</strong>
+        </span>
+        {selectedDrivers.length > 0 && (
+          <button
+            aria-label="Reset driver filter"
+            className="championship-driver-filter__reset"
+            onClick={() => onDriverSelect && onDriverSelect('reset')}
+            title="Reset driver filter"
+            type="button"
+          >
+            <RotateCcw aria-hidden="true" size={17} />
+          </button>
+        )}
+      </div>
+
+      <label className="championship-driver-filter__add">
+        <span>Driver</span>
+        <select
+          aria-label="Add a driver to the championship chart"
+          disabled={selectionIsFull}
+          onChange={(event) => {
+            if (event.target.value) {
+              onDriverSelect?.('toggle', event.target.value);
+              event.target.value = '';
+            }
+          }}
+          value=""
+        >
+          <option value="">{selectionIsFull ? 'Driver limit reached' : 'Add driver'}</option>
+          {drivers.map((driver) => (
+            <option
+              disabled={selectedDrivers.includes(driver)}
               key={driver}
-              onClick={() => onDriverSelect && onDriverSelect('toggle', driver)}
-              className={`driver-button ${isSelected ? 'active' : ''}`}
-              style={{
-                '--driver-selector-color': getTeamColor(getDriverTeam(driver)),
-                ...(selectedDrivers.length >= maxDrivers && !isSelected ? { opacity: 0.5, pointerEvents: 'none' } : {})
-              }}
-              disabled={selectedDrivers.length >= maxDrivers && !isSelected}
+              value={driver}
             >
-              <DriverMark
+              {driver}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {selectedDrivers.length > 0 && (
+        <div className="championship-driver-filter__picks">
+          {selectedDrivers.map((driver) => (
+            <span
+              className="championship-driver-filter__pick"
+              key={driver}
+              style={{ '--driver-selector-color': getTeamColor(getDriverTeam(driver)) }}
+            >
+              <DriverBrandLogo
                 driver={driver}
                 size="xs"
                 team={getDriverTeam(driver)}
                 year={seasonYear}
               />
+              <TeamLogo
+                size="xs"
+                team={getDriverTeam(driver)}
+                tone="team"
+                year={seasonYear}
+              />
               <span>{driver}</span>
-            </button>
-          );
-        })}
-      </div>
-      {selectedDrivers.length > 0 && (
-        <button 
-          onClick={() => onDriverSelect && onDriverSelect('reset')}
-          style={{
-            padding: "0.5rem 1rem",
-            fontSize: "0.9rem",
-            borderRadius: "6px",
-            border: "1px solid #666",
-            backgroundColor: "#555",
-            color: "#fff",
-            cursor: "pointer",
-            marginBottom: "1rem"
-          }}
-        >
-          Reset Selection
-        </button>
+              <button
+                aria-label={`Remove ${driver}`}
+                onClick={() => onDriverSelect?.('toggle', driver)}
+                title={`Remove ${driver}`}
+                type="button"
+              >
+                <X aria-hidden="true" size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -576,6 +612,7 @@ export const ChampionshipBumpChart = ({
       {/* Chart */}
       {showRaceCars ? (
         <DriverRaceChart
+          key={selectedDrivers.join('|') || 'top-five'}
           data={data}
           options={options}
           selectedDrivers={selectedDrivers}

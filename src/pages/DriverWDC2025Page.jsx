@@ -41,7 +41,6 @@ const DriverWDC2025Page = () => {
   // Get all drivers from the data
   const allDrivers = useAllDrivers(races);
   
-  // Handle driver selection - increased from 2 to 5 drivers
   const { selectedDrivers, handleDriverSelect } = useDriverSelection(allDrivers, 5);
   
   // Get championship data
@@ -70,7 +69,6 @@ const DriverWDC2025Page = () => {
 
   return (
     <div>
-      {/* Championship Chart - now with up to 5 driver selection and no dropdown */}
       <ChampionshipBumpChart
         data={chartData}
         options={options}
@@ -82,7 +80,7 @@ const DriverWDC2025Page = () => {
         isMobile={isMobile}
         maxDrivers={5}
         seasonYear={selectedYear}
-        showRaceCars={selectedYear === 2026}
+        showRaceCars
       />
     </div>
   );

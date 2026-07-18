@@ -45,22 +45,33 @@ export const useChampionshipData = (rawRaces, selectedDrivers = [], isMobile = f
       }
     });
 
+    const defaultDrivers = Array.from(pointsMap.entries())
+      .sort(([, leftPoints], [, rightPoints]) => (
+        (rightPoints.at(-1) ?? 0) - (leftPoints.at(-1) ?? 0)
+      ))
+      .slice(0, 5)
+      .map(([driver]) => driver);
+    const visibleDrivers = new Set(
+      selectedDrivers.length > 0 ? selectedDrivers : defaultDrivers,
+    );
+
     const datasets = Array.from(pointsMap.entries()).map(([driver, points]) => {
       const team = processedRaces.find((r) =>
         r.race_results.some((res) => res.driver === driver)
       )?.race_results.find((res) => res.driver === driver)?.team;
 
-      const isSelected = selectedDrivers.length === 0 || selectedDrivers.includes(driver);
+      const isSelected = visibleDrivers.has(driver);
 
       return {
         label: driver,
         team,
         data: points,
-        borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
-        borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
-        pointRadius: isSelected ? (isMobile ? 2 : 3) : 1,
-        pointHoverRadius: isSelected ? (isMobile ? 4 : 5) : 2,
+        borderColor: getTeamColor(team),
+        borderWidth: isMobile ? 2 : 3,
+        pointRadius: isMobile ? 2 : 3,
+        pointHoverRadius: isMobile ? 4 : 5,
         fill: false,
+        hidden: !isSelected,
         tension: 0.3,
       };
     });

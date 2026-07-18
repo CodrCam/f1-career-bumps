@@ -221,15 +221,18 @@
   align-items: center;
   display: inline-grid;
   gap: 0.5rem;
-  grid-template-columns: 40px minmax(90px, 1fr);
-  min-width: 155px;
+  grid-template-columns: 72px minmax(90px, 1fr);
+  min-width: 190px;
 }
 
-.story-driver .team-logo {
-  justify-self: center;
+.story-driver-marks {
+  align-items: center;
+  display: flex !important;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
-.story-driver > span {
+.story-driver > span:not(.story-driver-marks) {
   display: grid;
 }
 
@@ -299,17 +302,28 @@
   align-items: center;
   display: grid;
   gap: 0.55rem;
-  grid-template-columns: 52px 1fr;
+  grid-template-columns: 42px 36px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.traffic-driver-name .driver-brand-logo,
+.traffic-driver-name .team-logo {
+  justify-self: center;
+  max-height: 30px;
+  max-width: 42px;
+  overflow: hidden;
 }
 
 .traffic-driver-name .team-logo {
-  justify-self: center;
+  height: 24px;
+  width: 34px;
 }
 
-.traffic-driver-name > span,
+.traffic-driver-copy,
 .traffic-driver > div:not(.traffic-driver-name, .traffic-tags) {
   display: grid;
   gap: 0.12rem;
+  min-width: 0;
 }
 
 .traffic-driver span {
