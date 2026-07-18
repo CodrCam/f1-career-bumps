@@ -62,6 +62,10 @@ const drivers2025 = [
   { id: "sainz", driver: "Carlos Sainz", team: "Williams" },
 ];
 
+const FORECAST_ONLY_TEAMS = [
+  { name: 'Cadillac', firstSeason: 2026 },
+];
+
 const normalizePitTeamName = (teamName, seasonYear) => {
   const legacyName = teamName === 'Kick Sauber' ? 'Sauber' : teamName;
   return normalizeTeamNameForSeason(legacyName, seasonYear);
@@ -122,13 +126,57 @@ const calculateRecentFormScore = (recentForm) => {
   return Math.max(0, Math.min(20, improvement * 10));
 };
 
+const calculateMedian = (values) => {
+  const sortedValues = values
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+
+  if (sortedValues.length === 0) return 0;
+
+  const middleIndex = Math.floor(sortedValues.length / 2);
+  if (sortedValues.length % 2 === 1) return sortedValues[middleIndex];
+
+  return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
+};
+
+const addForecastOnlyTeams = (teamStats, seasonYear) => {
+  const historicalTeamStats = Array.from(teamStats.values());
+  if (historicalTeamStats.length === 0) return;
+
+  FORECAST_ONLY_TEAMS
+    .filter(({ firstSeason }) => Number(seasonYear) >= firstSeason)
+    .forEach(({ name, firstSeason }) => {
+      if (teamStats.has(name)) return;
+
+      teamStats.set(name, {
+        rounds: [],
+        totalStops: 0,
+        allTimes: [],
+        averageTimes: [],
+        fastestStops: [],
+        consistency: calculateMedian(historicalTeamStats.map((stats) => stats.consistency)),
+        trend: 0,
+        winRate: 0,
+        recentForm: [],
+        forecastScore: calculateMedian(historicalTeamStats.map((stats) => stats.forecastScore)),
+        fastestRoundWins: 0,
+        averageTime: calculateMedian(historicalTeamStats.map((stats) => stats.averageTime)),
+        fastestTime: calculateMedian(historicalTeamStats.map((stats) => stats.fastestTime)),
+        averageStopsPerRace: calculateMedian(
+          historicalTeamStats.map((stats) => stats.averageStopsPerRace)
+        ),
+        isProjection: true,
+        projectionLabel: `${firstSeason} field-median baseline`,
+      });
+    });
+};
+
 // ===== DATA PROCESSING FUNCTION =====
 
 const processRaceData = (seasonYear) => {
   const teamStats = new Map();
   const driverStats = new Map();
   const roundData = [];
-  const allTeams = new Set();
   const allDrivers = new Set();
 
   // Process each round
@@ -160,7 +208,6 @@ const processRaceData = (seasonYear) => {
     round.pit_stops.forEach(pitStop => {
       const { driver, stops, average_time } = pitStop;
       const team = normalizePitTeamName(pitStop.team, seasonYear);
-      allTeams.add(team);
       allDrivers.add(driver);
 
       // Initialize team stats
@@ -230,6 +277,7 @@ const processRaceData = (seasonYear) => {
       // Basic metrics
       stats.averageTime = stats.averageTimes.reduce((sum, time) => sum + time, 0) / n;
       stats.fastestTime = Math.min(...stats.fastestStops);
+      stats.averageStopsPerRace = stats.totalStops / stats.rounds.length;
       
       // Consistency
       const variance = stats.averageTimes.reduce((sum, time) => sum + Math.pow(time - stats.averageTime, 2), 0) / n;
@@ -256,11 +304,13 @@ const processRaceData = (seasonYear) => {
     });
   });
 
+  addForecastOnlyTeams(teamStats, seasonYear);
+
   return {
     teamStats,
     driverStats,
     roundData,
-    allTeams: Array.from(allTeams),
+    allTeams: Array.from(teamStats.keys()),
     allDrivers: Array.from(allDrivers)
   };
 };
@@ -305,7 +355,7 @@ const generateForecastData = (analysisType, processedData) => {
   const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
   const sortedEntities = Array.from(stats.entries())
     .sort((a, b) => b[1].forecastScore - a[1].forecastScore)
-    .slice(0, 10);
+    .slice(0, analysisType === 'team' ? stats.size : 10);
 
   return {
     labels: sortedEntities.map(([entity]) => entity),
@@ -357,10 +407,11 @@ const generateStrategyData = (analysisType, processedData) => {
       label: `${analysisType === 'team' ? 'Teams' : 'Drivers'} Strategy`,
       data: entities.map(([entity, stat]) => ({
         x: stat.averageTime,
-        y: stat.totalStops / stat.rounds.length,
+        y: stat.averageStopsPerRace,
         label: entity,
         team: analysisType === 'team' ? entity : stat.team,
-        forecastScore: stat.forecastScore
+        forecastScore: stat.forecastScore,
+        projectionLabel: stat.projectionLabel
       })),
       backgroundColor: entities.map(([entity, stat]) => 
         getEntityColor(entity, analysisType, stat)
@@ -493,7 +544,8 @@ const getChartOptions = (type, selectedEntity, isMobile) => {
                   `${point.label}`,
                   `Avg Speed: ${point.x.toFixed(2)}s`,
                   `Stops/Race: ${point.y.toFixed(1)}`,
-                  `Forecast Score: ${point.forecastScore.toFixed(1)}/100`
+                  `Forecast Score: ${point.forecastScore.toFixed(1)}/100`,
+                  ...(point.projectionLabel ? [`Estimate: ${point.projectionLabel}`] : [])
                 ];
               }
             }
@@ -570,6 +622,11 @@ const ForecastSummary = ({ showForecast, analysisType, processedData, isMobile }
               <div style={{ color: '#ccc', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
                 Consistency: {entityStats.consistency.toFixed(3)}s
               </div>
+              {entityStats.isProjection && (
+                <div style={{ color: '#D9AD3A', fontSize: '0.75rem', marginBottom: '0.3rem' }}>
+                  {entityStats.projectionLabel}
+                </div>
+              )}
               <div style={{ 
                 color: confidence === 'High' ? '#10B981' : confidence === 'Medium' ? '#F59E0B' : '#EF4444',
                 fontSize: '0.8rem',
@@ -648,6 +705,16 @@ const PerformanceTable = ({ analysisType, processedData, isMobile }) => {
                   textOverflow: 'ellipsis'
                 }}>
                   {entity}
+                  {entityStats.isProjection && (
+                    <span style={{
+                      display: 'block',
+                      color: '#a0a9c0',
+                      fontSize: '0.65rem',
+                      fontWeight: 'normal'
+                    }}>
+                      Projected baseline
+                    </span>
+                  )}
                 </span>
               </div>
               <span style={{ textAlign: 'center', fontWeight: '600' }}>
