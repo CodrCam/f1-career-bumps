@@ -1,0 +1,17 @@
+{
+  "name": "Slipstream F1 Analytics",
+  "short_name": "Slipstream",
+  "description": "Formula 1 standings, race results, timing, pit-stop, and strategy analysis.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0f13",
+  "theme_color": "#0d0f13",
+  "icons": [
+    {
+      "src": "/slipstream-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

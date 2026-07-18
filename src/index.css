@@ -64,6 +64,80 @@ body {
   margin: 0 auto;
 }
 
+.home-hero {
+  margin: 0 auto 1.75rem;
+  max-width: 780px;
+  text-align: center;
+}
+
+.home-hero h1 {
+  font-size: clamp(2rem, 5vw, 4.2rem);
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.home-hero p {
+  color: var(--site-muted);
+  font-size: clamp(0.98rem, 1.5vw, 1.12rem);
+  line-height: 1.65;
+  margin: 1rem auto 0;
+  max-width: 650px;
+  text-wrap: balance;
+}
+
+.seo-fallback {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: clamp(5rem, 12vw, 9rem) 1.5rem 4rem;
+  text-align: center;
+}
+
+.seo-fallback__eyebrow {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.seo-fallback h1 {
+  font-size: clamp(2rem, 6vw, 4rem);
+  line-height: 1;
+  margin: 0.75rem 0 1rem;
+  text-wrap: balance;
+}
+
+.seo-fallback > p:not(.seo-fallback__eyebrow) {
+  color: var(--site-muted);
+  line-height: 1.65;
+}
+
+.seo-fallback nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin-top: 1.75rem;
+}
+
+.seo-fallback nav a {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--site-border);
+  border-radius: 999px;
+  color: var(--site-text);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.65rem 0.9rem;
+  text-decoration: none;
+}
+
+.seo-fallback__note {
+  font-size: 0.8rem;
+  margin-top: 1.5rem;
+}
+
 .season-strip {
   display: flex;
   align-items: center;

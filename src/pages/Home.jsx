@@ -8,6 +8,15 @@ const Home = () => {
   return (
     <div className="home-container">
       <div className="home-content">
+        <header className="home-hero">
+          <span className="section-kicker">Formula 1, made readable</span>
+          <h1>Standings, pace, and strategy in motion.</h1>
+          <p>
+            Explore the 2025 and 2026 seasons through race-by-race charts,
+            driver comparisons, sector pace, and pit-lane performance.
+          </p>
+        </header>
+
         <div className="season-strip" aria-label="Available seasons">
           <CalendarClock size={18} />
           {AVAILABLE_SEASONS.map((year) => (

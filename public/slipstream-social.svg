@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Slipstream Formula 1 Analytics</title>
+  <desc id="desc">A dark social preview for Slipstream with a racing analytics mark and season analysis message.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171a20"/>
+      <stop offset="1" stop-color="#0d0f13"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ef233c"/>
+      <stop offset=".55" stop-color="#ff8700"/>
+      <stop offset="1" stop-color="#00d2be"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#panel)"/>
+  <path d="M0 90h1200M0 180h1200M0 270h1200M0 360h1200M0 450h1200M0 540h1200M90 0v630M180 0v630M270 0v630M360 0v630M450 0v630M540 0v630M630 0v630M720 0v630M810 0v630M900 0v630M990 0v630M1080 0v630" stroke="#fff" stroke-opacity=".035" stroke-width="2"/>
+  <rect x="66" y="58" width="1068" height="514" rx="24" fill="#0d0f13" fill-opacity=".74" stroke="#fff" stroke-opacity=".12"/>
+  <rect x="66" y="58" width="8" height="514" rx="4" fill="url(#accent)"/>
+  <g transform="translate(112 100) scale(1.45)">
+    <path fill="#f8fafc" d="M13 6h13L11 39H0L13 6Z"/>
+    <path fill="#f8fafc" d="M18 6h43l-8 9H14l4-9Z"/>
+    <path fill="#f8fafc" d="M12 21h34l-8 9H8l4-9Z"/>
+    <path fill="#ef233c" d="M65 6h28L78 39H64l11-24H59l6-9Z"/>
+    <path fill="#fff" fill-opacity=".16" d="M73 12h11L74 34h-5l9-19h-8l3-3Z"/>
+    <path fill="none" stroke="#ef233c" stroke-linecap="square" stroke-width="2.5" d="M46 20h19M41 27h20M36 34h21"/>
+  </g>
+  <text x="270" y="124" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="34" font-style="italic" font-weight="900">SLIPSTREAM</text>
+  <text x="272" y="154" fill="#aeb7c4" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" letter-spacing="3">F1 ANALYTICS</text>
+  <text x="112" y="310" fill="#ef4444" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900" letter-spacing="1.5">THE SEASON, IN MOTION</text>
+  <text x="112" y="382" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="900">Standings. Pace. Strategy.</text>
+  <text x="112" y="435" fill="#c4cad3" font-family="Arial, Helvetica, sans-serif" font-size="25">Formula 1 analysis across every completed round.</text>
+  <rect x="112" y="496" width="976" height="2" fill="url(#accent)" opacity=".9"/>
+  <text x="112" y="540" fill="#9ba3af" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">f1datadesktop.com</text>
+</svg>
+

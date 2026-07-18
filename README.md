@@ -1,6 +1,9 @@
-# F1 Performance Dashboard
+# Slipstream F1 Analytics
 
-Personal F1 analytics platform with race results, season standings, pit stop trend forecasts, and live telemetry.
+Slipstream is a Formula 1 data desk for following how championships, drivers,
+race pace, pit work, and strategy change over a season.
+
+Production site: [f1datadesktop.com](https://f1datadesktop.com)
 
 ## Quick Setup
 
@@ -12,9 +15,12 @@ npm run dev:local
 ```
 
 ## Key Features
-- Pit stop trend forecasting
+- Driver and constructor championship progression
+- Driver statistics and head-to-head comparison
+- Sector pace and consistency analysis
+- Pit-stop service and full pit-lane timing
+- Race stories built from overtakes, traffic, strategy, and attrition
 - Official Formula1.com race result sync
-- Precision timing analysis
 - Mobile-first responsive design
 
 ## Tech Stack

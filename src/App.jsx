@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
 import NavBar from "./components/Navbar";
+import Seo from "./components/Seo.jsx";
 import { getSeasonPath } from "./utils/seasons.js";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -14,6 +15,7 @@ const SectorAnalysisPage = lazy(() => import("./pages/SectorAnalysisPage.jsx"));
 const PitStopAnalysisPage = lazy(() => import("./pages/PitStopAnalysisPage.jsx"));
 const RaceStoryPage = lazy(() => import("./pages/RaceStoryPage.jsx"));
 const About = lazy(() => import("./pages/About.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 const LegacyPitStrategyRedirect = () => {
   const { seasonYear } = useParams();
@@ -31,6 +33,7 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Router>
+        <Seo />
         <NavBar />
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
@@ -54,7 +57,7 @@ const App = () => {
             <Route path="/pit-strategy" element={<Navigate to="/2026/pit-stop-analysis" replace />} />
             <Route path="/pit-stop-analysis" element={<Navigate to="/2026/pit-stop-analysis" replace />} />
             <Route path="/race-story" element={<Navigate to="/2026/race-story" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </Router>

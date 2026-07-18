@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "homepage": "https://codrcam.github.io/f1-career-bumps",
+  "homepage": "https://f1datadesktop.com",
   "scripts": {
     "dev": "vite",
     "dev:api": "node server/index.js",
@@ -23,7 +23,7 @@
     "env:check": "node server/checkEnvFiles.js",
     "test": "node --test server/*.test.js",
     "build": "vite build",
-    "postbuild": "cp dist/index.html dist/404.html",
+    "postbuild": "node scripts/generateSeoArtifacts.js && node scripts/verifySeoArtifacts.js",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Slipstream F1 Analytics</title>
+  <desc id="desc">A red and white racing analytics mark on a dark background.</desc>
+  <rect width="512" height="512" rx="88" fill="#0d0f13"/>
+  <path d="M0 164h512M0 256h512M0 348h512M164 0v512M256 0v512M348 0v512" stroke="#fff" stroke-opacity=".035" stroke-width="2"/>
+  <g transform="translate(64 168) scale(4)">
+    <path fill="#f8fafc" d="M13 6h13L11 39H0L13 6Z"/>
+    <path fill="#f8fafc" d="M18 6h43l-8 9H14l4-9Z"/>
+    <path fill="#f8fafc" d="M12 21h34l-8 9H8l4-9Z"/>
+    <path fill="#ef233c" d="M65 6h28L78 39H64l11-24H59l6-9Z"/>
+    <path fill="#fff" fill-opacity=".16" d="M73 12h11L74 34h-5l9-19h-8l3-3Z"/>
+    <path fill="none" stroke="#ef233c" stroke-linecap="square" stroke-width="2.5" d="M46 20h19M41 27h20M36 34h21"/>
+  </g>
+</svg>
+
