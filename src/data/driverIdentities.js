@@ -30,7 +30,7 @@ const DRIVER_MARKS = {
     'gabriel bortoleto': ['Gabriel Bortoleto', 'gabriel-bortoleto.webp', 5, 'Audi'],
     'franco colapinto': ['Franco Colapinto', 'franco-colapinto.webp', 43, 'Alpine'],
     'pierre gasly': ['Pierre Gasly', 'pierre-gasly.webp', 10, 'Alpine'],
-    'isack hadjar': ['Isack Hadjar', 'isack-hadjar.webp', 6, 'Red Bull Racing'],
+    'isack hadjar': ['Isack Hadjar', 'isack-hadjar.png', 6, 'Red Bull Racing'],
     'lewis hamilton': ['Lewis Hamilton', 'lewis-hamilton.webp', 44, 'Ferrari'],
     'nico hulkenberg': ['Nico Hulkenberg', 'nico-hulkenberg.webp', 27, 'Audi'],
     'liam lawson': ['Liam Lawson', 'liam-lawson.webp', 30, 'Racing Bulls'],
@@ -43,7 +43,7 @@ const DRIVER_MARKS = {
     'george russell': ['George Russell', 'george-russell.webp', 63, 'Mercedes'],
     'carlos sainz': ['Carlos Sainz', 'carlos-sainz.webp', 55, 'Williams'],
     'lance stroll': ['Lance Stroll', 'lance-stroll.webp', 18, 'Aston Martin'],
-    'max verstappen': ['Max Verstappen', 'max-verstappen.webp', 3, 'Red Bull Racing'],
+    'max verstappen': ['Max Verstappen', 'max-verstappen.png', 3, 'Red Bull Racing'],
     'valtteri bottas': ['Valtteri Bottas', 'valtteri-bottas.webp', 77, 'Cadillac'],
   },
 };

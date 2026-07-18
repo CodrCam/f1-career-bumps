@@ -11,7 +11,12 @@ test('provides a complete 22-driver identity set for 2026', () => {
   const drivers = getSeasonDriverMarks(2026);
 
   assert.equal(drivers.length, 22);
-  assert.equal(drivers.filter(({ path }) => !path.endsWith('.webp')).length, 0);
+  assert.equal(
+    drivers.filter(({ path }) => !/\.(png|webp)$/.test(path)).length,
+    0,
+  );
+  assert.equal(getDriverMarkConfig('Max Verstappen', 2026).file, 'max-verstappen.png');
+  assert.equal(getDriverMarkConfig('Isack Hadjar', 2026).file, 'isack-hadjar.png');
 });
 
 test('keeps championship numbers season-specific', () => {

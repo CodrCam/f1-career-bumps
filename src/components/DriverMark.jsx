@@ -15,7 +15,8 @@ const DriverMark = ({
   const config = getDriverMarkConfig(driver, year);
   if (!config) return null;
 
-  const markPath = `${import.meta.env.BASE_URL}${config.path}`;
+  const cacheToken = config.file.endsWith('.png') ? '?v=number-mask' : '';
+  const markPath = `${import.meta.env.BASE_URL}${config.path}${cacheToken}`;
   const color = tone === 'white'
     ? '#f8fafc'
     : getDriverColor(config.label, team || config.team, year);

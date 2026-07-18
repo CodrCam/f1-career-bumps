@@ -4,6 +4,7 @@
   flex: 0 0 44px;
   height: 28px;
   justify-content: center;
+  position: relative;
   width: 44px;
 }
 
@@ -26,6 +27,28 @@
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.68));
   -webkit-mask: var(--team-logo-image) center / contain no-repeat;
   mask: var(--team-logo-image) center / contain no-repeat;
+}
+
+.team-logo__ferrari-base,
+.team-logo__ferrari-art {
+  inset: 0;
+  position: absolute;
+}
+
+.team-logo__ferrari-base {
+  background: linear-gradient(90deg, #ffd21f 0 50%, #e10600 50% 100%);
+  -webkit-mask: var(--team-logo-image) center / contain no-repeat;
+  mask: var(--team-logo-image) center / contain no-repeat;
+}
+
+.team-logo__ferrari-art {
+  filter: none !important;
+  mix-blend-mode: multiply;
+  object-fit: contain;
+}
+
+.team-logo--ferrari-split {
+  isolation: isolate;
 }
 
 .team-logo--xs {
