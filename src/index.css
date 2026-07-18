@@ -190,7 +190,7 @@ body {
   background: #111419;
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: minmax(72px, 98px) minmax(0, 1fr);
+  grid-template-columns: minmax(72px, 98px) minmax(0, 1fr) auto;
   min-height: 44px;
   padding: 0.2rem 0.65rem 0.2rem 0.25rem;
 }
@@ -324,6 +324,10 @@ body {
   padding: 0.65rem;
 }
 
+.f1-page-layout .race-stage-chart {
+  overflow: visible;
+}
+
 .f1-page-layout table {
   background: rgba(15, 18, 23, 0.98);
 }
@@ -394,7 +398,7 @@ body {
   }
 
   .grid-driver {
-    grid-template-columns: minmax(84px, 112px) minmax(0, 1fr);
+    grid-template-columns: minmax(84px, 112px) minmax(0, 1fr) auto;
   }
 }
 
@@ -556,7 +560,7 @@ body {
 
 .race-car-overlay {
   inset: 0;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
   position: absolute;
   z-index: 2;
@@ -564,10 +568,42 @@ body {
 
 .race-stage-car {
   align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
   display: flex;
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
+  margin: 0;
+  padding: 0;
+  pointer-events: auto;
   position: absolute;
+  text-align: left;
   transition: left 500ms ease, top 500ms ease;
+}
+
+.race-stage-car::after {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  content: "";
+  inset: -7px;
+  position: absolute;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.race-stage-car:hover::after,
+.race-stage-car:focus-visible::after,
+.race-stage-car.is-active::after {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.58);
+}
+
+.race-stage-car.is-active {
+  z-index: 10;
+}
+
+.race-stage-car:focus-visible {
+  outline: none;
 }
 
 .race-stage-car .team-car-mark {
@@ -588,6 +624,148 @@ body {
   padding: 0.2rem 0.25rem;
   position: absolute;
   right: calc(100% + 3px);
+}
+
+.race-car-tooltip {
+  background: rgba(10, 12, 16, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+  color: #f8fafc;
+  display: grid;
+  gap: 0.65rem;
+  min-width: 218px;
+  opacity: 0;
+  padding: 0.75rem;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  transform: translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
+  visibility: hidden;
+  width: max-content;
+  z-index: 8;
+}
+
+.race-car-tooltip--above {
+  bottom: calc(100% + 13px);
+}
+
+.race-car-tooltip--below {
+  top: calc(100% + 13px);
+}
+
+.race-stage-car.is-active .race-car-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.race-car-tooltip__header {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.race-car-tooltip__header > span:last-child {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.race-car-tooltip__header strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.race-car-tooltip__header small,
+.race-car-tooltip__stats small,
+.race-car-tooltip__round {
+  color: #9ca3af;
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+
+.race-car-tooltip__stats {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.race-car-tooltip__stats > span {
+  border-left: 2px solid rgba(255, 255, 255, 0.24);
+  display: grid;
+  gap: 0.08rem;
+  padding-left: 0.5rem;
+}
+
+.race-car-tooltip__stats strong {
+  font-size: 0.9rem;
+}
+
+.race-car-tooltip__context {
+  color: #d1d5db;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.race-car-tooltip__round {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 0.5rem;
+}
+
+.driver-selector .driver-button {
+  align-items: center;
+  background: rgba(33, 37, 43, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  color: #f8fafc;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+}
+
+.driver-selector .driver-button:hover,
+.driver-selector .driver-button.active {
+  background: color-mix(in srgb, var(--driver-selector-color) 17%, #15181d);
+  border-color: var(--driver-selector-color);
+}
+
+.driver-selector .driver-button.active {
+  box-shadow: inset 3px 0 0 var(--driver-selector-color);
+}
+
+.driver-select-field {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  min-width: min(100%, 230px);
+}
+
+.driver-select-field select {
+  background: #20242a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #fff;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.driver-comparison-pick {
+  align-items: center;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: auto auto minmax(160px, 1fr);
+}
+
+.driver-comparison-pick select {
+  min-width: 0;
 }
 
 .driver-table-identity,
@@ -613,6 +791,19 @@ body {
   }
 
   .race-car-badge {
+    display: none;
+  }
+
+  .race-car-tooltip {
+    min-width: min(210px, calc(100vw - 2.5rem));
+    padding: 0.65rem;
+  }
+
+  .driver-comparison-pick {
+    grid-template-columns: auto minmax(150px, 1fr);
+  }
+
+  .driver-comparison-pick .team-logo {
     display: none;
   }
 

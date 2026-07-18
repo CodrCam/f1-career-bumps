@@ -34,3 +34,23 @@ test('does not confuse Racing Bulls with Red Bull Racing', () => {
   assert.equal(getTeamLogoConfig('Red Bull Racing', 2026).key, 'red-bull-racing');
 });
 
+test('provides a display color for every current team logo', () => {
+  const teams = [
+    'Mercedes',
+    'Ferrari',
+    'McLaren',
+    'Red Bull Racing',
+    'Alpine',
+    'Racing Bulls',
+    'Haas F1 Team',
+    'Williams',
+    'Audi',
+    'Aston Martin',
+    'Cadillac',
+  ];
+
+  assert.equal(
+    teams.filter((team) => !getTeamLogoConfig(team, 2026).color).length,
+    0,
+  );
+});

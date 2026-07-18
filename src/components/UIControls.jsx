@@ -1,5 +1,50 @@
 // src/components/UIControls.jsx
 import React from 'react';
+import DriverMark from './DriverMark.jsx';
+import TeamLogo from './TeamLogo.jsx';
+
+const getMappedTeam = (teamByDriver, driver) => (
+  teamByDriver instanceof Map ? teamByDriver.get(driver) : teamByDriver?.[driver]
+);
+
+const DriverSelectField = ({
+  drivers,
+  index,
+  onDriverChange,
+  selectedDrivers,
+  seasonYear,
+  teamByDriver,
+}) => {
+  const selectedDriver = selectedDrivers[index] || '';
+  const team = getMappedTeam(teamByDriver, selectedDriver);
+
+  return (
+    <label className="driver-select-field">
+      <DriverMark
+        driver={selectedDriver}
+        size="sm"
+        team={team}
+        year={seasonYear}
+      />
+      <TeamLogo
+        size="xs"
+        team={team}
+        tone="team"
+        year={seasonYear}
+      />
+      <select
+        aria-label={`Select driver ${index + 1}`}
+        value={selectedDriver}
+        onChange={(event) => onDriverChange(index, event.target.value)}
+      >
+        <option value="">Select Driver {index + 1}</option>
+        {drivers.map((driver) => (
+          <option key={driver} value={driver}>{driver}</option>
+        ))}
+      </select>
+    </label>
+  );
+};
 
 // Session selector for API-dependent pages
 export const SessionSelector = ({ 
@@ -123,7 +168,9 @@ export const MobileDriverSelectors = ({
   drivers = [],
   selectedDrivers = ["", ""],
   onDriverChange,
-  maxDrivers = 2
+  maxDrivers = 2,
+  teamByDriver = new Map(),
+  seasonYear = 2026,
 }) => {
   return (
     <div style={{ 
@@ -134,25 +181,15 @@ export const MobileDriverSelectors = ({
       padding: "0 1rem"
     }}>
       {Array.from({ length: maxDrivers }, (_, i) => (
-        <select
+        <DriverSelectField
+          drivers={drivers}
+          index={i}
           key={i}
-          value={selectedDrivers[i] || ''}
-          onChange={(e) => onDriverChange(i, e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff",
-            width: "100%"
-          }}
-        >
-          <option value="">Select Driver {i + 1}</option>
-          {drivers.map((driver) => (
-            <option key={driver} value={driver}>{driver}</option>
-          ))}
-        </select>
+          onDriverChange={onDriverChange}
+          seasonYear={seasonYear}
+          selectedDrivers={selectedDrivers}
+          teamByDriver={teamByDriver}
+        />
       ))}
       <button 
         onClick={() => onDriverChange('reset')}
@@ -177,7 +214,9 @@ export const DesktopDriverSelectors = ({
   drivers = [],
   selectedDrivers = ["", ""],
   onDriverChange,
-  maxDrivers = 2
+  maxDrivers = 2,
+  teamByDriver = new Map(),
+  seasonYear = 2026,
 }) => {
   return (
     <div style={{ 
@@ -188,25 +227,15 @@ export const DesktopDriverSelectors = ({
       flexWrap: "wrap"
     }}>
       {Array.from({ length: maxDrivers }, (_, i) => (
-        <select
+        <DriverSelectField
+          drivers={drivers}
+          index={i}
           key={i}
-          value={selectedDrivers[i] || ''}
-          onChange={(e) => onDriverChange(i, e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff",
-            minWidth: "150px"
-          }}
-        >
-          <option value="">Select Driver {i + 1}</option>
-          {drivers.map((driver) => (
-            <option key={driver} value={driver}>{driver}</option>
-          ))}
-        </select>
+          onDriverChange={onDriverChange}
+          seasonYear={seasonYear}
+          selectedDrivers={selectedDrivers}
+          teamByDriver={teamByDriver}
+        />
       ))}
       <button 
         onClick={() => onDriverChange('reset')}
@@ -232,7 +261,9 @@ export const ResponsiveDriverSelector = ({
   selectedDrivers = ["", ""],
   onDriverChange,
   maxDrivers = 2,
-  isMobile = false
+  isMobile = false,
+  teamByDriver = new Map(),
+  seasonYear = 2026,
 }) => {
   if (isMobile) {
     return (
@@ -241,6 +272,8 @@ export const ResponsiveDriverSelector = ({
         selectedDrivers={selectedDrivers}
         onDriverChange={onDriverChange}
         maxDrivers={maxDrivers}
+        teamByDriver={teamByDriver}
+        seasonYear={seasonYear}
       />
     );
   }
@@ -251,6 +284,8 @@ export const ResponsiveDriverSelector = ({
       selectedDrivers={selectedDrivers}
       onDriverChange={onDriverChange}
       maxDrivers={maxDrivers}
+      teamByDriver={teamByDriver}
+      seasonYear={seasonYear}
     />
   );
 };

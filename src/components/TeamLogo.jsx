@@ -8,25 +8,37 @@ const TeamLogo = ({
   size = 'md',
   className = '',
   decorative = true,
+  tone = 'white',
 }) => {
   const config = getTeamLogoConfig(team, year);
   if (!config) return null;
+  const logoPath = `${import.meta.env.BASE_URL}${config.path}`;
+  const isTeamTone = tone === 'team';
 
   return (
     <span
-      className={`team-logo team-logo--${size} ${className}`.trim()}
+      aria-hidden={decorative ? 'true' : undefined}
+      aria-label={decorative ? undefined : `${config.label} team logo`}
+      className={`team-logo team-logo--${size} team-logo--${isTeamTone ? 'team' : 'white'} ${className}`.trim()}
+      role={decorative ? undefined : 'img'}
+      style={isTeamTone ? {
+        '--team-logo-color': config.color,
+        '--team-logo-image': `url("${logoPath}")`,
+      } : undefined}
       title={config.label}
     >
-      <img
-        alt={decorative ? '' : `${config.label} team logo`}
-        aria-hidden={decorative ? 'true' : undefined}
-        draggable="false"
-        loading="lazy"
-        src={`${import.meta.env.BASE_URL}${config.path}`}
-      />
+      {isTeamTone ? (
+        <span className="team-logo__mark" />
+      ) : (
+        <img
+          alt=""
+          draggable="false"
+          loading="lazy"
+          src={logoPath}
+        />
+      )}
     </span>
   );
 };
 
 export default TeamLogo;
-

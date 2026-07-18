@@ -19,6 +19,7 @@ import { parseDriverStats } from "../utils/parseDriverStats";
 import { getDriverColor, useProcessedRaceData } from "../utils/dataProcessing.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
+import DriverMark from "../components/DriverMark.jsx";
 import TeamLogo from "../components/TeamLogo.jsx";
 
 ChartJS.register(
@@ -759,7 +760,13 @@ const DriverStatsPage = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div className="driver-ranking-identity">
-                    <TeamLogo size="md" team={driver.team} year={selectedYear} />
+                    <DriverMark
+                      driver={driver.name}
+                      size="md"
+                      team={driver.team}
+                      year={selectedYear}
+                    />
+                    <TeamLogo size="sm" team={driver.team} tone="team" year={selectedYear} />
                     <div>
                       <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: driver.color }}>
                         #{index + 1} {driver.name}
@@ -832,11 +839,21 @@ const DriverStatsPage = () => {
                     <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>#{index + 1}</td>
                     <td style={{ padding: '0.6rem 1rem', color: driver.color, fontWeight: 'bold' }}>
                       <div className="driver-table-identity">
-                        <TeamLogo size="sm" team={driver.team} year={selectedYear} />
+                        <DriverMark
+                          driver={driver.name}
+                          size="sm"
+                          team={driver.team}
+                          year={selectedYear}
+                        />
                         <span>{driver.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '1rem', color: '#ccc' }}>{driver.team}</td>
+                    <td style={{ padding: '1rem', color: '#ccc' }}>
+                      <div className="driver-table-identity">
+                        <TeamLogo size="xs" team={driver.team} tone="team" year={selectedYear} />
+                        <span>{driver.team}</span>
+                      </div>
+                    </td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>{driver.points}</td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>{driver.performanceScore}/100</td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>{driver.consistency}%</td>

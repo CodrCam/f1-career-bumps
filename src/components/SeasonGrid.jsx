@@ -1,4 +1,5 @@
 import React from 'react';
+import DriverMark from './DriverMark.jsx';
 import TeamCarMark from './TeamCarMark.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { SEASON_2026_GRID, TEAM_CAR_CONFIG } from '../data/seasonGrid.js';
@@ -26,7 +27,7 @@ const SeasonGrid = () => (
             <div className="grid-team-header">
               <span className="grid-position">{String(index + 1).padStart(2, '0')}</span>
               <span className="grid-team-identity">
-                <TeamLogo size="xs" team={config.name} year={2026} />
+                <TeamLogo size="xs" team={config.name} tone="team" year={2026} />
                 <span>{config.name}</span>
               </span>
               <span className="grid-team-code">{config.shortName}</span>
@@ -37,6 +38,7 @@ const SeasonGrid = () => (
                 <div className="grid-driver" key={driver}>
                   <TeamCarMark compact team={team} />
                   <span>{driver}</span>
+                  <DriverMark driver={driver} size="xs" team={config.name} year={2026} />
                 </div>
               ))}
             </div>

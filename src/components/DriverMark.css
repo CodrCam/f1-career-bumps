@@ -1,0 +1,36 @@
+.driver-mark {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 58px;
+  height: 33px;
+  justify-content: center;
+  width: 58px;
+}
+
+.driver-mark__art {
+  background: var(--driver-mark-color, #f8fafc);
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.68));
+  height: 100%;
+  -webkit-mask: var(--driver-mark-image) center / contain no-repeat;
+  mask: var(--driver-mark-image) center / contain no-repeat;
+  width: 100%;
+}
+
+.driver-mark--xs {
+  flex-basis: 32px;
+  height: 18px;
+  width: 32px;
+}
+
+.driver-mark--sm {
+  flex-basis: 44px;
+  height: 25px;
+  width: 44px;
+}
+
+.driver-mark--lg {
+  flex-basis: 76px;
+  height: 43px;
+  width: 76px;
+}

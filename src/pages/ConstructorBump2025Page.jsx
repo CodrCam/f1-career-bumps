@@ -160,6 +160,7 @@ const ConstructorBump2025Page = () => {
           className="constructor-line-chart"
           style={{ height: isMobile ? '400px' : '600px' }}
           isMobile={isMobile}
+          seasonYear={selectedYear}
         />
       ) : (
         <ResponsiveChart

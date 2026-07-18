@@ -66,6 +66,17 @@ const DriverResults2025Page = () => {
   const allDrivers = useMemo(() => {
     return getAllDriversIncludingOriginals(rawRaces, processedRaces);
   }, [rawRaces, processedRaces]);
+  const teamByDriver = useMemo(() => {
+    const teams = new Map();
+
+    [...rawRaces, ...processedRaces].forEach((race) => {
+      (race.race_results ?? []).forEach(({ driver, team }) => {
+        teams.set(driver, team);
+      });
+    });
+
+    return teams;
+  }, [processedRaces, rawRaces]);
 
   const maxFinishPosition = useMemo(() => {
     const positions = rawRaces.flatMap((race) => (
@@ -185,6 +196,7 @@ const DriverResults2025Page = () => {
 
       return {
         label: driver,
+        team,
         data: positions.slice(visibleStart, visibleStart + visibleCount),
         borderColor: isSelected ? getTeamColor(team) : "rgba(200,200,200,0.3)",
         borderWidth: isSelected ? (isMobile ? 2 : 3) : 1,
@@ -301,6 +313,8 @@ const DriverResults2025Page = () => {
         onDriverChange={handleDriverChange}
         maxDrivers={2}
         isMobile={isMobile}
+        seasonYear={selectedYear}
+        teamByDriver={teamByDriver}
       />
 
       <div className="race-results-controls">

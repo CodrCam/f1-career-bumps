@@ -14,6 +14,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import DriverMark from '../components/DriverMark.jsx';
 import TeamLogo from '../components/TeamLogo.jsx';
 import { useSeasonData } from '../hooks/useSeasonData.js';
 import {
@@ -54,10 +55,10 @@ const DriverIdentity = ({
 
   return (
     <span className={`story-driver ${reversed ? 'reversed' : ''}`}>
-      <TeamLogo size="sm" team={team} year={year} />
+      <DriverMark driver={name} size="sm" team={team} year={year} />
       <span>
         <strong>{name}</strong>
-        <small>{code}</small>
+        <small>{code} · {team}</small>
       </span>
     </span>
   );
@@ -468,7 +469,13 @@ const RaceStoryPage = () => {
           {trafficDrivers.slice(0, 10).map((driver) => (
               <article className="traffic-driver" key={driver.driver}>
                 <div className="traffic-driver-name">
-                  <TeamLogo size="md" team={driver.team} year={year} />
+                  <DriverMark
+                    driver={names.get(driver.driver) ?? driver.driver}
+                    size="md"
+                    team={driver.team}
+                    year={year}
+                  />
+                  <TeamLogo size="sm" team={driver.team} tone="team" year={year} />
                   <span>
                     <strong>{names.get(driver.driver) ?? driver.driver}</strong>
                     <small>{driver.team}</small>

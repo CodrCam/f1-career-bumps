@@ -6,7 +6,9 @@ import {
   getLatestConstructorStandings,
   getLatestDriverStandings,
 } from '../utils/constructorRace.js';
+import DriverMark from './DriverMark.jsx';
 import TeamCarMark from './TeamCarMark.jsx';
+import TeamLogo from './TeamLogo.jsx';
 
 // Generic responsive chart wrapper
 export const ResponsiveChart = ({ 
@@ -76,9 +78,13 @@ const RaceStageChart = ({
   mobileMaxStagger = 56,
   desktopStaggerRatio = 0.16,
   mobileStaggerRatio = 0.22,
+  kind = 'constructor',
+  seasonYear = 2026,
 }) => {
   const chartRef = React.useRef(null);
   const [raceLayout, setRaceLayout] = React.useState(null);
+  const [hoveredCarKey, setHoveredCarKey] = React.useState(null);
+  const [pinnedCarKey, setPinnedCarKey] = React.useState(null);
 
   const syncRaceLayout = React.useCallback((chart = chartRef.current) => {
     const yScale = chart?.scales?.y;
@@ -103,6 +109,9 @@ const RaceStageChart = ({
         width: carWidth,
         left: finishX - carWidth - (index * staggerStep),
         top: yScale.getPixelForValue(standing.position) - (carHeight / 2),
+        tooltipPlacement: yScale.getPixelForValue(standing.position) < chartArea.top + 118
+          ? 'below'
+          : 'above',
       })),
     };
     const signature = JSON.stringify(nextLayout);
@@ -144,6 +153,27 @@ const RaceStageChart = ({
       },
     },
   }), [options]);
+  const activeCarKey = hoveredCarKey || pinnedCarKey;
+  const latestRound = data?.labels?.at(-1);
+
+  const getCarSummary = React.useCallback((car) => {
+    if (kind === 'driver') {
+      return [
+        car.label,
+        `P${car.championshipPosition}`,
+        `${car.points} points`,
+        car.team,
+        latestRound,
+      ].filter(Boolean).join(', ');
+    }
+
+    return [
+      car.label,
+      `P${car.position}`,
+      Number.isFinite(car.points) ? `${car.points} points` : null,
+      latestRound,
+    ].filter(Boolean).join(', ');
+  }, [kind, latestRound]);
 
   return (
     <div className={`chart-wrapper race-stage-chart ${className} fade-in`} style={style}>
@@ -155,21 +185,101 @@ const RaceStageChart = ({
       />
 
       {raceLayout && (
-        <div className="race-car-overlay" aria-hidden="true">
-          {raceLayout.cars.map((car) => (
-            <div
-              className="race-stage-car"
-              key={car.key}
-              style={{
-                left: `${car.left}px`,
-                top: `${car.top}px`,
-                width: `${car.width}px`,
-              }}
-            >
-              <span className="race-car-badge">{car.badge}</span>
-              <TeamCarMark compact team={car.teamKey} />
-            </div>
-          ))}
+        <div className="race-car-overlay">
+          {raceLayout.cars.map((car) => {
+            const isActive = activeCarKey === car.key;
+            const tooltipId = `${pluginId}-${String(car.key).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-details`;
+
+            return (
+              <button
+                aria-describedby={isActive ? tooltipId : undefined}
+                aria-expanded={isActive}
+                aria-label={getCarSummary(car)}
+                className={`race-stage-car ${isActive ? 'is-active' : ''}`}
+                key={car.key}
+                onBlur={() => setHoveredCarKey(null)}
+                onClick={() => setPinnedCarKey((current) => (
+                  current === car.key ? null : car.key
+                ))}
+                onFocus={() => setHoveredCarKey(car.key)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setHoveredCarKey(null);
+                    setPinnedCarKey(null);
+                    event.currentTarget.blur();
+                  } else if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setHoveredCarKey(car.key);
+                    setPinnedCarKey((current) => (
+                      current === car.key ? null : car.key
+                    ));
+                  }
+                }}
+                onMouseEnter={() => setHoveredCarKey(car.key)}
+                onMouseLeave={() => setHoveredCarKey(null)}
+                style={{
+                  left: `${car.left}px`,
+                  top: `${car.top}px`,
+                  width: `${car.width}px`,
+                }}
+                type="button"
+              >
+                <span className="race-car-badge">{car.badge}</span>
+                <TeamCarMark compact team={car.teamKey} />
+
+                <span
+                  className={`race-car-tooltip race-car-tooltip--${car.tooltipPlacement}`}
+                  id={tooltipId}
+                  role="tooltip"
+                >
+                  <span className="race-car-tooltip__header">
+                    {kind === 'driver' ? (
+                      <DriverMark
+                        driver={car.label}
+                        size="sm"
+                        team={car.team}
+                        year={seasonYear}
+                      />
+                    ) : (
+                      <TeamLogo
+                        size="sm"
+                        team={car.label}
+                        tone="team"
+                        year={seasonYear}
+                      />
+                    )}
+                    <span>
+                      <strong>{car.label}</strong>
+                      {kind === 'driver' && <small>{car.team}</small>}
+                    </span>
+                  </span>
+                  <span className="race-car-tooltip__stats">
+                    <span>
+                      <small>Standing</small>
+                      <strong>
+                        P{kind === 'driver' ? car.championshipPosition : car.position}
+                      </strong>
+                    </span>
+                    <span>
+                      <small>Points</small>
+                      <strong>{Number.isFinite(car.points) ? car.points : '--'}</strong>
+                    </span>
+                  </span>
+                  <span className="race-car-tooltip__context">
+                    {car.gapToLeader === 0 && Number.isFinite(car.leadOverNext)
+                      ? `Leads P2 by ${car.leadOverNext} pts`
+                      : `Gap to leader: ${car.gapToLeader ?? '--'} pts`}
+                    {Number.isFinite(car.gapToAhead) && car.gapToAhead !== car.gapToLeader
+                      ? ` · ${car.gapToAhead} pts to the place ahead`
+                      : ''}
+                  </span>
+                  {latestRound && (
+                    <span className="race-car-tooltip__round">After {latestRound}</span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -191,6 +301,7 @@ export const ConstructorRaceChart = (props) => {
       {...props}
       standings={standings}
       pluginId="constructor-race-grid"
+      kind="constructor"
     />
   );
 };
@@ -218,6 +329,7 @@ export const DriverRaceChart = ({
       {...props}
       standings={standings}
       pluginId="driver-race-grid"
+      kind="driver"
       desktopCarWidth={62}
       mobileCarWidth={42}
       desktopMaxStagger={76}
@@ -269,8 +381,14 @@ export const DriverSelector = ({
   onDriverSelect,
   maxDrivers = 2,
   isMobile = false,
-  title = "Select Drivers to Compare"
+  title = "Select Drivers to Compare",
+  teamByDriver = new Map(),
+  seasonYear = 2026,
 }) => {
+  const getDriverTeam = (driver) => (
+    teamByDriver instanceof Map ? teamByDriver.get(driver) : teamByDriver[driver]
+  );
+
   if (isMobile) {
     // Mobile dropdown version
     return (
@@ -284,25 +402,24 @@ export const DriverSelector = ({
           padding: "0 1rem"
         }}>
           {Array.from({ length: maxDrivers }, (_, i) => (
-            <select
-              key={i}
-              value={selectedDrivers[i] || ''}
-              onChange={(e) => onDriverSelect && onDriverSelect(i, e.target.value)}
-              style={{
-                padding: "0.75rem",
-                fontSize: "1rem",
-                borderRadius: "6px",
-                border: "1px solid #555",
-                backgroundColor: "#333",
-                color: "#fff",
-                width: "100%"
-              }}
-            >
-              <option value="">Select Driver {i + 1}</option>
-              {drivers.map((driver) => (
-                <option key={driver} value={driver}>{driver}</option>
-              ))}
-            </select>
+            <label className="driver-select-field" key={i}>
+              <DriverMark
+                driver={selectedDrivers[i]}
+                size="sm"
+                team={getDriverTeam(selectedDrivers[i])}
+                year={seasonYear}
+              />
+              <select
+                aria-label={`Select driver ${i + 1}`}
+                value={selectedDrivers[i] || ''}
+                onChange={(e) => onDriverSelect && onDriverSelect(i, e.target.value)}
+              >
+                <option value="">Select Driver {i + 1}</option>
+                {drivers.map((driver) => (
+                  <option key={driver} value={driver}>{driver}</option>
+                ))}
+              </select>
+            </label>
           ))}
           <button 
             onClick={() => onDriverSelect && onDriverSelect('reset')}
@@ -342,18 +459,18 @@ export const DriverSelector = ({
               onClick={() => onDriverSelect && onDriverSelect('toggle', driver)}
               className={`driver-button ${isSelected ? 'active' : ''}`}
               style={{
-                padding: '0.5rem 1rem',
-                border: '2px solid #555',
-                borderRadius: '6px',
-                backgroundColor: isSelected ? getTeamColor(driver) : '#333',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
+                '--driver-selector-color': getTeamColor(getDriverTeam(driver)),
                 ...(selectedDrivers.length >= maxDrivers && !isSelected ? { opacity: 0.5, pointerEvents: 'none' } : {})
               }}
               disabled={selectedDrivers.length >= maxDrivers && !isSelected}
             >
-              {driver}
+              <DriverMark
+                driver={driver}
+                size="xs"
+                team={getDriverTeam(driver)}
+                year={seasonYear}
+              />
+              <span>{driver}</span>
             </button>
           );
         })}
@@ -428,8 +545,13 @@ export const ChampionshipBumpChart = ({
   allDrivers = [],
   isMobile = false,
   showRaceCars = false,
+  maxDrivers = 2,
+  seasonYear = 2026,
 }) => {
   const chartTitle = title || `${type === 'driver' ? 'Driver' : 'Constructor'} Championship Standings`;
+  const teamByDriver = React.useMemo(() => new Map(
+    (data?.datasets ?? []).map(({ label, team }) => [label, team]),
+  ), [data]);
   
   return (
     <F1PageLayout 
@@ -443,9 +565,11 @@ export const ChampionshipBumpChart = ({
           drivers={allDrivers}
           selectedDrivers={selectedDrivers}
           onDriverSelect={onDriverSelect}
-          maxDrivers={2}
+          maxDrivers={maxDrivers}
           isMobile={isMobile}
           title="Filter Drivers"
+          teamByDriver={teamByDriver}
+          seasonYear={seasonYear}
         />
       )}
 
@@ -458,6 +582,7 @@ export const ChampionshipBumpChart = ({
           className="championship-line-chart"
           style={{ height: isMobile ? '400px' : '600px' }}
           isMobile={isMobile}
+          seasonYear={seasonYear}
         />
       ) : (
         <ResponsiveChart

@@ -22,6 +22,8 @@ import {
 } from "../utils/dataProcessing.js";
 import { getTrackName } from "../utils/raceLabels.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
+import DriverMark from "../components/DriverMark.jsx";
+import TeamLogo from "../components/TeamLogo.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
 
 ChartJS.register(
@@ -84,6 +86,9 @@ const NewDriverHeadToHeadPage = () => {
 
     return getSharedDriverColor(driverName, result?.team, selectedYear);
   };
+  const getDriverTeam = (driverName) => processedRaces
+    .flatMap((race) => race.race_results ?? [])
+    .find(({ driver }) => driver === driverName)?.team;
   
   // Memoize all drivers list
   const allDrivers = useMemo(() => getAllDrivers(processedRaces), [processedRaces]);
@@ -433,23 +438,38 @@ const NewDriverHeadToHeadPage = () => {
     >
       {/* Controls */}
       <ControlBar>
-        <select 
-          value={driver1} 
-          onChange={(e) => setDriver1(e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff",
-            minWidth: "180px"
-          }}
-        >
-          {allDrivers.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+        <div className="driver-comparison-pick">
+          <DriverMark
+            driver={driver1}
+            size="sm"
+            team={getDriverTeam(driver1)}
+            year={selectedYear}
+          />
+          <TeamLogo
+            size="xs"
+            team={getDriverTeam(driver1)}
+            tone="team"
+            year={selectedYear}
+          />
+          <select
+            aria-label="First driver"
+            value={driver1}
+            onChange={(e) => setDriver1(e.target.value)}
+            style={{
+              padding: "0.75rem",
+              fontSize: "1rem",
+              borderRadius: "6px",
+              border: "1px solid #555",
+              backgroundColor: "#333",
+              color: "#fff",
+              minWidth: "180px"
+            }}
+          >
+            {allDrivers.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
 
         <div style={{ 
           padding: "0.75rem",
@@ -460,23 +480,38 @@ const NewDriverHeadToHeadPage = () => {
           VS
         </div>
 
-        <select 
-          value={driver2} 
-          onChange={(e) => setDriver2(e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff",
-            minWidth: "180px"
-          }}
-        >
-          {allDrivers.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+        <div className="driver-comparison-pick">
+          <DriverMark
+            driver={driver2}
+            size="sm"
+            team={getDriverTeam(driver2)}
+            year={selectedYear}
+          />
+          <TeamLogo
+            size="xs"
+            team={getDriverTeam(driver2)}
+            tone="team"
+            year={selectedYear}
+          />
+          <select
+            aria-label="Second driver"
+            value={driver2}
+            onChange={(e) => setDriver2(e.target.value)}
+            style={{
+              padding: "0.75rem",
+              fontSize: "1rem",
+              borderRadius: "6px",
+              border: "1px solid #555",
+              backgroundColor: "#333",
+              color: "#fff",
+              minWidth: "180px"
+            }}
+          >
+            {allDrivers.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
 
         <select
           value={viewMode}

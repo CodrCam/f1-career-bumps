@@ -181,6 +181,7 @@ export const useConstructorData = (rawRaces, isMobile = false) => {
     const datasets = [...teamStandings.entries()].map(([team, positions]) => ({
       label: team,
       data: positions,
+      points: cumulativeMap.get(team),
       borderColor: getTeamColor(team),
       backgroundColor: getTeamColor(team),
       fill: false,
