@@ -29,10 +29,10 @@ const capabilities = [
   },
   {
     accent: "amber",
-    description: "Explore sector pace, pit-stop service, full pit-lane timing, and strategy windows from completed sessions.",
+    description: "Explore sector pace, pit-stop service, full pit-lane timing, and operational time loss from completed sessions.",
     icon: Gauge,
-    label: "Pace and strategy",
-    path: getSeasonPath(CURRENT_SEASON, "pit-strategy"),
+    label: "Pace and pit work",
+    path: getSeasonPath(CURRENT_SEASON, "pit-stop-analysis"),
   },
   {
     accent: "pink",

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
-import { Bar, Scatter, Line } from 'react-chartjs-2';
+import { Bar, Scatter } from 'react-chartjs-2';
 import '../components/Analysis.css';
-import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
-import { SessionSelector, DriverToggleButtons, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
+import { F1PageLayout, StatsGrid } from '../components/ChartComponents.jsx';
+import { DriverToggleButtons, ControlBar } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
 import TeamLogo from '../components/TeamLogo.jsx';
 import { getSeasonFromParam } from '../utils/seasons.js';
@@ -15,6 +15,41 @@ import {
 } from '../utils/dataProcessing.js';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement);
+
+const OPEN_F1_REQUEST_SPACING_MS = 400;
+let lastOpenF1RequestAt = 0;
+let openF1RequestQueue = Promise.resolve();
+
+const wait = (duration) => new Promise((resolve) => {
+  window.setTimeout(resolve, duration);
+});
+
+const fetchOpenF1 = (url, attempts = 3) => {
+  const request = async () => {
+    let response;
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const spacing = Math.max(
+        0,
+        OPEN_F1_REQUEST_SPACING_MS - (Date.now() - lastOpenF1RequestAt),
+      );
+      if (spacing > 0) await wait(spacing);
+
+      lastOpenF1RequestAt = Date.now();
+      response = await fetch(url);
+      if (response.status !== 429 || attempt === attempts - 1) return response;
+
+      const retryAfter = Number(response.headers.get('retry-after'));
+      await wait(Number.isFinite(retryAfter) ? retryAfter * 1000 : 700 * (attempt + 1));
+    }
+
+    return response;
+  };
+
+  const queuedRequest = openF1RequestQueue.then(request, request);
+  openF1RequestQueue = queuedRequest.then(() => undefined, () => undefined);
+  return queuedRequest;
+};
 
 // Custom hook for enhanced sector analysis data
 const useSectorAnalysis = (year) => {
@@ -34,7 +69,7 @@ const useSectorAnalysis = (year) => {
       setInitialLoading(true);
       setError('');
       
-      const response = await fetch(`${apiBase}/sessions?year=${year}`);
+      const response = await fetchOpenF1(`${apiBase}/sessions?year=${year}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -59,35 +94,43 @@ const useSectorAnalysis = (year) => {
         throw new Error(`No race sessions found for ${year}`);
       }
       
-      setSelectedSession('');
       setSessions(raceSessions);
+      const latestRace = raceSessions.find(({ session_name }) => session_name === 'Race');
+      await loadSessionData((latestRace ?? raceSessions[0]).session_key);
     } catch (err) {
       console.error('Failed to load sessions:', err);
       setError(`Failed to load sessions: ${err.message}`);
-    } finally {
       setInitialLoading(false);
     }
   };
 
-  const loadSessionData = async () => {
-    if (!selectedSession) {
+  const loadSessionData = async (sessionKey = selectedSession) => {
+    if (!sessionKey) {
       setError('Please select a session');
       return;
     }
 
+    const normalizedSessionKey = String(sessionKey);
+    setSelectedSession(normalizedSessionKey);
+    setSessionData({});
+    setSectorStats({});
+    setSelectedDrivers(new Set());
     setLoading(true);
     setError('');
     
     try {
-      const [lapsResponse, driversResponse] = await Promise.all([
-        fetch(`${apiBase}/laps?session_key=${selectedSession}`),
-        fetch(`${apiBase}/drivers?session_key=${selectedSession}`)
-      ]);
+      const lapsResponse = await fetchOpenF1(
+        `${apiBase}/laps?session_key=${normalizedSessionKey}`,
+      );
 
       if (!lapsResponse.ok) {
         throw new Error(`Failed to fetch lap data: HTTP ${lapsResponse.status}`);
       }
-      
+
+      const driversResponse = await fetchOpenF1(
+        `${apiBase}/drivers?session_key=${normalizedSessionKey}`,
+      );
+
       if (!driversResponse.ok) {
         throw new Error(`Failed to fetch driver data: HTTP ${driversResponse.status}`);
       }
@@ -116,6 +159,7 @@ const useSectorAnalysis = (year) => {
       setError(`Failed to load session data: ${err.message}`);
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -263,7 +307,6 @@ const useSectorAnalysis = (year) => {
   return {
     sessions,
     selectedSession,
-    setSelectedSession,
     sessionData,
     selectedDrivers,
     setSelectedDrivers,
@@ -499,12 +542,10 @@ const SectorAnalysisPage = () => {
   const selectedYear = getSeasonFromParam(seasonYear);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [visualizationType, setVisualizationType] = useState('relative'); // 'relative', 'precision', 'strengths'
-  const [showConsistency, setShowConsistency] = useState(false);
   
   const {
     sessions,
     selectedSession,
-    setSelectedSession,
     sessionData,
     selectedDrivers,
     setSelectedDrivers,
@@ -525,6 +566,8 @@ const SectorAnalysisPage = () => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+    // The selected season is the intentional reload boundary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear]);
 
   const formatTime = (seconds) => {
@@ -569,7 +612,7 @@ const SectorAnalysisPage = () => {
       },
       title: {
         display: true,
-        text: 'Sector Performance vs Session Average - Qualifying Precision',
+        text: 'Sector Performance vs Session Average',
         color: 'white',
         font: { size: isMobile ? 14 : 16 }
       },
@@ -738,8 +781,8 @@ const SectorAnalysisPage = () => {
         showHeader={true}
       >
         <DataLoader 
-          message="Loading F1 Sessions..." 
-          submessage={`Fetching ${selectedYear} race sessions`}
+          message="Loading latest sector data..."
+          submessage={`Opening the latest completed ${selectedYear} race`}
         />
       </F1PageLayout>
     );
@@ -781,7 +824,38 @@ const SectorAnalysisPage = () => {
     >
       {/* Enhanced Controls */}
       <ControlBar>
+        <label style={{ display: 'grid', gap: '0.3rem', minWidth: '260px' }}>
+          <span style={{ color: '#cbd5e1', fontSize: '0.72rem', fontWeight: 800 }}>
+            Session
+          </span>
+          <select
+            aria-label="Sector analysis session"
+            disabled={loading}
+            onChange={(event) => loadSessionData(event.target.value)}
+            value={selectedSession}
+            style={{
+              padding: "0.75rem",
+              fontSize: "1rem",
+              borderRadius: "6px",
+              border: "1px solid #555",
+              backgroundColor: "#333",
+              color: "#fff",
+              minWidth: 0
+            }}
+          >
+            {sessions.map((session) => (
+              <option key={session.session_key} value={session.session_key}>
+                {session.location} · {session.session_name} · {new Date(session.date_start).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <select
+          aria-label="Sector analysis view"
           value={visualizationType}
           onChange={(e) => setVisualizationType(e.target.value)}
           style={{
@@ -798,30 +872,14 @@ const SectorAnalysisPage = () => {
           <option value="strengths">Sector Strengths</option>
         </select>
 
-        <ToggleSwitch
-          checked={showConsistency}
-          onChange={(e) => setShowConsistency(e.target.checked)}
-          label="Show Consistency"
-        />
       </ControlBar>
-
-      {/* Session Controls */}
-      <SessionSelector
-        sessions={sessions}
-        selectedSession={selectedSession}
-        onSessionChange={setSelectedSession}
-        onLoadData={loadSessionData}
-        loading={loading}
-        label="Select Session"
-        buttonText="Load Data"
-      />
 
       {/* Error Display */}
       {error && (
         <ErrorMessage
           title="Data Loading Error"
           message={error}
-          onRetry={selectedSession ? loadSessionData : loadSessions}
+          onRetry={selectedSession ? () => loadSessionData(selectedSession) : loadSessions}
         />
       )}
 
@@ -893,7 +951,7 @@ const SectorAnalysisPage = () => {
           marginTop: '2rem'
         }}>
           <h3 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
-            🎯 Sector Performance Breakdown
+            Sector Performance Breakdown
           </h3>
           
           {isMobile ? (

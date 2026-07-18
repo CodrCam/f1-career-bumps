@@ -10,7 +10,6 @@ import {
   Route,
   Trophy,
   Users,
-  Wrench,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -107,21 +106,21 @@ const Navbar = () => {
       paths: [
         getSeasonPath(activeSeason, 'driver-results'),
         getSeasonPath(activeSeason, 'driver-stats'),
-        getSeasonPath(activeSeason, 'head-to-head')
+        getSeasonPath(activeSeason, 'head-to-head'),
+        getSeasonPath(activeSeason, 'sector-analysis')
       ],
       items: [
         { path: getSeasonPath(activeSeason, 'driver-results'), label: 'Race Results', icon: BarChart3 },
         { path: getSeasonPath(activeSeason, 'driver-stats'), label: 'Performance Stats', icon: ChartNoAxesCombined },
-        { path: getSeasonPath(activeSeason, 'head-to-head'), label: 'Head to Head', icon: GitCompareArrows }
+        { path: getSeasonPath(activeSeason, 'head-to-head'), label: 'Head to Head', icon: GitCompareArrows },
+        { path: getSeasonPath(activeSeason, 'sector-analysis'), label: 'Sector Times', icon: Gauge }
       ]
     },
     {
       type: 'dropdown',
-      label: 'Live Analysis',
+      label: 'Race Analysis',
       key: 'live',
       paths: [
-        getSeasonPath(activeSeason, 'sector-analysis'),
-        getSeasonPath(activeSeason, 'pit-strategy'),
         getSeasonPath(activeSeason, 'pit-stop-analysis'),
         ...(activeSeason === 2026 ? [getSeasonPath(activeSeason, 'race-story')] : [])
       ],
@@ -129,8 +128,6 @@ const Navbar = () => {
         ...(isSeasonSectionSupported(activeSeason, 'race-story')
           ? [{ path: getSeasonPath(activeSeason, 'race-story'), label: 'Race Story', icon: Route, badge: 'New' }]
           : []),
-        { path: getSeasonPath(activeSeason, 'sector-analysis'), label: 'Sector Times', icon: Gauge },
-        { path: getSeasonPath(activeSeason, 'pit-strategy'), label: 'Pit Strategy', icon: Wrench },
         { path: getSeasonPath(activeSeason, 'pit-stop-analysis'), label: 'Pit Stop Analysis', icon: Fuel }
       ]
     }

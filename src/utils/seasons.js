@@ -28,10 +28,6 @@ export const SEASON_SECTIONS = {
     label: 'Sector Times',
     supportedSeasons: AVAILABLE_SEASONS,
   },
-  'pit-strategy': {
-    label: 'Pit Strategy',
-    supportedSeasons: AVAILABLE_SEASONS,
-  },
   'pit-stop-analysis': {
     label: 'Pit Stop Analysis',
     supportedSeasons: AVAILABLE_SEASONS,

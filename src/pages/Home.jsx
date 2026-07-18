@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Timer, Target, Activity, CalendarClock, BookOpenText } from "lucide-react";
+import { Rocket, BarChart3, Users2, Timer, Activity, CalendarClock, BookOpenText } from "lucide-react";
 import SeasonGrid from "../components/SeasonGrid.jsx";
 import { AVAILABLE_SEASONS, CURRENT_SEASON, getSeasonPath } from "../utils/seasons.js";
 
@@ -54,8 +54,8 @@ const Home = () => {
           <Link to={getSeasonPath(CURRENT_SEASON, 'driver-results')} className="card">
             <Users2 className="icon purple" />
             <div>
-              <h3>Driver Results Table</h3>
-              <p>Review qualifying vs. race vs. points</p>
+              <h3>Race Results</h3>
+              <p>Follow finishing-position movement across the season</p>
             </div>
           </Link>
 
@@ -75,22 +75,11 @@ const Home = () => {
             </div>
           </Link>
 
-          {/* New Live Analysis Features */}
-          <Link to={getSeasonPath(CURRENT_SEASON, 'sector-analysis')} className="card live-analysis">
+          <Link to={getSeasonPath(CURRENT_SEASON, 'sector-analysis')} className="card">
             <Timer className="icon cyan" />
             <div>
               <h3>Sector Time Analysis</h3>
-              <p>Real-time sector performance comparison</p>
-              <span className="new-badge">New</span>
-            </div>
-          </Link>
-
-          <Link to={getSeasonPath(CURRENT_SEASON, 'pit-strategy')} className="card live-analysis">
-            <Target className="icon pink" />
-            <div>
-              <h3>Pit Stop Strategy</h3>
-              <p>Analyze pit timing and strategic decisions</p>
-              <span className="new-badge">New</span>
+              <p>Compare sector pace and consistency by driver</p>
             </div>
           </Link>
 
