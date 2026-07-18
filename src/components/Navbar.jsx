@@ -12,24 +12,34 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { AVAILABLE_SEASONS, CURRENT_SEASON, getSeasonFromParam, getSeasonPath } from "../utils/seasons.js";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  AVAILABLE_SEASONS,
+  CURRENT_SEASON,
+  getSeasonFromParam,
+  getSeasonPath,
+  getSeasonSectionFromPath,
+  isSeasonSectionSupported,
+} from "../utils/seasons.js";
 import BrandLogo from "./BrandLogo.jsx";
 import "./Navbar.css";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const seasonMatch = location.pathname.match(/^\/(\d{4})(?:\/|$)/);
   const activeSeason = getSeasonFromParam(seasonMatch?.[1] ?? CURRENT_SEASON);
+  const activeSection = getSeasonSectionFromPath(location.pathname);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
+      const isMobileViewport = window.innerWidth <= 768;
+      setIsMobile(isMobileViewport);
+      if (!isMobileViewport) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -73,19 +83,21 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   };
 
+  const handleSeasonChange = (event) => {
+    navigate(getSeasonPath(Number(event.target.value), activeSection));
+    closeDropdown();
+  };
+
   // Navigation structure
   const navItems = [
     {
       type: 'dropdown',
-      label: `${activeSeason} Season`,
-      key: 'season',
+      label: 'Championship',
+      key: 'championship',
       paths: [getSeasonPath(activeSeason, 'constructors'), getSeasonPath(activeSeason, 'drivers')],
       items: [
         { path: getSeasonPath(activeSeason, 'drivers'), label: 'Driver Championship', icon: Trophy },
-        { path: getSeasonPath(activeSeason, 'constructors'), label: 'Constructor Championship', icon: Users },
-        ...AVAILABLE_SEASONS
-          .filter((year) => year !== activeSeason)
-          .map((year) => ({ path: getSeasonPath(year, 'drivers'), label: `Switch to ${year}`, icon: Clock3 }))
+        { path: getSeasonPath(activeSeason, 'constructors'), label: 'Constructor Championship', icon: Users }
       ]
     },
     {
@@ -114,7 +126,7 @@ const Navbar = () => {
         ...(activeSeason === 2026 ? [getSeasonPath(activeSeason, 'race-story')] : [])
       ],
       items: [
-        ...(activeSeason === 2026
+        ...(isSeasonSectionSupported(activeSeason, 'race-story')
           ? [{ path: getSeasonPath(activeSeason, 'race-story'), label: 'Race Story', icon: Route, badge: 'New' }]
           : []),
         { path: getSeasonPath(activeSeason, 'sector-analysis'), label: 'Sector Times', icon: Gauge },
@@ -152,15 +164,36 @@ const Navbar = () => {
         )}
 
         <nav className={`nav-links ${isMobile ? (isMobileMenuOpen ? 'mobile-open' : 'mobile-closed') : ''}`} ref={dropdownRef}>
+          <div className="season-switcher" aria-label="Season selector">
+            <Clock3 aria-hidden="true" size={16} />
+            <label className="season-select-label" htmlFor="season-select">
+              Season
+            </label>
+            <select
+              id="season-select"
+              className="season-select"
+              value={activeSeason}
+              onChange={handleSeasonChange}
+            >
+              {AVAILABLE_SEASONS.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {navItems.map((item) => (
             <div key={item.key} className="nav-item">
               {item.type === 'dropdown' ? (
                 <div className="dropdown">
                   <button
+                    type="button"
                     className={dropdownStyle(item.paths)}
                     onClick={() => toggleDropdown(item.key)}
                     onMouseEnter={() => !isMobile && setActiveDropdown(item.key)}
                     onMouseLeave={() => !isMobile && setActiveDropdown(null)}
+                    aria-expanded={activeDropdown === item.key}
                   >
                     {item.label}
                     <span className={`dropdown-arrow ${activeDropdown === item.key ? 'open' : ''}`}>

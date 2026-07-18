@@ -114,6 +114,51 @@
   position: relative;
 }
 
+.season-switcher {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #f8fafc;
+  display: flex;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0 0.75rem;
+}
+
+.season-select-label {
+  color: #aeb7c4;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.season-select {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  min-width: 4.1rem;
+  outline: 0;
+  padding: 0.25rem 1rem 0.25rem 0;
+}
+
+.season-select option {
+  color: #0f172a;
+}
+
+.season-switcher::after {
+  color: #94a3b8;
+  content: "▼";
+  font-size: 0.62rem;
+  margin-left: -0.9rem;
+  pointer-events: none;
+}
+
 /* Dropdown Styling */
 .dropdown {
   position: relative;
@@ -358,6 +403,8 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     flex-direction: column;
     gap: 0;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
     padding: 1rem 0;
     transform: translateY(-100%);
     opacity: 0;
@@ -375,6 +422,23 @@
     width: 100%;
   }
 
+  .season-switcher {
+    align-self: stretch;
+    border-left: 0;
+    border-radius: 0;
+    border-right: 0;
+    justify-content: flex-start;
+    margin-bottom: 0.35rem;
+    min-height: 48px;
+    padding: 0 1.5rem;
+    width: 100%;
+  }
+
+  .season-select {
+    flex: 1;
+    min-width: 0;
+  }
+
   .dropdown-toggle {
     width: 100%;
     justify-content: space-between;
@@ -383,6 +447,7 @@
   }
 
   .dropdown-menu {
+    display: none;
     position: static;
     min-width: auto;
     background: rgba(15, 23, 42, 0.8);
@@ -395,6 +460,7 @@
   }
 
   .dropdown-menu.show {
+    display: block;
     transform: none;
   }
 
@@ -431,6 +497,10 @@
     font-size: 0.9rem;
   }
 
+  .season-switcher {
+    padding: 0 1rem;
+  }
+
   .dropdown-item {
     padding: 0.75rem 1.5rem;
     font-size: 0.85rem;
@@ -453,7 +523,8 @@
 /* Focus styles for keyboard navigation */
 .dropdown-toggle:focus,
 .dropdown-item:focus,
-.nav-link:focus {
+.nav-link:focus,
+.season-select:focus {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
 }
