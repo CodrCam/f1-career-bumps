@@ -29,7 +29,7 @@ const capabilities = [
   },
   {
     accent: "amber",
-    description: "Explore sector pace, pit-stop timing, strategy windows, and directional pit-performance forecasts from completed sessions.",
+    description: "Explore sector pace, pit-stop service, full pit-lane timing, and strategy windows from completed sessions.",
     icon: Gauge,
     label: "Pace and strategy",
     path: getSeasonPath(CURRENT_SEASON, "pit-strategy"),
@@ -82,14 +82,14 @@ const About = () => (
         </div>
 
         <div className="about-capability-grid">
-          {capabilities.map(({ accent, description, icon: Icon, label, path }) => (
+          {capabilities.map(({ accent, description, icon: _Icon, label, path }) => (
             <Link
               className={`about-capability ${accent}`}
               key={label}
               to={path}
             >
               <div className="about-capability-icon">
-                <Icon aria-hidden="true" size={22} />
+                <_Icon aria-hidden="true" size={22} />
               </div>
               <div>
                 <h3>{label}</h3>
@@ -112,9 +112,9 @@ const About = () => (
         </div>
 
         <div className="about-technical-grid">
-          {technicalHighlights.map(({ detail, icon: Icon, label }) => (
+          {technicalHighlights.map(({ detail, icon: _Icon, label }) => (
             <div className="about-technical-item" key={label}>
-              <Icon aria-hidden="true" size={21} />
+              <_Icon aria-hidden="true" size={21} />
               <h3>{label}</h3>
               <p>{detail}</p>
             </div>
@@ -122,9 +122,8 @@ const About = () => (
         </div>
 
         <p className="about-model-note">
-          Pit forecasts are directional statistical estimates based on observed
-          performance trends. Official results and modeled views remain clearly
-          separated throughout the site.
+          Pit-stop service timing and full pit-lane duration come from separate
+          sources and remain clearly labeled throughout the analysis.
         </p>
       </section>
 

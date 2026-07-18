@@ -1,951 +1,672 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Line, Bar, Scatter } from 'react-chartjs-2';
+import { Bar, Line, Scatter } from 'react-chartjs-2';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
   BarElement,
-  Title,
-  Tooltip,
+  CategoryScale,
+  Chart as ChartJS,
   Legend,
-  ArcElement,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
 } from 'chart.js';
-import driverPitStopData from '../data/Driver_Pitstop.json';
-import { F1PageLayout } from '../components/ChartComponents.jsx';
-import { ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
-import { getSeasonFromParam } from '../utils/seasons.js';
 import {
-  getDriverColor as getSharedDriverColor,
-  getTeamColor,
-  normalizeTeamName as normalizeTeamNameForSeason,
-} from '../utils/dataProcessing.js';
+  Activity,
+  CheckCircle2,
+  Database,
+  Gauge,
+  RefreshCw,
+  Route,
+  Timer,
+  Users,
+  Wrench,
+} from 'lucide-react';
+import { F1PageLayout } from '../components/ChartComponents.jsx';
+import driverPitStopData from '../data/Driver_Pitstop.json';
+import pitStopTiming2025 from '../data/pitStopTiming2025.json';
+import pitStopTiming2026 from '../data/pitStopTiming2026.json';
+import { useSeasonData } from '../hooks/useSeasonData.js';
+import { getTeamColor } from '../utils/dataProcessing.js';
+import {
+  aggregatePitStops,
+  buildPitStopRecords,
+  median,
+  summarizePitStopCoverage,
+} from '../utils/pitStopAnalysis.js';
+import { getSeasonFromParam } from '../utils/seasons.js';
+import './PitStopAnalysisPage.css';
 
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
   BarElement,
-  Title,
-  Tooltip,
+  CategoryScale,
   Legend,
-  ArcElement
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
 );
 
-// ===== DATA PROCESSING HELPERS =====
+const formatSeconds = (value, digits = 2) => (
+  Number.isFinite(value) ? `${value.toFixed(digits)}s` : '—'
+);
 
-// Team and driver constants
-const drivers2025 = [
-  { id: "max_verstappen", driver: "Max Verstappen", team: "Red Bull" },
-  { id: "yuki_tsunoda", driver: "Yuki Tsunoda", team: "Red Bull" },
-  { id: "leclerc", driver: "Charles Leclerc", team: "Ferrari" },
-  { id: "hamilton", driver: "Lewis Hamilton", team: "Ferrari" },
-  { id: "norris", driver: "Lando Norris", team: "McLaren" },
-  { id: "piastri", driver: "Oscar Piastri", team: "McLaren" },
-  { id: "russell", driver: "George Russell", team: "Mercedes" },
-  { id: "antonelli", driver: "Kimi Antonelli", team: "Mercedes" },
-  { id: "alonso", driver: "Fernando Alonso", team: "Aston Martin" },
-  { id: "stroll", driver: "Lance Stroll", team: "Aston Martin" },
-  { id: "gasly", driver: "Pierre Gasly", team: "Alpine" },
-  { id: "colapinto", driver: "Franco Colapinto", team: "Alpine" },
-  { id: "doohan", driver: "Jack Doohan", team: "Alpine" },
-  { id: "hadjar", driver: "Isack Hadjar", team: "Racing Bulls" },
-  { id: "lawson", driver: "Liam Lawson", team: "Racing Bulls" },
-  { id: "hulkenberg", driver: "Nico Hulkenberg", team: "Sauber" },
-  { id: "bortoleto", driver: "Gabriel Bortoleto", team: "Sauber" },
-  { id: "ocon", driver: "Esteban Ocon", team: "Haas" },
-  { id: "bearman", driver: "Oliver Bearman", team: "Haas" },
-  { id: "albon", driver: "Alexander Albon", team: "Williams" },
-  { id: "sainz", driver: "Carlos Sainz", team: "Williams" },
-];
-
-const FORECAST_ONLY_TEAMS = [
-  { name: 'Cadillac', firstSeason: 2026 },
-];
-
-const normalizePitTeamName = (teamName, seasonYear) => {
-  const legacyName = teamName === 'Kick Sauber' ? 'Sauber' : teamName;
-  return normalizeTeamNameForSeason(legacyName, seasonYear);
+const formatSignedSeconds = (value) => {
+  if (!Number.isFinite(value)) return '—';
+  return `${value > 0 ? '+' : ''}${value.toFixed(2)}s`;
 };
 
-const getUnifiedTeamColor = (teamName) => {
-  return getTeamColor(teamName);
-};
+const timingFallbacks = new Map([
+  [2025, pitStopTiming2025],
+  [2026, pitStopTiming2026],
+]);
 
-const getDriverColor = (driverName, teamName) => {
-  if (teamName) return getUnifiedTeamColor(teamName);
+const getDisplayRaces = (races, selectedYear) => {
+  const fallbackRaces = timingFallbacks.get(Number(selectedYear))?.races ?? [];
+  const raceByRound = new Map(
+    fallbackRaces.map((race) => [Number(race.round), race]),
+  );
 
-  const nameMapping = {
-    'Alexander Albon': 'Alexander Albon',
-    'Alex Albon': 'Alexander Albon',
-    'Andrea Antonelli': 'Kimi Antonelli',
-    'Kimi Antonelli': 'Kimi Antonelli'
-  };
-  
-  const normalizedName = nameMapping[driverName] || driverName;
-  const driver = drivers2025.find(d => d.driver === normalizedName);
-  return driver
-    ? getSharedDriverColor(driver.driver, driver.team, 2025)
-    : '#FFFFFF';
-};
-
-const getEntityColor = (entity, analysisType, entityStats) => {
-  if (analysisType === 'team') {
-    return getUnifiedTeamColor(entity);
-  } else {
-    return getDriverColor(entity, entityStats?.team);
-  }
-};
-
-// ===== MATHEMATICAL HELPERS =====
-
-const calculateTrendSlope = (data) => {
-  const n = data.length;
-  if (n < 2) return 0;
-  
-  const sumX = data.reduce((sum, _, i) => sum + i, 0);
-  const sumY = data.reduce((sum, y) => sum + y, 0);
-  const sumXY = data.reduce((sum, y, i) => sum + i * y, 0);
-  const sumX2 = data.reduce((sum, _, i) => sum + i * i, 0);
-  
-  return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-};
-
-const calculateRecentFormScore = (recentForm) => {
-  if (recentForm.length < 2) return 10;
-  
-  const recent = recentForm.slice(-3);
-  const avgRecent = recent.reduce((sum, time) => sum + time, 0) / recent.length;
-  const historical = recentForm.slice(0, -3);
-  const avgHistorical = historical.length > 0 ? historical.reduce((sum, time) => sum + time, 0) / historical.length : avgRecent;
-  
-  const improvement = avgHistorical - avgRecent;
-  return Math.max(0, Math.min(20, improvement * 10));
-};
-
-const calculateMedian = (values) => {
-  const sortedValues = values
-    .filter(Number.isFinite)
-    .sort((a, b) => a - b);
-
-  if (sortedValues.length === 0) return 0;
-
-  const middleIndex = Math.floor(sortedValues.length / 2);
-  if (sortedValues.length % 2 === 1) return sortedValues[middleIndex];
-
-  return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
-};
-
-const addForecastOnlyTeams = (teamStats, seasonYear) => {
-  const historicalTeamStats = Array.from(teamStats.values());
-  if (historicalTeamStats.length === 0) return;
-
-  FORECAST_ONLY_TEAMS
-    .filter(({ firstSeason }) => Number(seasonYear) >= firstSeason)
-    .forEach(({ name, firstSeason }) => {
-      if (teamStats.has(name)) return;
-
-      teamStats.set(name, {
-        rounds: [],
-        totalStops: 0,
-        allTimes: [],
-        averageTimes: [],
-        fastestStops: [],
-        consistency: calculateMedian(historicalTeamStats.map((stats) => stats.consistency)),
-        trend: 0,
-        winRate: 0,
-        recentForm: [],
-        forecastScore: calculateMedian(historicalTeamStats.map((stats) => stats.forecastScore)),
-        fastestRoundWins: 0,
-        averageTime: calculateMedian(historicalTeamStats.map((stats) => stats.averageTime)),
-        fastestTime: calculateMedian(historicalTeamStats.map((stats) => stats.fastestTime)),
-        averageStopsPerRace: calculateMedian(
-          historicalTeamStats.map((stats) => stats.averageStopsPerRace)
-        ),
-        isProjection: true,
-        projectionLabel: `${firstSeason} field-median baseline`,
-      });
-    });
-};
-
-// ===== DATA PROCESSING FUNCTION =====
-
-const processRaceData = (seasonYear) => {
-  const teamStats = new Map();
-  const driverStats = new Map();
-  const roundData = [];
-  const allDrivers = new Set();
-
-  // Process each round
-  driverPitStopData.forEach(round => {
-    const roundInfo = {
-      round: round.round,
-      grandPrix: round.grand_prix,
-      averageRoundTime: round.pit_stops.reduce((sum, ps) => sum + ps.average_time, 0) / round.pit_stops.length,
-      fastestTeam: null,
-      fastestDriver: null,
-      totalStops: round.pit_stops.reduce((sum, ps) => sum + ps.stops.length, 0)
-    };
-
-    // Find fastest pit stop of the round
-    let fastestTime = Infinity;
-    round.pit_stops.forEach(pitStop => {
-      pitStop.stops.forEach(stop => {
-        if (stop.time < fastestTime) {
-          fastestTime = stop.time;
-          roundInfo.fastestTeam = normalizePitTeamName(pitStop.team, seasonYear);
-          roundInfo.fastestDriver = pitStop.driver;
-        }
-      });
-    });
-
-    roundData.push(roundInfo);
-
-    // Process team and driver statistics
-    round.pit_stops.forEach(pitStop => {
-      const { driver, stops, average_time } = pitStop;
-      const team = normalizePitTeamName(pitStop.team, seasonYear);
-      allDrivers.add(driver);
-
-      // Initialize team stats
-      if (!teamStats.has(team)) {
-        teamStats.set(team, {
-          rounds: [],
-          totalStops: 0,
-          allTimes: [],
-          averageTimes: [],
-          fastestStops: [],
-          consistency: 0,
-          trend: 0,
-          winRate: 0,
-          recentForm: [],
-          forecastScore: 0,
-          fastestRoundWins: 0
-        });
-      }
-
-      // Initialize driver stats
-      if (!driverStats.has(driver)) {
-        driverStats.set(driver, {
-          team,
-          rounds: [],
-          totalStops: 0,
-          allTimes: [],
-          averageTimes: [],
-          fastestStops: [],
-          consistency: 0,
-          trend: 0,
-          winRate: 0,
-          recentForm: [],
-          forecastScore: 0,
-          fastestRoundWins: 0
-        });
-      }
-
-      const teamStat = teamStats.get(team);
-      const driverStat = driverStats.get(driver);
-
-      // Process individual stops
-      const stopTimes = stops.map(stop => stop.time);
-      const fastestStopTime = Math.min(...stopTimes);
-      
-      // Update statistics
-      [teamStat, driverStat].forEach(stat => {
-        stat.rounds.push(round.round);
-        stat.totalStops += stops.length;
-        stat.allTimes.push(...stopTimes);
-        stat.averageTimes.push(average_time);
-        stat.fastestStops.push(fastestStopTime);
-        stat.recentForm.push(average_time);
-
-        if (fastestStopTime === fastestTime) {
-          stat.fastestRoundWins++;
-        }
-      });
+  (races ?? []).forEach((race) => {
+    const fallback = raceByRound.get(Number(race.round));
+    raceByRound.set(Number(race.round), {
+      ...fallback,
+      ...race,
+      pit_stops: race.pit_stops?.length ? race.pit_stops : fallback?.pit_stops ?? [],
+      dhl_pit_stops: race.dhl_pit_stops?.length
+        ? race.dhl_pit_stops
+        : fallback?.dhl_pit_stops ?? [],
+      pit_stop_sources: race.pit_stop_sources ?? fallback?.pit_stop_sources,
     });
   });
 
-  // Calculate metrics for teams and drivers
-  [teamStats, driverStats].forEach(statsMap => {
-    statsMap.forEach((stats) => {
-      const n = stats.averageTimes.length;
-      if (n === 0) return;
-
-      // Basic metrics
-      stats.averageTime = stats.averageTimes.reduce((sum, time) => sum + time, 0) / n;
-      stats.fastestTime = Math.min(...stats.fastestStops);
-      stats.averageStopsPerRace = stats.totalStops / stats.rounds.length;
-      
-      // Consistency
-      const variance = stats.averageTimes.reduce((sum, time) => sum + Math.pow(time - stats.averageTime, 2), 0) / n;
-      stats.consistency = Math.sqrt(variance);
-      
-      // Trend analysis
-      if (n >= 3) {
-        const recentData = stats.recentForm.slice(-Math.min(5, n));
-        stats.trend = calculateTrendSlope(recentData);
+  if (Number(selectedYear) === 2025) {
+    driverPitStopData.forEach((race) => {
+      if (!raceByRound.has(Number(race.round))) {
+        raceByRound.set(Number(race.round), {
+          round: Number(race.round),
+          grand_prix: race.grand_prix,
+          pit_stops: [],
+        });
       }
-      
-      // Win rate
-      const totalRounds = roundData.length;
-      stats.winRate = (stats.fastestRoundWins / totalRounds) * 100;
-      
-      // Weighted forecast score
-      const historicalWinScore = (stats.fastestRoundWins / totalRounds) * 40;
-      const speedScore = Math.max(0, Math.min(25, (3.5 - stats.averageTime) * 12.5));
-      const consistencyScore = Math.max(0, Math.min(20, (0.8 - stats.consistency) * 25));
-      const trendScore = Math.max(0, Math.min(10, -stats.trend * 20));
-      const recentFormScore = Math.min(5, calculateRecentFormScore(stats.recentForm) / 4);
-      
-      stats.forecastScore = historicalWinScore + speedScore + consistencyScore + trendScore + recentFormScore;
     });
-  });
-
-  addForecastOnlyTeams(teamStats, seasonYear);
-
-  return {
-    teamStats,
-    driverStats,
-    roundData,
-    allTeams: Array.from(teamStats.keys()),
-    allDrivers: Array.from(allDrivers)
-  };
-};
-
-// ===== CHART DATA GENERATORS =====
-
-const generateTrendData = (selectedEntity, analysisType, processedData) => {
-  if (!selectedEntity) return null;
-
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const entityStats = stats.get(selectedEntity);
-  if (!entityStats) return null;
-
-  const entityColor = getEntityColor(selectedEntity, analysisType, entityStats);
-
-  return {
-    labels: entityStats.rounds.map(r => `R${r}`),
-    datasets: [{
-      label: `${selectedEntity} Average Pit Stop Time`,
-      data: entityStats.averageTimes,
-      borderColor: entityColor,
-      backgroundColor: entityColor,
-      tension: 0.3,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      fill: false
-    }, {
-      label: 'Fastest Stop per Race',
-      data: entityStats.fastestStops,
-      borderColor: 'rgba(255, 215, 0, 0.8)',
-      backgroundColor: 'rgba(255, 215, 0, 0.3)',
-      tension: 0.3,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      borderDash: [5, 5],
-      fill: false
-    }]
-  };
-};
-
-const generateForecastData = (analysisType, processedData) => {
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const sortedEntities = Array.from(stats.entries())
-    .sort((a, b) => b[1].forecastScore - a[1].forecastScore)
-    .slice(0, analysisType === 'team' ? stats.size : 10);
-
-  return {
-    labels: sortedEntities.map(([entity]) => entity),
-    datasets: [{
-      label: 'Forecast Score (0-100)',
-      data: sortedEntities.map(([, stat]) => stat.forecastScore.toFixed(1)),
-      backgroundColor: sortedEntities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      borderColor: sortedEntities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      borderWidth: 2
-    }]
-  };
-};
-
-const generateScatterData = (analysisType, processedData) => {
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const entities = Array.from(stats.entries()).slice(0, 15);
-
-  return {
-    datasets: [{
-      label: `${analysisType === 'team' ? 'Teams' : 'Drivers'}`,
-      data: entities.map(([entity, stat]) => ({
-        x: stat.averageTime,
-        y: stat.consistency,
-        label: entity,
-        team: analysisType === 'team' ? entity : stat.team
-      })),
-      backgroundColor: entities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      borderColor: entities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      pointRadius: 8,
-      pointHoverRadius: 10
-    }]
-  };
-};
-
-const generateStrategyData = (analysisType, processedData) => {
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const entities = Array.from(stats.entries()).slice(0, 12);
-
-  return {
-    datasets: [{
-      label: `${analysisType === 'team' ? 'Teams' : 'Drivers'} Strategy`,
-      data: entities.map(([entity, stat]) => ({
-        x: stat.averageTime,
-        y: stat.averageStopsPerRace,
-        label: entity,
-        team: analysisType === 'team' ? entity : stat.team,
-        forecastScore: stat.forecastScore,
-        projectionLabel: stat.projectionLabel
-      })),
-      backgroundColor: entities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      borderColor: entities.map(([entity, stat]) => 
-        getEntityColor(entity, analysisType, stat)
-      ),
-      pointRadius: entities.map(([, stat]) => 8 + (stat.forecastScore / 100) * 4),
-      pointHoverRadius: 12
-    }]
-  };
-};
-
-// ===== CHART OPTIONS =====
-
-const getChartOptions = (type, selectedEntity, isMobile) => {
-  const baseOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      tooltip: {
-        callbacks: {}
-      }
-    }
-  };
-
-  switch (type) {
-    case 'line':
-      return {
-        ...baseOptions,
-        plugins: {
-          ...baseOptions.plugins,
-          title: {
-            display: true,
-            text: `${selectedEntity} Performance Trend Analysis`,
-            font: { size: isMobile ? 14 : 16 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => `${context.dataset.label}: ${context.raw?.toFixed(2)}s`
-            }
-          }
-        },
-        scales: {
-          y: {
-            title: { display: true, text: 'Time (seconds)' },
-            min: 1.5,
-            max: 5.0
-          }
-        }
-      };
-
-    case 'bar':
-      return {
-        ...baseOptions,
-        plugins: {
-          ...baseOptions.plugins,
-          title: {
-            display: true,
-            text: `Weighted Trend Score - Next Race Forecast`,
-            font: { size: isMobile ? 14 : 16 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => `Forecast Score: ${context.raw}/100`
-            }
-          }
-        },
-        scales: {
-          y: {
-            title: { display: true, text: 'Forecast Score (0-100)' },
-            beginAtZero: true,
-            max: 100
-          }
-        }
-      };
-
-    case 'scatter':
-      return {
-        ...baseOptions,
-        plugins: {
-          ...baseOptions.plugins,
-          title: {
-            display: true,
-            text: 'Speed vs Consistency Analysis',
-            font: { size: isMobile ? 14 : 16 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const point = context.raw;
-                return [
-                  `${point.label}`,
-                  `Avg Time: ${point.x.toFixed(2)}s`,
-                  `Consistency: ${point.y.toFixed(3)}s`
-                ];
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            title: { display: true, text: 'Average Pit Stop Time (seconds)' },
-            min: 2.0,
-            max: 4.0
-          },
-          y: {
-            title: { display: true, text: 'Consistency (Standard Deviation)' },
-            min: 0,
-            max: 1.0
-          }
-        }
-      };
-
-    case 'strategy':
-      return {
-        ...baseOptions,
-        plugins: {
-          ...baseOptions.plugins,
-          title: {
-            display: true,
-            text: 'Speed vs Strategy Frequency',
-            font: { size: isMobile ? 14 : 16 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const point = context.raw;
-                return [
-                  `${point.label}`,
-                  `Avg Speed: ${point.x.toFixed(2)}s`,
-                  `Stops/Race: ${point.y.toFixed(1)}`,
-                  `Forecast Score: ${point.forecastScore.toFixed(1)}/100`,
-                  ...(point.projectionLabel ? [`Estimate: ${point.projectionLabel}`] : [])
-                ];
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            title: { display: true, text: 'Average Pit Stop Time (seconds) - Faster →' },
-            min: 2.0,
-            max: 4.0
-          },
-          y: {
-            title: { display: true, text: 'Average Pit Stops per Race' },
-            min: 0.5,
-            max: 3.0
-          }
-        }
-      };
-
-    default:
-      return baseOptions;
   }
+
+  return Array.from(raceByRound.values()).sort((a, b) => a.round - b.round);
 };
 
-// ===== UI COMPONENTS =====
+const getBaseChartOptions = (isMobile = false) => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: {
+    intersect: false,
+    mode: 'nearest',
+  },
+  plugins: {
+    legend: {
+      labels: {
+        color: '#c8ced8',
+        boxWidth: 12,
+        font: { size: isMobile ? 10 : 12 },
+      },
+    },
+    tooltip: {
+      backgroundColor: '#101318',
+      borderColor: '#353b46',
+      borderWidth: 1,
+      titleColor: '#ffffff',
+      bodyColor: '#d5dae2',
+      padding: 10,
+    },
+  },
+  scales: {
+    x: {
+      grid: { color: 'rgba(255, 255, 255, 0.07)' },
+      ticks: { color: '#929aa8' },
+      title: { color: '#aeb5c0' },
+    },
+    y: {
+      grid: { color: 'rgba(255, 255, 255, 0.07)' },
+      ticks: { color: '#929aa8' },
+      title: { color: '#aeb5c0' },
+    },
+  },
+});
 
-const ForecastSummary = ({ showForecast, analysisType, processedData, isMobile }) => {
-  if (!showForecast) return null;
+const MetricCard = ({ icon: _Icon, label, value, detail, tone = 'neutral' }) => (
+  <article className={`pit-metric pit-metric--${tone}`}>
+    <div className="pit-metric__label">
+      <_Icon aria-hidden="true" size={17} />
+      <span>{label}</span>
+    </div>
+    <strong>{value}</strong>
+    <span className="pit-metric__detail">{detail}</span>
+  </article>
+);
 
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-  const topForecasts = Array.from(stats.entries())
-    .sort((a, b) => b[1].forecastScore - a[1].forecastScore)
-    .slice(0, 5);
+const ChartPanel = ({ title, description, children, className = '' }) => (
+  <section className={`pit-panel ${className}`}>
+    <header className="pit-panel__header">
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </header>
+    {children}
+  </section>
+);
+
+const CoverageBar = ({ matched, total }) => {
+  const percentage = total > 0 ? Math.round((matched / total) * 100) : 0;
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))',
-      borderRadius: '12px',
-      padding: '2rem',
-      marginBottom: '2rem',
-      border: '1px solid rgba(99, 102, 241, 0.3)'
-    }}>
-      <h3 style={{ color: '#fff', marginBottom: '1rem', textAlign: 'center' }}>
-        🏁 Pit Stop Trend Forecast ({analysisType === 'team' ? 'Teams' : 'Drivers'})
-      </h3>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem'
-      }}>
-        {topForecasts.map(([entity, entityStats], index) => {
-          const confidence = entityStats.forecastScore > 75 ? 'High' : 
-                           entityStats.forecastScore > 50 ? 'Medium' : 'Low';
-          return (
-            <div key={entity} style={{
-              padding: '1.5rem',
-              background: 'rgba(0, 0, 0, 0.4)',
-              borderRadius: '8px',
-              border: `2px solid ${getEntityColor(entity, analysisType, entityStats)}`,
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                <span style={{ color: '#FFD700' }}>#{index + 1}</span>{' '}
-                <span style={{ color: getEntityColor(entity, analysisType, entityStats) }}>
-                  {entity}
-                </span>
-              </div>
-              <div style={{ color: '#ccc', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                Score: {entityStats.forecastScore.toFixed(1)}/100
-              </div>
-              <div style={{ color: '#ccc', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
-                Avg: {entityStats.averageTime.toFixed(2)}s | Fastest: {entityStats.fastestTime.toFixed(2)}s
-              </div>
-              <div style={{ color: '#ccc', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
-                Consistency: {entityStats.consistency.toFixed(3)}s
-              </div>
-              {entityStats.isProjection && (
-                <div style={{ color: '#D9AD3A', fontSize: '0.75rem', marginBottom: '0.3rem' }}>
-                  {entityStats.projectionLabel}
-                </div>
-              )}
-              <div style={{ 
-                color: confidence === 'High' ? '#10B981' : confidence === 'Medium' ? '#F59E0B' : '#EF4444',
-                fontSize: '0.8rem',
-                fontWeight: 'bold'
-              }}>
-                Confidence: {confidence}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div
+      className="pit-coverage"
+      aria-label={`${percentage}% of stops have both service and pit-lane timing`}
+    >
+      <span style={{ width: `${percentage}%` }} />
     </div>
   );
 };
-
-const PerformanceTable = ({ analysisType, processedData, isMobile }) => {
-  const stats = analysisType === 'team' ? processedData.teamStats : processedData.driverStats;
-
-  return (
-    <div style={{
-      backgroundColor: 'rgba(17, 20, 25, 0.98)',
-      borderRadius: '8px',
-      padding: '1.5rem',
-      height: '400px',
-      overflow: 'auto'
-    }}>
-      <h4 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
-        📊 {analysisType === 'team' ? 'Team' : 'Driver'} Performance Rankings
-      </h4>
-      <div style={{ fontSize: isMobile ? '0.75rem' : '0.85rem' }}>
-        {/* Table Header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '2fr 1fr 1fr 1fr' : '2fr 1fr 1fr 1fr 1fr',
-          gap: '1rem',
-          padding: '0.75rem 0',
-          borderBottom: '2px solid rgba(255, 255, 255, 0.2)',
-          color: '#a0a9c0',
-          fontWeight: 'bold',
-          fontSize: '0.8rem'
-        }}>
-          <span>{analysisType === 'team' ? 'Team' : 'Driver'}</span>
-          <span>Avg Time</span>
-          <span>Consistency</span>
-          <span>Trend</span>
-          {!isMobile && <span>Score</span>}
-        </div>
-        
-        {/* Table Rows */}
-        {Array.from(stats.entries())
-          .sort((a, b) => a[1].averageTime - b[1].averageTime)
-          .map(([entity, entityStats], index) => (
-            <div key={entity} style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '2fr 1fr 1fr 1fr' : '2fr 1fr 1fr 1fr 1fr',
-              gap: '1rem',
-              padding: '0.75rem 0',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#fff',
-              backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
-              borderRadius: '4px',
-              transition: 'background-color 0.2s ease'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ 
-                  color: '#888', 
-                  fontSize: '0.7rem',
-                  minWidth: '1.5rem'
-                }}>
-                  #{index + 1}
-                </span>
-                <span style={{ 
-                  color: getEntityColor(entity, analysisType, entityStats), 
-                  fontWeight: 'bold',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {entity}
-                  {entityStats.isProjection && (
-                    <span style={{
-                      display: 'block',
-                      color: '#a0a9c0',
-                      fontSize: '0.65rem',
-                      fontWeight: 'normal'
-                    }}>
-                      Projected baseline
-                    </span>
-                  )}
-                </span>
-              </div>
-              <span style={{ textAlign: 'center', fontWeight: '600' }}>
-                {entityStats.averageTime.toFixed(2)}s
-              </span>
-              <span style={{ 
-                textAlign: 'center',
-                color: entityStats.consistency < 0.5 ? '#10B981' : entityStats.consistency < 1.0 ? '#F59E0B' : '#EF4444'
-              }}>
-                ±{entityStats.consistency.toFixed(3)}
-              </span>
-              <span style={{ 
-                textAlign: 'center',
-                color: entityStats.trend < 0 ? '#10B981' : '#EF4444',
-                fontSize: '1.2rem'
-              }}>
-                {entityStats.trend < -0.01 ? '↗️' : entityStats.trend > 0.01 ? '↘️' : '➡️'}
-              </span>
-              {!isMobile && (
-                <span style={{ 
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  color: entityStats.forecastScore > 75 ? '#10B981' : 
-                         entityStats.forecastScore > 50 ? '#F59E0B' : '#EF4444'
-                }}>
-                  {entityStats.forecastScore.toFixed(0)}
-                </span>
-              )}
-            </div>
-          ))
-        }
-      </div>
-      
-      {/* Table Legend */}
-      <div style={{ 
-        marginTop: '1rem', 
-        padding: '0.75rem',
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: '6px',
-        fontSize: '0.7rem',
-        color: '#888'
-      }}>
-        <div><strong>Legend:</strong></div>
-        <div>↗️ Improving • ➡️ Stable • ↘️ Declining</div>
-        <div>🟢 Excellent • 🟡 Good • 🔴 Needs Work</div>
-      </div>
-    </div>
-  );
-};
-
-// ===== MAIN COMPONENT =====
 
 const PitStopAnalysisPage = () => {
   const { seasonYear } = useParams();
   const selectedYear = getSeasonFromParam(seasonYear);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [selectedEntity, setSelectedEntity] = useState('');
-  const [showForecast, setShowForecast] = useState(true);
+  const { races, status, error, retry } = useSeasonData(selectedYear);
   const [analysisType, setAnalysisType] = useState('team');
-  const [forecastModel, setForecastModel] = useState('weighted');
+  const [selectedRound, setSelectedRound] = useState('all');
+  const [selectedEntity, setSelectedEntity] = useState('all');
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const processedData = useMemo(() => processRaceData(selectedYear), [selectedYear]);
-
-  // Generate chart data
-  const trendData = useMemo(() => 
-    generateTrendData(selectedEntity, analysisType, processedData), 
-    [selectedEntity, analysisType, processedData]
+  const displayRaces = useMemo(
+    () => getDisplayRaces(races, selectedYear),
+    [races, selectedYear],
+  );
+  const allRecords = useMemo(() => buildPitStopRecords(displayRaces, {
+    legacyDhlData: selectedYear === 2025 ? driverPitStopData : [],
+    seasonYear: selectedYear,
+  }), [displayRaces, selectedYear]);
+  const filteredRecords = useMemo(() => (
+    selectedRound === 'all'
+      ? allRecords
+      : allRecords.filter((record) => record.round === Number(selectedRound))
+  ), [allRecords, selectedRound]);
+  const rankings = useMemo(
+    () => aggregatePitStops(filteredRecords, analysisType),
+    [analysisType, filteredRecords],
+  );
+  const coverage = useMemo(
+    () => summarizePitStopCoverage(filteredRecords),
+    [filteredRecords],
+  );
+  const availableRounds = useMemo(() => (
+    displayRaces.filter((race) => allRecords.some((record) => record.round === race.round))
+  ), [allRecords, displayRaces]);
+  const entityOptions = useMemo(
+    () => rankings.map((ranking) => ranking.entity),
+    [rankings],
   );
 
-  const forecastData = useMemo(() => 
-    generateForecastData(analysisType, processedData), 
-    [analysisType, processedData]
-  );
+  const breakdownRankings = rankings
+    .filter((ranking) => Number.isFinite(ranking.transitMedian))
+    .sort((a, b) => a.transitMedian - b.transitMedian);
+  const breakdownData = {
+    labels: breakdownRankings.map((ranking) => ranking.entity),
+    datasets: [
+      {
+        label: 'Stationary service',
+        data: breakdownRankings.map((ranking) => ranking.serviceMedian),
+        backgroundColor: '#e0b533',
+        borderWidth: 0,
+      },
+      {
+        label: 'Pit-lane transit',
+        data: breakdownRankings.map((ranking) => ranking.transitMedian),
+        backgroundColor: '#4d8ed8',
+        borderWidth: 0,
+      },
+    ],
+  };
+  const breakdownOptions = {
+    ...getBaseChartOptions(),
+    indexAxis: 'y',
+    plugins: {
+      ...getBaseChartOptions().plugins,
+      tooltip: {
+        ...getBaseChartOptions().plugins.tooltip,
+        callbacks: {
+          footer: (items) => {
+            const index = items[0]?.dataIndex;
+            const ranking = breakdownRankings[index];
+            return ranking
+              ? `Median total: ${formatSeconds(ranking.pitLaneMedian)}`
+              : '';
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        beginAtZero: true,
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8', callback: (value) => `${value}s` },
+        title: { display: true, text: 'Median time', color: '#aeb5c0' },
+      },
+      y: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { color: '#c8ced8' },
+      },
+    },
+  };
 
-  const scatterData = useMemo(() => 
-    generateScatterData(analysisType, processedData), 
-    [analysisType, processedData]
-  );
+  const matchedRecords = filteredRecords.filter((record) => record.hasBreakdown);
+  const scatterData = {
+    datasets: [{
+      label: 'Individual stops',
+      data: matchedRecords.map((record) => ({
+        x: record.serviceTime,
+        y: record.pitLaneTime,
+        record,
+      })),
+      backgroundColor: matchedRecords.map((record) => getTeamColor(record.team)),
+      borderColor: '#f7f8fa',
+      borderWidth: 1,
+      pointRadius: 6,
+      pointHoverRadius: 8,
+    }],
+  };
+  const scatterOptions = {
+    ...getBaseChartOptions(),
+    plugins: {
+      ...getBaseChartOptions().plugins,
+      legend: { display: false },
+      tooltip: {
+        ...getBaseChartOptions().plugins.tooltip,
+        callbacks: {
+          title: (items) => items[0]?.raw?.record?.driver ?? '',
+          label: (context) => {
+            const record = context.raw.record;
+            return [
+              `${record.team} · ${record.grandPrix}`,
+              `Service: ${formatSeconds(record.serviceTime)}`,
+              `Pit lane: ${formatSeconds(record.pitLaneTime)}`,
+              `Transit: ${formatSeconds(record.transitTime)}`,
+            ];
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        beginAtZero: false,
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8', callback: (value) => `${value}s` },
+        title: { display: true, text: 'Stationary service time', color: '#aeb5c0' },
+      },
+      y: {
+        beginAtZero: false,
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8', callback: (value) => `${value}s` },
+        title: { display: true, text: 'Full pit-lane time', color: '#aeb5c0' },
+      },
+    },
+  };
 
-  const strategyData = useMemo(() => 
-    generateStrategyData(analysisType, processedData), 
-    [analysisType, processedData]
-  );
+  const deltaRankings = rankings
+    .filter((ranking) => Number.isFinite(ranking.laneDeltaMedian))
+    .sort((a, b) => a.laneDeltaMedian - b.laneDeltaMedian);
+  const deltaData = {
+    labels: deltaRankings.map((ranking) => ranking.entity),
+    datasets: [{
+      label: 'Median versus race field',
+      data: deltaRankings.map((ranking) => ranking.laneDeltaMedian),
+      backgroundColor: deltaRankings.map((ranking) => (
+        ranking.laneDeltaMedian <= 0 ? '#3bbf8a' : '#e35d5d'
+      )),
+      borderWidth: 0,
+    }],
+  };
+  const deltaOptions = {
+    ...getBaseChartOptions(),
+    indexAxis: 'y',
+    plugins: {
+      ...getBaseChartOptions().plugins,
+      legend: { display: false },
+      tooltip: {
+        ...getBaseChartOptions().plugins.tooltip,
+        callbacks: {
+          label: (context) => `${formatSignedSeconds(context.raw)} versus race median`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: (context) => (
+            context.tick.value === 0
+              ? 'rgba(255, 255, 255, 0.45)'
+              : 'rgba(255, 255, 255, 0.07)'
+          ),
+        },
+        ticks: { color: '#929aa8', callback: (value) => `${value > 0 ? '+' : ''}${value}s` },
+        title: { display: true, text: 'Pit-lane time delta', color: '#aeb5c0' },
+      },
+      y: {
+        grid: { display: false },
+        ticks: { color: '#c8ced8' },
+      },
+    },
+  };
 
-  // Chart options
-  const lineOptions = getChartOptions('line', selectedEntity, isMobile);
-  const barOptions = getChartOptions('bar', selectedEntity, isMobile);
-  const scatterOptions = getChartOptions('scatter', selectedEntity, isMobile);
-  const strategyOptions = getChartOptions('strategy', selectedEntity, isMobile);
+  const trendRecords = selectedEntity === 'all'
+    ? filteredRecords
+    : filteredRecords.filter((record) => (
+      analysisType === 'driver'
+        ? record.driver === selectedEntity
+        : record.team === selectedEntity
+    ));
+  const trendByRound = availableRounds.map((race) => {
+    const roundRecords = trendRecords.filter((record) => record.round === race.round);
+    return {
+      label: `R${race.round}`,
+      service: median(roundRecords.map((record) => record.serviceTime)),
+      pitLane: median(roundRecords.map((record) => record.pitLaneTime)),
+    };
+  });
+  const trendData = {
+    labels: trendByRound.map((round) => round.label),
+    datasets: [
+      {
+        label: 'Stationary service',
+        data: trendByRound.map((round) => round.service),
+        borderColor: '#e0b533',
+        backgroundColor: '#e0b533',
+        yAxisID: 'service',
+        tension: 0.25,
+        pointRadius: 4,
+        spanGaps: true,
+      },
+      {
+        label: 'Full pit lane',
+        data: trendByRound.map((round) => round.pitLane),
+        borderColor: '#4d8ed8',
+        backgroundColor: '#4d8ed8',
+        yAxisID: 'lane',
+        tension: 0.25,
+        pointRadius: 4,
+        spanGaps: true,
+      },
+    ],
+  };
+  const trendOptions = {
+    ...getBaseChartOptions(),
+    scales: {
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8' },
+      },
+      service: {
+        position: 'left',
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#e0b533', callback: (value) => `${value}s` },
+        title: { display: true, text: 'Service time', color: '#e0b533' },
+      },
+      lane: {
+        position: 'right',
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#6ea8e8', callback: (value) => `${value}s` },
+        title: { display: true, text: 'Pit-lane time', color: '#6ea8e8' },
+      },
+    },
+  };
 
-  const entityList = analysisType === 'team' ? processedData.allTeams : processedData.allDrivers;
+  const hasAnyData = allRecords.length > 0;
+  const hasJoinedData = coverage.matchedStops > 0;
 
   return (
     <F1PageLayout
-      title={`${selectedYear} Pit Stop Trends & Forecasts`}
-      subtitle="Weighted historical scoring for next-race pit stop performance"
-      className="enhanced-pit-stop-analysis"
+      title={`${selectedYear} Pit Stop Analysis`}
+      subtitle="Crew service, pit-lane transit, and operational time loss from completed races"
+      className="pit-analysis"
     >
-      {/* Controls */}
-      <ControlBar>
-        <select
-          value={analysisType}
-          onChange={(e) => {
-            setAnalysisType(e.target.value);
-            setSelectedEntity('');
-          }}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff"
-          }}
-        >
-          <option value="team">Team Analysis</option>
-          <option value="driver">Driver Analysis</option>
-        </select>
+      <section className="pit-toolbar" aria-label="Pit stop analysis controls">
+        <div className="pit-segmented" aria-label="Analysis subject">
+          <button
+            className={analysisType === 'team' ? 'is-active' : ''}
+            onClick={() => {
+              setAnalysisType('team');
+              setSelectedEntity('all');
+            }}
+            type="button"
+          >
+            <Users aria-hidden="true" size={16} />
+            Teams
+          </button>
+          <button
+            className={analysisType === 'driver' ? 'is-active' : ''}
+            onClick={() => {
+              setAnalysisType('driver');
+              setSelectedEntity('all');
+            }}
+            type="button"
+          >
+            <Gauge aria-hidden="true" size={16} />
+            Drivers
+          </button>
+        </div>
 
-        <select
-          value={selectedEntity}
-          onChange={(e) => setSelectedEntity(e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff",
-            minWidth: "200px"
-          }}
-        >
-          <option value="">Select {analysisType} for trend analysis</option>
-          {entityList.map(entity => (
-            <option key={entity} value={entity}>{entity}</option>
-          ))}
-        </select>
+        <label className="pit-field">
+          <span>Race</span>
+          <select
+            value={selectedRound}
+            onChange={(event) => setSelectedRound(event.target.value)}
+          >
+            <option value="all">All completed races</option>
+            {availableRounds.map((race) => (
+              <option key={race.round} value={race.round}>
+                R{race.round} · {race.grand_prix}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <select
-          value={forecastModel}
-          onChange={(e) => setForecastModel(e.target.value)}
-          style={{
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #555",
-            backgroundColor: "#333",
-            color: "#fff"
-          }}
-        >
-          <option value="weighted">Weighted Trend Model</option>
-          <option value="basic">Basic Statistical Model</option>
-        </select>
+        <label className="pit-field">
+          <span>Trend focus</span>
+          <select
+            value={entityOptions.includes(selectedEntity) ? selectedEntity : 'all'}
+            onChange={(event) => setSelectedEntity(event.target.value)}
+          >
+            <option value="all">Entire field</option>
+            {entityOptions.map((entity) => (
+              <option key={entity} value={entity}>{entity}</option>
+            ))}
+          </select>
+        </label>
 
-        <ToggleSwitch
-          checked={showForecast}
-          onChange={(e) => setShowForecast(e.target.checked)}
-          label="Show Forecast"
-        />
-      </ControlBar>
-
-        {/* Forecast Summary */}
-      <ForecastSummary 
-        showForecast={showForecast}
-        analysisType={analysisType}
-        processedData={processedData}
-        isMobile={isMobile}
-      />
-
-      {/* Analytics Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: '2rem',
-        marginBottom: '2rem'
-      }}>
-        {/* Trend Analysis Chart */}
-        {selectedEntity ? (
-          <div style={{
-            backgroundColor: 'rgba(17, 20, 25, 0.98)',
-            borderRadius: '8px',
-            padding: '1rem',
-            height: '400px'
-          }}>
-            <Line data={trendData} options={lineOptions} />
-          </div>
-        ) : (
-          /* Strategy Analysis when no entity selected */
-          <div style={{
-            backgroundColor: 'rgba(17, 20, 25, 0.98)',
-            borderRadius: '8px',
-            padding: '1rem',
-            height: '400px'
-          }}>
-            <Scatter data={strategyData} options={strategyOptions} />
-          </div>
+        {error && (
+          <button className="pit-refresh" onClick={retry} type="button" title="Retry data load">
+            <RefreshCw aria-hidden="true" size={17} />
+            Retry
+          </button>
         )}
+      </section>
 
-        {/* Statistical Forecast Chart */}
-        <div style={{
-          backgroundColor: 'rgba(17, 20, 25, 0.98)',
-          borderRadius: '8px',
-          padding: '1rem',
-          height: '400px'
-        }}>
-          <Bar data={forecastData} options={barOptions} />
+      {status === 'loading' && !hasAnyData ? (
+        <div className="pit-empty">
+          <Activity aria-hidden="true" size={24} />
+          <p>Loading pit-stop timing…</p>
         </div>
-
-        {/* Performance vs Consistency Scatter */}
-        <div style={{
-          backgroundColor: 'rgba(17, 20, 25, 0.98)',
-          borderRadius: '8px',
-          padding: '1rem',
-          height: '400px'
-        }}>
-          <Scatter data={scatterData} options={scatterOptions} />
+      ) : !hasAnyData ? (
+        <div className="pit-empty">
+          <Database aria-hidden="true" size={24} />
+          <h2>No pit-stop timing is stored for this season yet</h2>
+          <p>The next completed-race update will add Formula1.com and DHL measurements.</p>
         </div>
+      ) : (
+        <>
+          <section className="pit-metrics" aria-label="Pit stop highlights">
+            <MetricCard
+              detail={coverage.fastestService
+                ? `${coverage.fastestService.driver} · ${coverage.fastestService.grandPrix}`
+                : 'DHL service timing unavailable'}
+              icon={Wrench}
+              label="Fastest service"
+              tone="gold"
+              value={formatSeconds(coverage.fastestService?.serviceTime)}
+            />
+            <MetricCard
+              detail={coverage.quickestPitLane
+                ? `${coverage.quickestPitLane.driver} · ${coverage.quickestPitLane.grandPrix}`
+                : 'Pit-lane timing unavailable'}
+              icon={Timer}
+              label="Quickest pit lane"
+              tone="blue"
+              value={formatSeconds(coverage.quickestPitLane?.pitLaneTime)}
+            />
+            <MetricCard
+              detail={coverage.bestTransitDelta
+                ? `${coverage.bestTransitDelta.driver} versus race median`
+                : 'Requires matched source timing'}
+              icon={Route}
+              label="Best transit delta"
+              tone="green"
+              value={formatSignedSeconds(coverage.bestTransitDelta?.transitDelta)}
+            />
+            <MetricCard
+              detail={`${coverage.serviceStops} DHL · ${coverage.pitLaneStops} Formula1.com`}
+              icon={CheckCircle2}
+              label="Matched stops"
+              value={`${coverage.matchedStops}/${coverage.records}`}
+            />
+          </section>
 
-        {/* Performance Statistics Table */}
-        <PerformanceTable 
-          analysisType={analysisType}
-          processedData={processedData}
-          isMobile={isMobile}
-        />
-      </div>
+          {!hasJoinedData && (
+            <div className="pit-data-note">
+              <Database aria-hidden="true" size={18} />
+              <div>
+                <strong>Partial source coverage</strong>
+                <span>
+                  Service timing is available, but full pit-lane timing has not reached the database for these races.
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="pit-analysis-grid">
+            <ChartPanel
+              className="pit-panel--wide"
+              description="Median stationary service plus the remaining time travelling through the pit lane"
+              title="Where the pit stop time goes"
+            >
+              {breakdownRankings.length > 0 ? (
+                <div
+                  className="pit-chart"
+                  style={{ height: `${Math.max(360, breakdownRankings.length * 42)}px` }}
+                >
+                  <Bar data={breakdownData} options={breakdownOptions} />
+                </div>
+              ) : (
+                <div className="pit-chart-empty">Matched DHL and Formula1.com stops are required.</div>
+              )}
+            </ChartPanel>
+
+            <ChartPanel
+              description="Each point is one stop; low and left indicates both a quick crew and quick lane traversal"
+              title="Crew speed versus total lane time"
+            >
+              {matchedRecords.length > 0 ? (
+                <div className="pit-chart">
+                  <Scatter data={scatterData} options={scatterOptions} />
+                </div>
+              ) : (
+                <div className="pit-chart-empty">No joined stops are available for this selection.</div>
+              )}
+            </ChartPanel>
+
+            <ChartPanel
+              description="Negative values are quicker than the median pit-lane time at the same race"
+              title="Time gained or lost in the lane"
+            >
+              {deltaRankings.length > 0 ? (
+                <div
+                  className="pit-chart"
+                  style={{ height: `${Math.max(360, deltaRankings.length * 38)}px` }}
+                >
+                  <Bar data={deltaData} options={deltaOptions} />
+                </div>
+              ) : (
+                <div className="pit-chart-empty">Full pit-lane timing is required.</div>
+              )}
+            </ChartPanel>
+
+            <ChartPanel
+              className="pit-panel--wide"
+              description="The two scales keep crew service and full pit-lane duration readable together"
+              title={`${selectedEntity === 'all' ? 'Field' : selectedEntity} trend by round`}
+            >
+              <div className="pit-chart pit-chart--trend">
+                <Line data={trendData} options={trendOptions} />
+              </div>
+            </ChartPanel>
+          </div>
+
+          <section className="pit-table-section">
+            <header className="pit-panel__header">
+              <h2>{analysisType === 'team' ? 'Team' : 'Driver'} timing ledger</h2>
+              <p>Medians limit the influence of repairs, penalties, and unusually delayed stops.</p>
+            </header>
+            <div className="pit-table-scroll">
+              <table className="pit-table">
+                <thead>
+                  <tr>
+                    <th>{analysisType === 'team' ? 'Team' : 'Driver'}</th>
+                    <th>Stops</th>
+                    <th>Service</th>
+                    <th>Pit lane</th>
+                    <th>Transit</th>
+                    <th>Race delta</th>
+                    <th>Coverage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankings.map((ranking) => (
+                    <tr key={ranking.entity}>
+                      <td>
+                        <span
+                          className="pit-team-swatch"
+                          style={{ backgroundColor: getTeamColor(ranking.team) }}
+                        />
+                        <strong>{ranking.entity}</strong>
+                      </td>
+                      <td>{ranking.stops}</td>
+                      <td>{formatSeconds(ranking.serviceMedian)}</td>
+                      <td>{formatSeconds(ranking.pitLaneMedian)}</td>
+                      <td>{formatSeconds(ranking.transitMedian)}</td>
+                      <td className={
+                        Number.isFinite(ranking.laneDeltaMedian)
+                          ? ranking.laneDeltaMedian <= 0
+                            ? 'is-positive'
+                            : 'is-negative'
+                          : ''
+                      }>
+                        {formatSignedSeconds(ranking.laneDeltaMedian)}
+                      </td>
+                      <td>
+                        <span>{ranking.matchedStops}/{ranking.stops}</span>
+                        <CoverageBar matched={ranking.matchedStops} total={ranking.stops} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <footer className="pit-source-note">
+            <Wrench aria-hidden="true" size={15} />
+            <span>DHL measures stationary service. Formula1.com measures the full pit-lane visit.</span>
+          </footer>
+        </>
+      )}
     </F1PageLayout>
   );
 };

@@ -1,5 +1,9 @@
 import './loadLocalEnv.js';
 import { hasLocalAwsCredentials, printLocalCredentialHelp } from './awsLocalCredentials.js';
+import {
+  collectDhlPitStopSeason,
+  mergeDhlPitStopsIntoSeason,
+} from './dhlPitStopCollector.js';
 import { getDynamoContext, writeSeasonToDynamo } from './dynamoSeasonWriter.js';
 import { buildFormula1Season } from './formula1SeasonBuilder.js';
 
@@ -13,7 +17,7 @@ const targetYears = years.length > 0 ? years : [new Date().getFullYear()];
 const context = getDynamoContext();
 
 for (const year of targetYears) {
-  const season = await buildFormula1Season(year);
+  let season = await buildFormula1Season(year);
 
   if (season.races.length === 0) {
     console.log(JSON.stringify({
@@ -25,11 +29,21 @@ for (const year of targetYears) {
     continue;
   }
 
+  try {
+    const dhlSeason = await collectDhlPitStopSeason(year, {
+      completedRounds: season.races.length,
+    });
+    season = mergeDhlPitStopsIntoSeason(season, dhlSeason);
+  } catch (error) {
+    console.warn(`DHL pit-stop collection skipped for ${year}: ${error.message}`);
+  }
+
   const summary = await writeSeasonToDynamo(context, year, season.races, {
     source: season.source,
     sourceUrl: season.sourceUrl,
     skipped: season.skipped,
     formula1UpdatedAt: season.updatedAt,
+    dhlPitStopUpdatedAt: season.dhlPitStopUpdatedAt,
     inventory: season.inventory,
   });
 

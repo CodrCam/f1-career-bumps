@@ -131,7 +131,7 @@ const Navbar = () => {
           : []),
         { path: getSeasonPath(activeSeason, 'sector-analysis'), label: 'Sector Times', icon: Gauge },
         { path: getSeasonPath(activeSeason, 'pit-strategy'), label: 'Pit Strategy', icon: Wrench },
-        { path: getSeasonPath(activeSeason, 'pit-stop-analysis'), label: 'Pit Forecasts', icon: Fuel }
+        { path: getSeasonPath(activeSeason, 'pit-stop-analysis'), label: 'Pit Stop Analysis', icon: Fuel }
       ]
     }
   ];

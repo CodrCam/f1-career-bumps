@@ -33,7 +33,7 @@ export const SEASON_SECTIONS = {
     supportedSeasons: AVAILABLE_SEASONS,
   },
   'pit-stop-analysis': {
-    label: 'Pit Forecasts',
+    label: 'Pit Stop Analysis',
     supportedSeasons: AVAILABLE_SEASONS,
   },
   'race-story': {

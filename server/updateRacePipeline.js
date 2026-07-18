@@ -2,6 +2,10 @@ import { parseArgs } from 'node:util';
 import './loadLocalEnv.js';
 import { hasLocalAwsCredentials } from './awsLocalCredentials.js';
 import {
+  collectDhlPitStopSeason,
+  mergeDhlPitStopsIntoSeason,
+} from './dhlPitStopCollector.js';
+import {
   getDynamoContext,
   writeRaceAnalyticsToDynamo,
   writeSeasonToDynamo,
@@ -75,12 +79,43 @@ if (requestedRound !== null && !canWriteDynamo) {
   }
 }
 
+let dhlSeason;
+try {
+  dhlSeason = await collectDhlPitStopSeason(year, {
+    completedRounds: season?.races.length ?? requestedRound ?? officialRace.round,
+  });
+
+  if (season) {
+    season = mergeDhlPitStopsIntoSeason(season, dhlSeason);
+    officialRace = season.races.find((race) => race.round === requestedRound)
+      ?? season.races.at(-1);
+  } else {
+    officialRace = mergeDhlPitStopsIntoSeason(
+      { races: [officialRace] },
+      dhlSeason,
+    ).races[0];
+  }
+} catch (error) {
+  console.warn(`DHL pit-stop collection skipped: ${error.message}`);
+}
+
 const targetRound = officialRace.round;
-const officialSnapshot = await storeJsonSnapshot(officialRace, {
+const formula1OfficialRace = { ...officialRace };
+delete formula1OfficialRace.dhl_pit_stops;
+delete formula1OfficialRace.pit_stop_sources;
+const officialSnapshot = await storeJsonSnapshot(formula1OfficialRace, {
   year,
   round: targetRound,
   source: 'formula1-com',
 });
+const dhlRace = dhlSeason?.races.find((race) => race.round === targetRound);
+const dhlSnapshot = dhlRace
+  ? await storeJsonSnapshot(dhlRace, {
+    year,
+    round: targetRound,
+    source: 'dhl-fastest-pit-stop',
+  })
+  : null;
 
 let seasonWrite;
 if (canWriteDynamo) {
@@ -91,6 +126,7 @@ if (canWriteDynamo) {
     skipped: season.skipped,
     inventory: season.inventory,
     formula1UpdatedAt: season.updatedAt,
+    dhlPitStopUpdatedAt: season.dhlPitStopUpdatedAt,
   });
 }
 
@@ -147,6 +183,7 @@ if (canWriteDynamo && validation.status !== 'fail') {
       validation,
       rawSnapshots: {
         official: officialSnapshot,
+        dhl: dhlSnapshot,
         timing: timingSnapshot,
         validation: validationSnapshot,
         analytics: analyticsSnapshot,
@@ -172,6 +209,7 @@ console.log(JSON.stringify({
   analytics: analytics.summary,
   storage: {
     official: officialSnapshot,
+    dhl: dhlSnapshot,
     timing: timingSnapshot,
     validation: validationSnapshot,
     analytics: analyticsSnapshot,

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Rocket, BarChart3, Users2, Timer, Target, Zap, CalendarClock, BookOpenText } from "lucide-react";
+import { Rocket, BarChart3, Users2, Timer, Target, Activity, CalendarClock, BookOpenText } from "lucide-react";
 import SeasonGrid from "../components/SeasonGrid.jsx";
 import { AVAILABLE_SEASONS, CURRENT_SEASON, getSeasonPath } from "../utils/seasons.js";
 
@@ -95,11 +95,11 @@ const Home = () => {
           </Link>
 
           <Link to={getSeasonPath(CURRENT_SEASON, 'pit-stop-analysis')} className="card live-analysis featured">
-            <Zap className="icon yellow" />
+            <Activity className="icon yellow" />
             <div>
-              <h3>Pit Stop Trend Forecasts</h3>
-              <p>Heuristic scoring from historical pit stop performance</p>
-              <span className="new-badge">Model</span>
+              <h3>Pit Stop Analysis</h3>
+              <p>Compare crew service with full pit-lane time</p>
+              <span className="new-badge">Timing</span>
             </div>
           </Link>
         </div>
