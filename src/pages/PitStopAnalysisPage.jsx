@@ -23,6 +23,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { F1PageLayout } from '../components/ChartComponents.jsx';
+import TeamLogo from '../components/TeamLogo.jsx';
 import driverPitStopData from '../data/Driver_Pitstop.json';
 import pitStopTiming2025 from '../data/pitStopTiming2025.json';
 import pitStopTiming2026 from '../data/pitStopTiming2026.json';
@@ -611,7 +612,7 @@ const PitStopAnalysisPage = () => {
 
           <section className="pit-table-section">
             <header className="pit-panel__header">
-              <h2>{analysisType === 'team' ? 'Team' : 'Driver'} timing ledger</h2>
+              <h2>{analysisType === 'team' ? 'Team' : 'Driver'} timing</h2>
               <p>Medians limit the influence of repairs, penalties, and unusually delayed stops.</p>
             </header>
             <div className="pit-table-scroll">
@@ -631,9 +632,10 @@ const PitStopAnalysisPage = () => {
                   {rankings.map((ranking) => (
                     <tr key={ranking.entity}>
                       <td>
-                        <span
-                          className="pit-team-swatch"
-                          style={{ backgroundColor: getTeamColor(ranking.team) }}
+                        <TeamLogo
+                          size="sm"
+                          team={ranking.team}
+                          year={selectedYear}
                         />
                         <strong>{ranking.entity}</strong>
                       </td>

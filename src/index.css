@@ -166,6 +166,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.grid-team-identity {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.grid-team-identity > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .grid-driver-list {
   display: grid;
   gap: 1px;
@@ -577,23 +591,12 @@ body {
 }
 
 .driver-table-identity,
-.driver-ranking-identity {
+.driver-ranking-identity,
+.analysis-driver-label {
   align-items: center;
   display: flex;
   gap: 0.65rem;
   min-width: 0;
-}
-
-.driver-table-identity .team-car-mark {
-  flex: 0 0 54px;
-  max-height: 22px;
-  width: 54px;
-}
-
-.driver-ranking-identity .team-car-mark {
-  flex: 0 0 64px;
-  max-height: 25px;
-  width: 64px;
 }
 
 @media (max-width: 768px) {
@@ -614,9 +617,7 @@ body {
   }
 
   .driver-ranking-identity {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
   }
 }
 

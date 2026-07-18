@@ -301,12 +301,8 @@
   background: rgba(255, 255, 255, 0.025);
 }
 
-.pit-team-swatch {
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 2px;
-  display: inline-block;
-  height: 18px;
-  width: 5px;
+.pit-table td:first-child .team-logo {
+  margin-right: 0.1rem;
 }
 
 .pit-table .is-positive {

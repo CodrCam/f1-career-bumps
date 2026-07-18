@@ -41,7 +41,7 @@
 }
 
 .race-story-select select,
-.ledger-controls select {
+.overtake-controls select {
   background: #171a20;
   border: 1px solid #363b45;
   border-radius: 6px;
@@ -153,7 +153,7 @@
   font-weight: 950;
 }
 
-.ledger-controls {
+.overtake-controls {
   align-items: center;
   display: flex;
   gap: 0.8rem;
@@ -221,13 +221,12 @@
   align-items: center;
   display: inline-grid;
   gap: 0.5rem;
-  grid-template-columns: 72px minmax(90px, 1fr);
-  min-width: 185px;
+  grid-template-columns: 40px minmax(90px, 1fr);
+  min-width: 155px;
 }
 
-.story-driver .team-car-mark {
-  height: 29px;
-  width: 72px;
+.story-driver .team-logo {
+  justify-self: center;
 }
 
 .story-driver > span {
@@ -300,11 +299,11 @@
   align-items: center;
   display: grid;
   gap: 0.55rem;
-  grid-template-columns: 78px 1fr;
+  grid-template-columns: 52px 1fr;
 }
 
-.traffic-driver-name .team-car-mark {
-  width: 78px;
+.traffic-driver-name .team-logo {
+  justify-self: center;
 }
 
 .traffic-driver-name > span,
@@ -610,7 +609,7 @@
     border-top: 1px solid #2a2e36;
   }
 
-  .ledger-controls {
+  .overtake-controls {
     align-items: stretch;
     flex-direction: column;
   }

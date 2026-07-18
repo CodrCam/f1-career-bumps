@@ -14,7 +14,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import TeamCarMark from '../components/TeamCarMark.jsx';
+import TeamLogo from '../components/TeamLogo.jsx';
 import { useSeasonData } from '../hooks/useSeasonData.js';
 import {
   useRaceAnalytics,
@@ -22,7 +22,6 @@ import {
 } from '../hooks/useRaceStoryData.js';
 import {
   DRIVER_CODE_NAMES_2026,
-  getTeamKeyByName,
 } from '../data/seasonGrid.js';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './RaceStoryPage.css';
@@ -48,14 +47,14 @@ const DriverIdentity = ({
   code,
   team,
   names,
+  year,
   reversed = false,
 }) => {
-  const teamKey = getTeamKeyByName(team);
   const name = names.get(code) ?? DRIVER_CODE_NAMES_2026[code] ?? code;
 
   return (
     <span className={`story-driver ${reversed ? 'reversed' : ''}`}>
-      {teamKey && <TeamCarMark compact team={teamKey} />}
+      <TeamLogo size="sm" team={team} year={year} />
       <span>
         <strong>{name}</strong>
         <small>{code}</small>
@@ -280,7 +279,7 @@ const RaceStoryPage = () => {
   const { races: seasonRaces } = useSeasonData(year);
   const { data: seasonAnalytics, status: seasonStatus } = useSeasonRaceAnalytics(year);
   const [selectedRound, setSelectedRound] = useState(null);
-  const [ledgerFilter, setLedgerFilter] = useState('all');
+  const [overtakeFilter, setOvertakeFilter] = useState('all');
   const [driverFilter, setDriverFilter] = useState('all');
   const availableRaces = useMemo(
     () => seasonAnalytics?.races ?? [],
@@ -310,12 +309,12 @@ const RaceStoryPage = () => {
 
   const filteredOvertakes = useMemo(() => (
     (analytics?.overtakeEvents ?? []).filter((event) => {
-      if (ledgerFilter === 'retained' && !event.retained_two_laps) return false;
-      if (ledgerFilter === 'unsettled' && event.retained_two_laps) return false;
+      if (overtakeFilter === 'retained' && !event.retained_two_laps) return false;
+      if (overtakeFilter === 'unsettled' && event.retained_two_laps) return false;
       if (driverFilter !== 'all' && event.driver !== driverFilter && event.opponent !== driverFilter) return false;
       return true;
     })
-  ), [analytics, driverFilter, ledgerFilter]);
+  ), [analytics, driverFilter, overtakeFilter]);
 
   const trafficDrivers = useMemo(() => (
     [...(analytics?.drivers ?? [])]
@@ -393,22 +392,22 @@ const RaceStoryPage = () => {
         <StoryTimeline events={analytics.storyEvents ?? []} names={names} />
       </section>
 
-      <section className="story-section ledger-section">
+      <section className="story-section overtake-section">
         <div className="story-section-heading">
           <div>
-            <span className="section-kicker">Overtake ledger</span>
+            <span className="section-kicker">Overtake timeline</span>
             <h2>Every identified on-track pass</h2>
           </div>
           <span className="section-count">{filteredOvertakes.length}</span>
         </div>
 
-        <div className="ledger-controls">
+        <div className="overtake-controls">
           <div className="segmented-control" aria-label="Overtake status">
             {['all', 'retained', 'unsettled'].map((filter) => (
               <button
-                className={ledgerFilter === filter ? 'active' : ''}
+                className={overtakeFilter === filter ? 'active' : ''}
                 key={filter}
-                onClick={() => setLedgerFilter(filter)}
+                onClick={() => setOvertakeFilter(filter)}
               >
                 {filter}
               </button>
@@ -440,9 +439,9 @@ const RaceStoryPage = () => {
               {filteredOvertakes.map((event) => (
                 <tr key={event.id}>
                   <td className="lap-cell">L{event.lap}</td>
-                  <td><DriverIdentity code={event.driver} names={names} team={event.driver_team ?? teamByDriver.get(event.driver)} /></td>
+                  <td><DriverIdentity code={event.driver} names={names} team={event.driver_team ?? teamByDriver.get(event.driver)} year={year} /></td>
                   <td><ArrowRight aria-hidden="true" size={16} /></td>
-                  <td><DriverIdentity code={event.opponent} names={names} team={event.opponent_team ?? teamByDriver.get(event.opponent)} /></td>
+                  <td><DriverIdentity code={event.opponent} names={names} team={event.opponent_team ?? teamByDriver.get(event.opponent)} year={year} /></td>
                   <td>P{event.from_position} → P{event.to_position}</td>
                   <td>
                     <span className={`event-status ${event.retained_two_laps ? 'retained' : 'unsettled'}`}>
@@ -466,12 +465,10 @@ const RaceStoryPage = () => {
         </div>
 
         <div className="traffic-grid">
-          {trafficDrivers.slice(0, 10).map((driver) => {
-            const team = getTeamKeyByName(driver.team);
-            return (
+          {trafficDrivers.slice(0, 10).map((driver) => (
               <article className="traffic-driver" key={driver.driver}>
                 <div className="traffic-driver-name">
-                  {team && <TeamCarMark compact team={team} />}
+                  <TeamLogo size="md" team={driver.team} year={year} />
                   <span>
                     <strong>{names.get(driver.driver) ?? driver.driver}</strong>
                     <small>{driver.team}</small>
@@ -488,8 +485,7 @@ const RaceStoryPage = () => {
                   ))}
                 </div>
               </article>
-            );
-          })}
+          ))}
         </div>
       </section>
 
@@ -518,7 +514,7 @@ const RaceStoryPage = () => {
             <tbody>
               {(analytics.pitCycleEvents ?? []).map((event) => (
                 <tr key={event.id}>
-                  <td><DriverIdentity code={event.driver} names={names} team={event.team} /></td>
+                  <td><DriverIdentity code={event.driver} names={names} team={event.team} year={year} /></td>
                   <td>{event.stop}</td>
                   <td>L{event.pit_lap}</td>
                   <td>

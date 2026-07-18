@@ -69,7 +69,7 @@ test('aggregates actual pit-stop measurements without forecast scoring', () => {
   assert.equal(cadillac.matchedStops, 1);
 });
 
-test('folds shortened DHL team names into the official team ledger', () => {
+test('folds shortened DHL team names into the official team timing table', () => {
   const records = buildPitStopRecords([
     {
       round: 1,

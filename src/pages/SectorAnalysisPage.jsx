@@ -6,6 +6,7 @@ import '../components/Analysis.css';
 import { F1PageLayout, ResponsiveChart, StatsGrid } from '../components/ChartComponents.jsx';
 import { SessionSelector, DriverToggleButtons, ControlBar, ToggleSwitch } from '../components/UIControls.jsx';
 import { DataLoader, ErrorMessage, ChartLoadingSkeleton } from '../components/LoadingStates';
+import TeamLogo from '../components/TeamLogo.jsx';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import {
   getSessionDriverColor,
@@ -919,12 +920,15 @@ const SectorAnalysisPage = () => {
                       position: 'relative'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>
-                            #{index + 1} {driverName}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: '#ccc' }}>
-                            {driverData.lapCount} laps analyzed
+                        <div className="analysis-driver-label">
+                          <TeamLogo size="sm" team={driver?.team_name} year={selectedYear} />
+                          <div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>
+                              #{index + 1} {driverName}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#ccc' }}>
+                              {driverData.lapCount} laps analyzed
+                            </div>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -999,7 +1003,12 @@ const SectorAnalysisPage = () => {
                           }}>
                             #{index + 1}
                           </td>
-                          <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>{driverName}</td>
+                          <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>
+                            <div className="analysis-driver-label">
+                              <TeamLogo size="sm" team={driver?.team_name} year={selectedYear} />
+                              <span>{driverName}</span>
+                            </div>
+                          </td>
                           <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>
                             {formatTime(driverData.bestS1)}
                             <div style={{ fontSize: '0.8rem', color: '#aaa' }}>{formatDelta(driverData.gapToBestS1)}</div>

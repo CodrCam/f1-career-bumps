@@ -144,7 +144,7 @@ pk=RACE#2026#01, sk=ANALYTICS#STORY
 pk=RACE#2026#01, sk=DRIVER#RUS
 ```
 
-The 2026 Race Story feature uses a race partition for its overtake ledger, traffic encounters, pit cycles, attrition, disruption, and driver metrics. A compact season index powers the circuit transfer map without scanning the table.
+The 2026 Race Story feature uses a race partition for its overtake events, traffic encounters, pit cycles, attrition, disruption, and driver metrics. A compact season index powers the circuit transfer map without scanning the table.
 
 ## 3. AWS Identity
 

@@ -19,8 +19,7 @@ import { parseDriverStats } from "../utils/parseDriverStats";
 import { getDriverColor, useProcessedRaceData } from "../utils/dataProcessing.js";
 import { F1PageLayout, SeasonDataState, StatsGrid } from "../components/ChartComponents.jsx";
 import { ControlBar, ToggleSwitch } from "../components/UIControls.jsx";
-import TeamCarMark from "../components/TeamCarMark.jsx";
-import { getTeamKeyByName } from "../data/seasonGrid.js";
+import TeamLogo from "../components/TeamLogo.jsx";
 
 ChartJS.register(
   CategoryScale, 
@@ -584,9 +583,6 @@ const DriverStatsPage = () => {
   };
 
   const teamList = Object.keys(teamStats).sort();
-  const getDriverCarKey = (teamName) => (
-    selectedYear === 2026 ? getTeamKeyByName(teamName) : null
-  );
 
   if (races.length === 0) {
     return (
@@ -763,9 +759,7 @@ const DriverStatsPage = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div className="driver-ranking-identity">
-                    {getDriverCarKey(driver.team) && (
-                      <TeamCarMark compact team={getDriverCarKey(driver.team)} />
-                    )}
+                    <TeamLogo size="md" team={driver.team} year={selectedYear} />
                     <div>
                       <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: driver.color }}>
                         #{index + 1} {driver.name}
@@ -838,9 +832,7 @@ const DriverStatsPage = () => {
                     <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>#{index + 1}</td>
                     <td style={{ padding: '0.6rem 1rem', color: driver.color, fontWeight: 'bold' }}>
                       <div className="driver-table-identity">
-                        {getDriverCarKey(driver.team) && (
-                          <TeamCarMark compact team={getDriverCarKey(driver.team)} />
-                        )}
+                        <TeamLogo size="sm" team={driver.team} year={selectedYear} />
                         <span>{driver.name}</span>
                       </div>
                     </td>
