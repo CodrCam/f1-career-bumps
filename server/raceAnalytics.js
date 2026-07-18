@@ -279,6 +279,12 @@ const buildPitCycleEvents = (driverLaps) => {
       const positionDelta = Number.isFinite(before?.position) && Number.isFinite(after?.position)
         ? before.position - after.position
         : null;
+      const pitExitDelta = Number.isFinite(before?.position) && Number.isFinite(pitOutLap?.position)
+        ? before.position - pitOutLap.position
+        : null;
+      const positionsRecovered = Number.isFinite(pitOutLap?.position) && Number.isFinite(after?.position)
+        ? pitOutLap.position - after.position
+        : null;
       const measuredPitLaneTime = Number.isFinite(lap.pit_in_time) && Number.isFinite(pitOutLap?.pit_out_time)
         ? pitOutLap.pit_out_time - lap.pit_in_time
         : null;
@@ -290,11 +296,16 @@ const buildPitCycleEvents = (driverLaps) => {
         stop: index + 1,
         pit_lap: lapNumber,
         position_before: before?.position ?? null,
+        position_on_exit: pitOutLap?.position ?? null,
         position_after_three_laps: after?.position ?? null,
         position_delta: positionDelta,
+        pit_exit_delta: pitExitDelta,
+        positions_lost_on_exit: pitExitDelta < 0 ? Math.abs(pitExitDelta) : 0,
+        positions_recovered_after_exit: positionsRecovered > 0 ? positionsRecovered : 0,
         compound_before: before?.compound ?? null,
         compound_after: pitOutLap?.compound ?? null,
         pit_lane_time_seconds: round(pitLaneTime),
+        track_status: lap.track_status ?? null,
         outcome: positionDelta > 0 ? 'gained' : positionDelta < 0 ? 'lost' : 'held',
       };
     });
@@ -343,20 +354,37 @@ const buildDisruptionEvents = (messages = []) => {
   const seen = new Set();
 
   messages.forEach((message) => {
-    const text = `${message.category ?? ''} ${message.message ?? ''} ${message.status ?? ''} ${message.flag ?? ''}`;
+    const category = String(message.category ?? '').toLowerCase();
+    const text = `${message.message ?? ''} ${message.status ?? ''} ${message.flag ?? ''}`;
+    const isStewardsNotice = /infringement|incident involving|investigat/i.test(text);
     let type;
+    let phase = 'notice';
 
-    if (/red flag/i.test(text) || String(message.flag).toUpperCase() === 'RED') type = 'red_flag';
-    else if (/virtual safety car|vsc/i.test(text)) type = 'virtual_safety_car';
-    else if (/safety car/i.test(text)) type = 'safety_car';
+    if (
+      String(message.flag).toUpperCase() === 'RED'
+      || (/\bred flag\b/i.test(text) && !isStewardsNotice)
+    ) {
+      type = 'red_flag';
+    } else if (/\bvirtual safety car\b|\bvsc\b/i.test(text) && !isStewardsNotice) {
+      type = 'virtual_safety_car';
+    } else if (
+      category === 'safetycar'
+      || (/\bsafety car (?:deployed|in this lap)\b/i.test(text) && !isStewardsNotice)
+    ) {
+      type = 'safety_car';
+    }
     else return;
 
-    const key = `${type}-${message.lap ?? message.time}`;
+    if (/ending|in this lap|withdrawn|ended|resume/i.test(text)) phase = 'ending';
+    else if (/deployed|\bred flag\b/i.test(text) || String(message.flag).toUpperCase() === 'RED') phase = 'deployed';
+
+    const key = `${type}-${phase}-${message.lap ?? message.time}`;
     if (seen.has(key)) return;
     seen.add(key);
     events.push({
       id: key,
       type,
+      phase,
       lap: Number(message.lap) || null,
       message: message.message ?? null,
     });
@@ -364,6 +392,124 @@ const buildDisruptionEvents = (messages = []) => {
 
   return events;
 };
+
+const neutralizationFromTrackStatus = (trackStatus) => {
+  const status = String(trackStatus ?? '');
+  if (status.includes('5')) return 'red_flag';
+  if (status.includes('4')) return 'safety_car';
+  if (status.includes('6') || status.includes('7')) return 'virtual_safety_car';
+  return null;
+};
+
+const findComparisonField = (lapIndex, firstLap, driver, rival) => {
+  for (let offset = 0; offset <= 3; offset += 1) {
+    const field = lapIndex.get(firstLap + offset);
+    if (field?.has(driver) && field?.has(rival)) return field;
+  }
+  return null;
+};
+
+const enrichPitCycleEvents = ({
+  events,
+  disruptionEvents,
+  lapIndex,
+  trafficSegments,
+}) => events
+  .map((event) => {
+    const trackNeutralization = neutralizationFromTrackStatus(event.track_status);
+    const nearbyDisruption = disruptionEvents.find((disruption) => (
+      disruption.phase === 'deployed'
+      && Number.isFinite(disruption.lap)
+      && disruption.lap === event.pit_lap
+    ));
+    const neutralizationType = trackNeutralization ?? nearbyDisruption?.type ?? null;
+
+    if (neutralizationType) {
+      return {
+        ...event,
+        strategy_context: `${neutralizationType}_window`,
+        neutralization_type: neutralizationType,
+        strategy_rival: null,
+        laps_before_rival: null,
+      };
+    }
+
+    const beforeField = lapIndex.get(event.pit_lap - 1);
+    const driverBefore = beforeField?.get(event.driver);
+    const undercutCandidates = events
+      .filter((candidate) => (
+        candidate.driver !== event.driver
+        && candidate.pit_lap > event.pit_lap
+        && candidate.pit_lap <= event.pit_lap + 3
+      ))
+      .map((candidate) => {
+        const rivalBefore = beforeField?.get(candidate.driver);
+        if (
+          !driverBefore
+          || !rivalBefore
+          || driverBefore.position <= rivalBefore.position
+          || driverBefore.position - rivalBefore.position > 3
+        ) {
+          return null;
+        }
+
+        const comparisonField = findComparisonField(
+          lapIndex,
+          Math.max(event.pit_lap, candidate.pit_lap) + 2,
+          event.driver,
+          candidate.driver,
+        );
+        const driverAfter = comparisonField?.get(event.driver);
+        const rivalAfter = comparisonField?.get(candidate.driver);
+        const completed = Boolean(
+          driverAfter
+          && rivalAfter
+          && driverAfter.position < rivalAfter.position
+        );
+        const recentTraffic = trafficSegments.some((segment) => (
+          segment.driver === event.driver
+          && segment.opponent === candidate.driver
+          && segment.start_lap <= event.pit_lap
+          && segment.end_lap >= event.pit_lap - 2
+        ));
+        if (!completed && !recentTraffic) return null;
+
+        return {
+          rival: candidate.driver,
+          lapsBefore: candidate.pit_lap - event.pit_lap,
+          completed,
+          initialGap: driverBefore.position - rivalBefore.position,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (
+        Number(b.completed) - Number(a.completed)
+        || a.initialGap - b.initialGap
+        || a.lapsBefore - b.lapsBefore
+      ));
+    const undercut = undercutCandidates[0];
+
+    if (undercut) {
+      return {
+        ...event,
+        strategy_context: undercut.completed ? 'undercut_success' : 'undercut_attempt',
+        neutralization_type: null,
+        strategy_rival: undercut.rival,
+        laps_before_rival: undercut.lapsBefore,
+      };
+    }
+
+    return {
+      ...event,
+      strategy_context: event.positions_recovered_after_exit > 0
+        ? 'position_recovery'
+        : 'green_flag_stop',
+      neutralization_type: null,
+      strategy_rival: null,
+      laps_before_rival: null,
+    };
+  })
+  .sort((a, b) => a.pit_lap - b.pit_lap || a.position_before - b.position_before);
 
 const normalizeProfileValue = (value) => round(Math.max(0, Math.min(100, value)), 1);
 
@@ -456,7 +602,7 @@ export const deriveRaceAnalytics = (timing) => {
     opponent_team: driverByCode.get(event.opponent)?.team ?? null,
   }));
   const trafficSegments = drivers.flatMap((driver) => driver.traffic_segments);
-  const pitCycleEvents = drivers.flatMap((driver) => driver.pit_cycles.map((cycle) => ({
+  const rawPitCycleEvents = drivers.flatMap((driver) => driver.pit_cycles.map((cycle) => ({
     id: `pit-${driver.driver}-${cycle.stop}`,
     type: 'pit_cycle',
     lap: cycle.pit_lap,
@@ -464,6 +610,12 @@ export const deriveRaceAnalytics = (timing) => {
     team: driver.team,
     ...cycle,
   })));
+  const pitCycleEvents = enrichPitCycleEvents({
+    events: rawPitCycleEvents,
+    disruptionEvents,
+    lapIndex,
+    trafficSegments,
+  });
   const storyEvents = [
     ...enrichedOvertakes.map((event) => ({ ...event, type: 'overtake' })),
     ...pitCycleEvents,
@@ -486,7 +638,7 @@ export const deriveRaceAnalytics = (timing) => {
 
   return {
     schema_version: 2,
-    calculation_version: '2026.2',
+    calculation_version: '2026.3',
     calculated_at: new Date().toISOString(),
     year: timing.year,
     round: timing.round,
@@ -518,7 +670,7 @@ export const deriveRaceAnalytics = (timing) => {
     definitions: {
       estimated_true_overtakes: 'Lap-to-lap position swaps excluding pit activity and Lap 1; retained status is checked two laps later.',
       estimated_traffic_loss_seconds: 'Positive lap-time delta on green, accurate laps completed within two seconds of the car ahead, compared with the driver own compound and tyre-age baseline.',
-      pit_cycles: 'Position before a stop compared with position three laps after the stop; this is an observed cycle result, not a counterfactual prediction.',
+      pit_cycles: 'Chronological stop sequence showing position before the stop, on pit exit, and three laps later. Undercut labels require a nearby rival to stop later; neutralized-stop labels use timing status or race-control evidence.',
       opportunity_conversion_pct: 'Share of sustained traffic encounters that became a retained pass before two laps after the encounter ended.',
       attrition_places_gained: 'Retirements of cars running ahead while the driver continued in the race.',
       circuit_profile: 'Normalized race-shape signals for passing, traffic, strategy volatility, attrition, and race-control disruption.',

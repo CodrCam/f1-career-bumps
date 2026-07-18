@@ -356,12 +356,6 @@
 .traffic-tags .boxed_in { border-left: 2px solid #ef4444; }
 .traffic-tags .attack_window { border-left: 2px solid #f59e0b; }
 
-.strategy-table td:nth-child(4) {
-  align-items: center;
-  display: flex;
-  gap: 0.35rem;
-}
-
 .tyre-chip {
   align-items: center;
   background: #f3f4f6;
@@ -381,6 +375,169 @@
 .tyre-chip.hard { border-color: #e5e7eb; }
 .tyre-chip.intermediate { background: #22c55e; border-color: #22c55e; color: #fff; }
 .tyre-chip.wet { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.pit-cycle-timeline {
+  border-bottom: 1px solid #292d34;
+}
+
+.pit-cycle-group {
+  border-top: 1px solid #292d34;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.pit-cycle-lap {
+  align-content: start;
+  border-right: 1px solid #292d34;
+  display: grid;
+  gap: 0.1rem;
+  justify-items: start;
+  padding: 1rem 0.7rem;
+}
+
+.pit-cycle-lap span {
+  color: #7f8794;
+  font-size: 0.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pit-cycle-lap strong {
+  color: #f87171;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.pit-cycle-event {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns:
+    minmax(250px, 0.85fr)
+    minmax(330px, 1.1fr)
+    minmax(290px, 1.15fr);
+  min-height: 102px;
+  padding: 0.8rem 0.9rem;
+}
+
+.pit-cycle-event + .pit-cycle-event {
+  border-top: 1px solid #242830;
+}
+
+.pit-cycle-event:hover {
+  background: #15181e;
+}
+
+.pit-cycle-driver {
+  align-items: center;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.pit-cycle-driver .story-driver {
+  grid-template-columns: 66px minmax(90px, 1fr);
+  min-width: 0;
+}
+
+.pit-cycle-stop {
+  align-items: end;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: end;
+}
+
+.pit-cycle-stop > span {
+  color: #8c939f;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pit-cycle-stop > div {
+  align-items: center;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.pit-cycle-order {
+  align-items: center;
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(5, auto) minmax(68px, 1fr);
+}
+
+.pit-cycle-order > div {
+  display: grid;
+  gap: 0.12rem;
+  justify-items: center;
+  min-width: 46px;
+}
+
+.pit-cycle-order > div span {
+  color: #7f8794;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pit-cycle-order > div strong {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pit-cycle-order > svg {
+  color: #555c67;
+}
+
+.pit-cycle-order .position-delta {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.pit-cycle-context {
+  align-content: center;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.pit-cycle-context > strong {
+  color: #e1e4e8;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.pit-cycle-context > small {
+  color: #858c98;
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.strategy-context {
+  color: #aeb5bf;
+  font-size: 0.61rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.strategy-context.undercut_success,
+.strategy-context.position_recovery {
+  color: #6ee7a0;
+}
+
+.strategy-context.undercut_attempt {
+  color: #fbbf24;
+}
+
+.strategy-context.safety_car_window,
+.strategy-context.virtual_safety_car_window,
+.strategy-context.red_flag_window {
+  color: #7dd3fc;
+}
 
 .attrition-layout {
   display: grid;
@@ -596,6 +753,16 @@
   .traffic-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .pit-cycle-event {
+    grid-template-columns: minmax(240px, 0.85fr) minmax(320px, 1.15fr);
+  }
+
+  .pit-cycle-context {
+    border-top: 1px solid #242830;
+    grid-column: 1 / -1;
+    padding-top: 0.65rem;
+  }
 }
 
 @media (max-width: 760px) {
@@ -639,6 +806,36 @@
 
   .traffic-driver-name {
     grid-column: 1 / -1;
+  }
+
+  .pit-cycle-group {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .pit-cycle-lap {
+    padding: 0.85rem 0.45rem;
+  }
+
+  .pit-cycle-lap strong {
+    font-size: 1.05rem;
+  }
+
+  .pit-cycle-event {
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.75rem;
+  }
+
+  .pit-cycle-driver {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pit-cycle-order {
+    grid-template-columns: repeat(5, auto) minmax(62px, 1fr);
+  }
+
+  .pit-cycle-context {
+    grid-column: auto;
   }
 
   .attrition-layout,

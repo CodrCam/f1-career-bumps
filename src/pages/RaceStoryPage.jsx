@@ -44,6 +44,101 @@ const formatCompound = (compound) => (
 
 const compoundClass = (compound) => String(compound ?? 'unknown').toLowerCase();
 
+const pluralizePlace = (count) => `${count} place${count === 1 ? '' : 's'}`;
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const getPitCycleContext = (event, disruptionEvents, names) => {
+  const disruption = disruptionEvents.find((candidate) => (
+    Number.isFinite(candidate.lap)
+    && candidate.lap === event.pit_lap
+    && (
+      candidate.phase === 'deployed'
+      || /deployed|\bred flag\b/i.test(candidate.message ?? '')
+    )
+  ));
+  const context = event.strategy_context
+    ?? (disruption ? `${disruption.type}_window` : 'green_flag_stop');
+  const rival = names.get(event.strategy_rival)
+    ?? DRIVER_CODE_NAMES_2026[event.strategy_rival]
+    ?? event.strategy_rival;
+  const lapsBefore = finiteNumber(event.laps_before_rival);
+  const lapWord = lapsBefore === 1 ? 'lap' : 'laps';
+
+  if (context === 'safety_car_window') {
+    return {
+      label: 'Safety Car window',
+      detail: 'The field was compressed, so this position swing is not equivalent to a normal green-flag stop cost.',
+    };
+  }
+  if (context === 'virtual_safety_car_window') {
+    return {
+      label: 'VSC opportunity',
+      detail: 'The stop came under a reduced-speed window, lowering the time penalty relative to green-flag running.',
+    };
+  }
+  if (context === 'red_flag_window') {
+    return {
+      label: 'Red-flag window',
+      detail: 'The race was neutralized, so the usual pit-cycle comparison does not fully describe the strategic cost.',
+    };
+  }
+  if (context === 'undercut_success') {
+    return {
+      label: 'Undercut gain',
+      detail: `Stopped ${lapsBefore} ${lapWord} before ${rival}; the timing and order reversal support a successful undercut.`,
+    };
+  }
+  if (context === 'undercut_attempt') {
+    return {
+      label: 'Undercut attempt',
+      detail: `Stopped ${lapsBefore} ${lapWord} before nearby ${rival}; the sequence is consistent with an undercut attempt.`,
+    };
+  }
+  if (context === 'position_recovery') {
+    return {
+      label: 'Cycle recovery',
+      detail: 'The immediate pit-exit drop was temporary as the surrounding stop sequence unfolded.',
+    };
+  }
+  return {
+    label: 'Green-flag stop',
+    detail: 'Measured against the running order before the stop and again three laps later.',
+  };
+};
+
+const getPitCyclePositionStory = (event) => {
+  const before = finiteNumber(event.position_before);
+  const exit = finiteNumber(event.position_on_exit);
+  const after = finiteNumber(event.position_after_three_laps);
+  const lostOnExit = finiteNumber(event.positions_lost_on_exit);
+  const recovered = finiteNumber(event.positions_recovered_after_exit);
+
+  if (exit != null) {
+    if (lostOnExit > 0 && recovered > 0) {
+      return `Dropped ${pluralizePlace(lostOnExit)} on exit, then recovered ${recovered} by L+3.`;
+    }
+    if (lostOnExit > 0) {
+      return `Dropped ${pluralizePlace(lostOnExit)} on exit; none had returned by L+3.`;
+    }
+    if (recovered > 0) {
+      return `Rejoined without losing a place, then gained ${recovered} more by L+3.`;
+    }
+    if (before != null && after != null && before === after) {
+      return 'Held the same position through the measured pit cycle.';
+    }
+  }
+
+  const delta = finiteNumber(event.position_delta);
+  if (delta != null && delta !== 0) {
+    return `${delta > 0 ? 'Gained' : 'Lost'} ${pluralizePlace(Math.abs(delta))} from the pre-stop order to L+3.`;
+  }
+  return 'No net position change was measured over the three-lap pit cycle.';
+};
+
 const DriverIdentity = ({
   code,
   team,
@@ -326,6 +421,24 @@ const RaceStoryPage = () => {
       .sort((a, b) => b.estimated_traffic_loss_seconds - a.estimated_traffic_loss_seconds)
   ), [analytics]);
 
+  const pitCycleGroups = useMemo(() => {
+    const groups = new Map();
+
+    [...(analytics?.pitCycleEvents ?? [])]
+      .sort((a, b) => (
+        Number(a.pit_lap) - Number(b.pit_lap)
+        || Number(a.position_before ?? 99) - Number(b.position_before ?? 99)
+      ))
+      .forEach((event) => {
+        const lap = Number(event.pit_lap);
+        const events = groups.get(lap) ?? [];
+        events.push(event);
+        groups.set(lap, events);
+      });
+
+    return Array.from(groups, ([lap, events]) => ({ lap, events }));
+  }, [analytics]);
+
   const raceLabel = analytics?.circuitProfile?.event_name
     ?? selectedSeasonRace?.grand_prix
     ?? `Round ${selectedRound ?? '—'}`;
@@ -502,52 +615,92 @@ const RaceStoryPage = () => {
       <section className="story-section">
         <div className="story-section-heading">
           <div>
-            <span className="section-kicker">Strategy delta</span>
-            <h2>Pit-lane position changes</h2>
+            <span className="section-kicker">Pit-cycle timeline</span>
+            <h2>How each stop reshaped the order</h2>
           </div>
           <Wrench aria-hidden="true" size={24} />
         </div>
 
-        <div className="story-table-wrap">
-          <table className="story-table strategy-table">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Stop</th>
-                <th>Lap</th>
-                <th>Tyres</th>
-                <th>Before</th>
-                <th>After +3 laps</th>
-                <th>Delta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(analytics.pitCycleEvents ?? []).map((event) => (
-                <tr key={event.id}>
-                  <td><DriverIdentity code={event.driver} names={names} team={event.team} year={year} /></td>
-                  <td>{event.stop}</td>
-                  <td>L{event.pit_lap}</td>
-                  <td>
-                    <span className={`tyre-chip ${compoundClass(event.compound_before)}`}>
-                      {formatCompound(event.compound_before)}
-                    </span>
-                    <ArrowRight aria-hidden="true" size={13} />
-                    <span className={`tyre-chip ${compoundClass(event.compound_after)}`}>
-                      {formatCompound(event.compound_after)}
-                    </span>
-                  </td>
-                  <td>P{event.position_before ?? '—'}</td>
-                  <td>P{event.position_after_three_laps ?? '—'}</td>
-                  <td>
-                    <span className={`position-delta ${event.outcome}`}>
-                      {event.position_delta > 0 ? <TrendingUp size={14} /> : event.position_delta < 0 ? <TrendingDown size={14} /> : null}
-                      {formatDelta(event.position_delta)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="pit-cycle-timeline">
+          {pitCycleGroups.map((group) => (
+            <div className="pit-cycle-group" key={group.lap}>
+              <div className="pit-cycle-lap">
+                <span>Lap</span>
+                <strong>{group.lap}</strong>
+              </div>
+              <div className="pit-cycle-events">
+                {group.events.map((event) => {
+                  const context = getPitCycleContext(
+                    event,
+                    analytics.disruptionEvents ?? [],
+                    names,
+                  );
+                  const contextClass = event.strategy_context ?? {
+                    'Safety Car window': 'safety_car_window',
+                    'VSC opportunity': 'virtual_safety_car_window',
+                    'Red-flag window': 'red_flag_window',
+                  }[context.label] ?? 'green_flag_stop';
+
+                  return (
+                    <article className="pit-cycle-event" key={event.id}>
+                      <div className="pit-cycle-driver">
+                        <DriverIdentity
+                          code={event.driver}
+                          names={names}
+                          team={event.team}
+                          year={year}
+                        />
+                        <div className="pit-cycle-stop">
+                          <span>Stop {event.stop}</span>
+                          <div aria-label={`${event.compound_before ?? 'Unknown'} to ${event.compound_after ?? 'unknown'} tyres`}>
+                            <span className={`tyre-chip ${compoundClass(event.compound_before)}`}>
+                              {formatCompound(event.compound_before)}
+                            </span>
+                            <ArrowRight aria-hidden="true" size={13} />
+                            <span className={`tyre-chip ${compoundClass(event.compound_after)}`}>
+                              {formatCompound(event.compound_after)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pit-cycle-order">
+                        <div>
+                          <span>Before</span>
+                          <strong>P{event.position_before ?? '—'}</strong>
+                        </div>
+                        <ArrowRight aria-hidden="true" size={15} />
+                        <div>
+                          <span>Pit exit</span>
+                          <strong>P{event.position_on_exit ?? '—'}</strong>
+                        </div>
+                        <ArrowRight aria-hidden="true" size={15} />
+                        <div>
+                          <span>L+3</span>
+                          <strong>P{event.position_after_three_laps ?? '—'}</strong>
+                        </div>
+                        <span className={`position-delta ${event.outcome}`}>
+                          {event.position_delta > 0 ? <TrendingUp size={14} /> : event.position_delta < 0 ? <TrendingDown size={14} /> : null}
+                          Net {formatDelta(event.position_delta)}
+                        </span>
+                      </div>
+
+                      <div className="pit-cycle-context">
+                        <span className={`strategy-context ${contextClass}`}>
+                          {context.label}
+                        </span>
+                        <strong>{getPitCyclePositionStory(event)}</strong>
+                        <small>{context.detail}</small>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {pitCycleGroups.length === 0 && (
+            <p className="quiet-state">No classified pit cycles are available for this race.</p>
+          )}
         </div>
       </section>
 
