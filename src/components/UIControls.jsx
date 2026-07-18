@@ -1,6 +1,6 @@
 // src/components/UIControls.jsx
 import React from 'react';
-import DriverMark from './DriverMark.jsx';
+import DriverBrandLogo from './DriverBrandLogo.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
 const getMappedTeam = (teamByDriver, driver) => (
@@ -20,7 +20,7 @@ const DriverSelectField = ({
 
   return (
     <label className="driver-select-field">
-      <DriverMark
+      <DriverBrandLogo
         driver={selectedDriver}
         size="sm"
         team={team}

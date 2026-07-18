@@ -52,6 +52,10 @@ test('ships personal brand marks for the 2026 grid with one intentional fallback
 
   assert.equal(brandLogos.length, 21);
   assert.equal(getDriverBrandLogo('Arvid Lindblad'), null);
+  assert.equal(
+    getDriverBrandLogo('Charles Leclerc'),
+    'driver-logos/charles-leclerc-mark.png',
+  );
   assert.deepEqual(
     brandLogos.filter(({ path }) => !existsSync(new URL(`../public/${path}`, import.meta.url))),
     [],

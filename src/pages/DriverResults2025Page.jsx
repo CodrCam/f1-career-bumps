@@ -17,6 +17,7 @@ import { createResponsiveChartOptions } from "../utils/chartOptions.jsx";
 import { useProcessedRaceData, getTeamColor, getAllDriversIncludingOriginals } from "../utils/dataProcessing.js";
 import { getTrackName } from "../utils/raceLabels.js";
 import { F1PageLayout, ResponsiveChart, SeasonDataState } from "../components/ChartComponents.jsx";
+import DriverBrandLogo from "../components/DriverBrandLogo.jsx";
 import { ResponsiveDriverSelector } from "../components/UIControls.jsx";
 
 ChartJS.register(
@@ -232,6 +233,10 @@ const DriverResults2025Page = () => {
     // Override the tooltip for this specific chart
     plugins: {
       ...createResponsiveChartOptions(isMobile, "", "results").plugins,
+      legend: {
+        ...createResponsiveChartOptions(isMobile, "", "results").plugins.legend,
+        display: false,
+      },
       tooltip: {
         enabled: true,
         callbacks: {
@@ -390,13 +395,38 @@ const DriverResults2025Page = () => {
       </div>
       
       {/* Race Results Chart */}
-      <ResponsiveChart
-        type="line"
-        data={chartData}
-        options={options}
-        className="race-results-line-chart"
-        style={{ height: isMobile ? '400px' : '600px' }}
-      />
+      <div className="race-results-chart-shell">
+        <ResponsiveChart
+          type="line"
+          data={chartData}
+          options={options}
+          className="race-results-line-chart"
+          style={{ height: isMobile ? '400px' : '600px' }}
+        />
+        <div
+          aria-label="Drivers shown in the race results chart"
+          className="race-results-driver-legend"
+          role="list"
+        >
+          {chartData.datasets.map((dataset) => (
+            <div
+              className="race-results-driver-legend__item"
+              key={dataset.label}
+              role="listitem"
+              style={{ '--race-results-driver-color': dataset.borderColor }}
+            >
+              <DriverBrandLogo
+                driver={dataset.label}
+                size="xs"
+                team={dataset.team}
+                year={selectedYear}
+              />
+              <span aria-hidden="true" className="race-results-driver-legend__line" />
+              <span>{dataset.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
     </F1PageLayout>
   );

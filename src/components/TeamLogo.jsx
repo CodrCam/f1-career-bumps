@@ -14,7 +14,7 @@ const TeamLogo = ({
   if (!config) return null;
   const logoPath = `${import.meta.env.BASE_URL}${config.path}`;
   const isTeamTone = tone === 'team';
-  const isFerrariSplit = isTeamTone && config.key === 'ferrari';
+  const isFerrariSplit = config.key === 'ferrari';
 
   return (
     <span
@@ -22,7 +22,7 @@ const TeamLogo = ({
       aria-label={decorative ? undefined : `${config.label} team logo`}
       className={`team-logo team-logo--${size} team-logo--${isTeamTone ? 'team' : 'white'} ${isFerrariSplit ? 'team-logo--ferrari-split' : ''} ${className}`.trim()}
       role={decorative ? undefined : 'img'}
-      style={isTeamTone ? {
+      style={isTeamTone || isFerrariSplit ? {
         '--team-logo-color': config.color,
         '--team-logo-image': `url("${logoPath}")`,
       } : undefined}

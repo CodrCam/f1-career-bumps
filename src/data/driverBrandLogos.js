@@ -1,6 +1,6 @@
 const DRIVER_BRAND_LOGOS = {
   'alexander albon': 'alexander-albon.png',
-  'charles leclerc': 'charles-leclerc.png',
+  'charles leclerc': 'charles-leclerc-mark.png',
   'carlos sainz': 'carlos-sainz.png',
   'esteban ocon': 'esteban-ocon.png',
   'fernando alonso': 'fernando-alonso.png',
@@ -37,4 +37,3 @@ export const getDriverBrandLogo = (driver) => {
   const file = DRIVER_BRAND_LOGOS[normalizeDriverName(driver)];
   return file ? `driver-logos/${file}` : null;
 };
-
