@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Bar, Line } from 'react-chartjs-2';
@@ -27,7 +27,7 @@ const usePitStrategyData = (year) => {
 
   const apiBase = 'https://api.openf1.org/v1';
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     try {
       setInitialLoading(true);
       setError('');
@@ -61,7 +61,7 @@ const usePitStrategyData = (year) => {
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [year]);
 
   const loadSessionData = async () => {
     if (!selectedSession) {
@@ -405,7 +405,7 @@ const PitStrategyPage = () => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [selectedYear]);
+  }, [loadSessions]);
 
   const formatTime = (seconds) => {
     if (!seconds || seconds === 0) return '--:--';

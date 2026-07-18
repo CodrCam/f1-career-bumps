@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import {
   Chart as ChartJS,
@@ -79,13 +79,13 @@ const NewDriverHeadToHeadPage = () => {
 
   // Use shared processing utility
   const processedRaces = useProcessedRaceData(races);
-  const getDriverColor = (driverName) => {
+  const getDriverColor = useCallback((driverName) => {
     const result = processedRaces
       .flatMap((race) => race.race_results ?? [])
       .find(({ driver }) => driver === driverName);
 
     return getSharedDriverColor(driverName, result?.team, selectedYear);
-  };
+  }, [processedRaces, selectedYear]);
   const getDriverTeam = (driverName) => processedRaces
     .flatMap((race) => race.race_results ?? [])
     .find(({ driver }) => driver === driverName)?.team;
@@ -182,7 +182,7 @@ const NewDriverHeadToHeadPage = () => {
     };
   };
 
-  const createRadarChartData = (stats, driver1Name, driver2Name) => {
+  const createRadarChartData = useCallback((stats, driver1Name, driver2Name) => {
     if (!stats) return null;
 
     return {
@@ -226,9 +226,9 @@ const NewDriverHeadToHeadPage = () => {
         }
       ]
     };
-  };
+  }, [getDriverColor]);
 
-  const createPointsProgressionData = (races1, races2, sprint1, sprint2, driver1Name, driver2Name) => {
+  const createPointsProgressionData = useCallback((races1, races2, sprint1, sprint2, driver1Name, driver2Name) => {
     let cumulative1 = 0;
     let cumulative2 = 0;
     
@@ -275,7 +275,7 @@ const NewDriverHeadToHeadPage = () => {
         }
       ]
     };
-  };
+  }, [getDriverColor]);
 
   // Main data processing
   const comparisonData = useMemo(() => {
@@ -301,7 +301,13 @@ const NewDriverHeadToHeadPage = () => {
       quali1, quali2, sprint1, sprint2, races1, races2,
       stats, radarData, progressionData
     };
-  }, [driver1, driver2, processedRaces]);
+  }, [
+    createPointsProgressionData,
+    createRadarChartData,
+    driver1,
+    driver2,
+    processedRaces,
+  ]);
 
   // Statistics for the grid
   const statsGridData = useMemo(() => {
