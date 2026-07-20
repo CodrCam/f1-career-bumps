@@ -40,6 +40,12 @@ const chunk = (items, size) => {
   return chunks;
 };
 
+const seasonItemKey = ({ pk, sk }) => `${pk}\0${sk}`;
+
+const isReplaceableSeasonItem = (item) => (
+  item.sk === 'META' || item.sk.startsWith('RACE#')
+);
+
 export const ensureSeasonTable = async ({ client, tableName }) => {
   try {
     await client.send(new DescribeTableCommand({ TableName: tableName }));
@@ -87,7 +93,7 @@ export const batchWriteAll = async ({ documentClient, tableName }, requests) => 
   }
 };
 
-export const deleteExistingSeason = async (context, year) => {
+const getReplaceableSeasonKeys = async (context, year) => {
   const { documentClient, tableName } = context;
   const pk = seasonPk(year);
   const existing = await documentClient.send(new QueryCommand({
@@ -99,8 +105,11 @@ export const deleteExistingSeason = async (context, year) => {
     ProjectionExpression: 'pk, sk',
   }));
 
-  const deleteRequests = (existing.Items ?? [])
-    .filter((item) => item.sk === 'META' || item.sk.startsWith('RACE#'))
+  return (existing.Items ?? []).filter(isReplaceableSeasonItem);
+};
+
+const deleteSeasonItems = async (context, items) => {
+  const deleteRequests = items
     .map((item) => ({
       DeleteRequest: {
         Key: {
@@ -115,6 +124,17 @@ export const deleteExistingSeason = async (context, year) => {
       await batchWriteAll(context, requests);
     }
   }
+};
+
+export const deleteExistingSeason = async (context, year) => {
+  await deleteSeasonItems(context, await getReplaceableSeasonKeys(context, year));
+};
+
+const deleteStaleSeasonItems = async (context, year, activeKeys) => {
+  const staleItems = (await getReplaceableSeasonKeys(context, year))
+    .filter((item) => !activeKeys.has(seasonItemKey(item)));
+
+  await deleteSeasonItems(context, staleItems);
 };
 
 export const deletePartition = async (context, pk) => {
@@ -150,7 +170,6 @@ export const countResultRows = (races) => races.reduce((count, race) => {
 
 export const writeSeasonToDynamo = async (context, year, races, metadata = {}) => {
   await ensureSeasonTable(context);
-  await deleteExistingSeason(context, year);
 
   const pk = seasonPk(year);
   const results = countResultRows(races);
@@ -183,6 +202,12 @@ export const writeSeasonToDynamo = async (context, year, races, metadata = {}) =
   for (const requests of chunk(putRequests, 25)) {
     await batchWriteAll(context, requests);
   }
+
+  await deleteStaleSeasonItems(
+    context,
+    year,
+    new Set(items.map(seasonItemKey)),
+  );
 
   return {
     table: context.tableName,

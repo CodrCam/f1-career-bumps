@@ -144,15 +144,34 @@ if (values['official-only']) {
   process.exit(0);
 }
 
-const timing = await withRetries(
-  () => collectFastF1Snapshot({
+let timing;
+try {
+  timing = await withRetries(
+    () => collectFastF1Snapshot({
+      year,
+      round: targetRound,
+      session: values.session,
+      includeTelemetry: values.telemetry,
+    }),
+    { attempts: retryCount, delayMs: retryDelayMs },
+  );
+} catch (error) {
+  console.warn(`FastF1 timing collection skipped: ${error.message}`);
+  console.log(JSON.stringify({
+    ok: true,
+    mode: 'season-only',
     year,
     round: targetRound,
-    session: values.session,
-    includeTelemetry: values.telemetry,
-  }),
-  { attempts: retryCount, delayMs: retryDelayMs },
-);
+    grandPrix: officialRace.grand_prix,
+    reason: 'FastF1 timing data was unavailable; Formula1.com season data was updated.',
+    storage: {
+      official: officialSnapshot,
+      dhl: dhlSnapshot,
+    },
+    seasonWrite,
+  }, null, 2));
+  process.exit(0);
+}
 
 const validation = validateRaceSources({ ...officialRace, year }, timing);
 const analytics = deriveRaceAnalytics(timing);
