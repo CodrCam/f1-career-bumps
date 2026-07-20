@@ -726,9 +726,17 @@
 .story-state {
   align-items: center;
   display: flex;
+  flex-direction: column;
   gap: 0.7rem;
   justify-content: center;
   min-height: 55vh;
+  text-align: center;
+}
+
+.story-state p {
+  color: #9ca3af;
+  margin: 0;
+  max-width: 560px;
 }
 
 .story-state.error {

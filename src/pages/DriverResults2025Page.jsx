@@ -34,6 +34,7 @@ const DriverResults2025Page = () => {
   const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [visibleStart, setVisibleStart] = useState(0);
   const [visibleCount, setVisibleCount] = useState(9);
+  const [raceWindowTouched, setRaceWindowTouched] = useState(false);
   const [showSelectedOnly, setShowSelectedOnly] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { seasonYear } = useParams();
@@ -58,10 +59,15 @@ const DriverResults2025Page = () => {
 
     setVisibleCount((current) => {
       const nextCount = Math.min(Math.max(current || defaultWindow, minimumWindow), totalRaces);
-      setVisibleStart((currentStart) => Math.min(currentStart, Math.max(0, totalRaces - nextCount)));
+      const latestStart = Math.max(0, totalRaces - nextCount);
+      setVisibleStart((currentStart) => (
+        raceWindowTouched
+          ? Math.min(currentStart, latestStart)
+          : latestStart
+      ));
       return nextCount;
     });
-  }, [defaultWindow, minimumWindow, totalRaces]);
+  }, [defaultWindow, minimumWindow, raceWindowTouched, totalRaces]);
   
   // Get all drivers including both original and replacement drivers (should be 21 total)
   const allDrivers = useMemo(() => {
@@ -97,18 +103,22 @@ const DriverResults2025Page = () => {
     return visibleRaceIndexes.map((raceIndex) => rawRaces[raceIndex]).filter(Boolean);
   }, [rawRaces, visibleRaceIndexes]);
 
-  const updateRaceWindow = (nextCount, nextStart = visibleStart) => {
+  const updateRaceWindow = (nextCount, nextStart = visibleStart, { markTouched = true } = {}) => {
     if (totalRaces === 0) return;
 
     const clampedCount = Math.min(totalRaces, Math.max(minimumWindow, nextCount));
     const maxStart = Math.max(0, totalRaces - clampedCount);
+    if (markTouched) setRaceWindowTouched(true);
     setVisibleCount(clampedCount);
     setVisibleStart(Math.min(Math.max(0, nextStart), maxStart));
   };
 
   const showAllRaces = () => updateRaceWindow(totalRaces, 0);
   const showLatestRaces = () => updateRaceWindow(defaultWindow, Math.max(0, totalRaces - defaultWindow));
-  const resetRaceWindow = () => updateRaceWindow(defaultWindow, 0);
+  const resetRaceWindow = () => {
+    setRaceWindowTouched(false);
+    updateRaceWindow(defaultWindow, Math.max(0, totalRaces - defaultWindow), { markTouched: false });
+  };
 
   const handleVisibleCountChange = (event) => {
     const nextCount = Number(event.target.value);
@@ -374,7 +384,7 @@ const DriverResults2025Page = () => {
           <button type="button" onClick={showLatestRaces} disabled={totalRaces <= defaultWindow && visibleStart === Math.max(0, totalRaces - defaultWindow)}>
             Latest
           </button>
-          <button type="button" onClick={resetRaceWindow} disabled={visibleStart === 0 && visibleCount === defaultWindow}>
+          <button type="button" onClick={resetRaceWindow} disabled={visibleStart === Math.max(0, totalRaces - defaultWindow) && visibleCount === defaultWindow}>
             <RotateCcw size={16} />
             Reset
           </button>

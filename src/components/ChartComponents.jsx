@@ -96,9 +96,11 @@ const RaceStageChart = ({
     const chartArea = chart?.chartArea;
     if (!yScale || !chartArea || standings.length === 0) return;
 
+    const canvasOffsetLeft = chart.canvas?.offsetLeft ?? 0;
+    const canvasOffsetTop = chart.canvas?.offsetTop ?? 0;
     const carWidth = isMobile ? mobileCarWidth : desktopCarWidth;
     const carHeight = carWidth * (70 / 224);
-    const finishX = chartArea.right - (isMobile ? 4 : 8);
+    const finishX = canvasOffsetLeft + chartArea.right - (isMobile ? 4 : 8);
     const availableStagger = Math.min(
       chartArea.width * (isMobile ? mobileStaggerRatio : desktopStaggerRatio),
       isMobile ? mobileMaxStagger : desktopMaxStagger,
@@ -113,7 +115,7 @@ const RaceStageChart = ({
         ...standing,
         width: carWidth,
         left: finishX - carWidth - (index * staggerStep),
-        top: yScale.getPixelForValue(standing.position) - (carHeight / 2),
+        top: canvasOffsetTop + yScale.getPixelForValue(standing.position) - (carHeight / 2),
         tooltipPlacement: yScale.getPixelForValue(standing.position) < chartArea.top + 118
           ? 'below'
           : 'above',

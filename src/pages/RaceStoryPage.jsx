@@ -24,6 +24,7 @@ import {
 import {
   DRIVER_CODE_NAMES_2026,
 } from '../data/seasonGrid.js';
+import { getTrackName } from '../utils/raceLabels.js';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './RaceStoryPage.css';
 
@@ -375,23 +376,53 @@ const CircuitTransferMap = ({
 const RaceStoryPage = () => {
   const { seasonYear } = useParams();
   const year = getSeasonFromParam(seasonYear);
-  const { races: seasonRaces } = useSeasonData(year);
+  const { races: seasonRaces, status: seasonDataStatus } = useSeasonData(year);
   const { data: seasonAnalytics, status: seasonStatus } = useSeasonRaceAnalytics(year);
   const [selectedRound, setSelectedRound] = useState(null);
+  const [roundTouched, setRoundTouched] = useState(false);
   const [overtakeFilter, setOvertakeFilter] = useState('all');
   const [driverFilter, setDriverFilter] = useState('all');
+  const analyticsByRound = useMemo(() => new Map(
+    (seasonAnalytics?.races ?? []).map((race) => [Number(race.round), race]),
+  ), [seasonAnalytics]);
   const availableRaces = useMemo(
-    () => seasonAnalytics?.races ?? [],
-    [seasonAnalytics],
+    () => {
+      const racesByRound = new Map();
+
+      seasonRaces.forEach((race) => {
+        racesByRound.set(Number(race.round), {
+          round: Number(race.round),
+          circuitProfile: {
+            event_name: race.grand_prix,
+            location: getTrackName(race),
+          },
+          hasAnalytics: false,
+        });
+      });
+
+      analyticsByRound.forEach((race, round) => {
+        racesByRound.set(round, {
+          ...race,
+          hasAnalytics: true,
+        });
+      });
+
+      return [...racesByRound.values()].sort((a, b) => a.round - b.round);
+    },
+    [analyticsByRound, seasonRaces],
   );
-  const { data: analytics, status: raceStatus } = useRaceAnalytics(year, selectedRound);
+  const selectedHasAnalytics = analyticsByRound.has(Number(selectedRound));
+  const { data: analytics, status: raceStatus } = useRaceAnalytics(
+    year,
+    selectedHasAnalytics ? selectedRound : null,
+  );
 
   useEffect(() => {
     if (availableRaces.length === 0) return;
-    if (!availableRaces.some((race) => race.round === selectedRound)) {
+    if (!roundTouched || !availableRaces.some((race) => race.round === selectedRound)) {
       setSelectedRound(availableRaces.at(-1).round);
     }
-  }, [availableRaces, selectedRound]);
+  }, [availableRaces, roundTouched, selectedRound]);
 
   const selectedSeasonRace = seasonRaces.find((race) => Number(race.round) === selectedRound);
   const names = useMemo(() => {
@@ -442,22 +473,69 @@ const RaceStoryPage = () => {
   const raceLabel = analytics?.circuitProfile?.event_name
     ?? selectedSeasonRace?.grand_prix
     ?? `Round ${selectedRound ?? '—'}`;
+  const selectedRaceOption = availableRaces.find((race) => race.round === selectedRound);
+
+  const raceSelect = (
+    <label className="race-story-select">
+      <span>Race</span>
+      <select
+        onChange={(event) => {
+          setRoundTouched(true);
+          setSelectedRound(Number(event.target.value));
+        }}
+        value={selectedRound ?? ''}
+      >
+        {availableRaces.map((race) => (
+          <option key={race.round} value={race.round}>
+            R{race.round} · {race.circuitProfile?.location ?? race.session?.event_name ?? 'Race'}
+            {!race.hasAnalytics ? ' · timing pending' : ''}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 
   if (
-    seasonStatus === 'loading'
+    (seasonDataStatus === 'loading' && seasonRaces.length === 0)
+    || (seasonStatus === 'loading' && availableRaces.length === 0)
     || !selectedRound
-    || raceStatus === 'idle'
-    || raceStatus === 'loading'
+    || (selectedHasAnalytics && (raceStatus === 'idle' || raceStatus === 'loading'))
   ) {
     return <main className="race-story-page"><div className="story-state">Building the race story…</div></main>;
   }
 
-  if (availableRaces.length === 0 || raceStatus === 'error') {
+  if (availableRaces.length === 0) {
     return (
       <main className="race-story-page">
         <div className="story-state error">
           <CircleAlert size={24} />
           <strong>No race story is available for this season yet.</strong>
+        </div>
+      </main>
+    );
+  }
+
+  if (!selectedHasAnalytics || raceStatus === 'error') {
+    return (
+      <main className="race-story-page">
+        <header className="race-story-header">
+          <div>
+            <span className="section-kicker">Race story</span>
+            <h1>{raceLabel}</h1>
+            <p>
+              Round {selectedRound}
+              {selectedRaceOption?.circuitProfile?.location ? ` · ${selectedRaceOption.circuitProfile.location}` : ''}
+            </p>
+          </div>
+          {raceSelect}
+        </header>
+
+        <div className="story-state">
+          <CircleAlert size={24} />
+          <strong>Detailed race story timing is pending for this race.</strong>
+          <p>
+            The completed race results are published, but FastF1 timing data for the story view is not available yet.
+          </p>
         </div>
       </main>
     );
@@ -474,19 +552,7 @@ const RaceStoryPage = () => {
             {analytics?.circuitProfile?.location ? ` · ${analytics.circuitProfile.location}` : ''}
           </p>
         </div>
-        <label className="race-story-select">
-          <span>Race</span>
-          <select
-            onChange={(event) => setSelectedRound(Number(event.target.value))}
-            value={selectedRound ?? ''}
-          >
-            {availableRaces.map((race) => (
-              <option key={race.round} value={race.round}>
-                R{race.round} · {race.circuitProfile?.location ?? race.session?.event_name ?? 'Race'}
-              </option>
-            ))}
-          </select>
-        </label>
+        {raceSelect}
       </header>
 
       <div className="story-metrics">
