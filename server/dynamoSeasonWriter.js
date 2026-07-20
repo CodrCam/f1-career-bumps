@@ -11,11 +11,17 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 
+export const dynamoDocumentClientOptions = {
+  marshallOptions: {
+    removeUndefinedValues: true,
+  },
+};
+
 export const getDynamoContext = () => {
   const tableName = process.env.DYNAMODB_TABLE ?? 'f1-website-data';
   const region = process.env.AWS_REGION ?? 'us-west-2';
   const client = new DynamoDBClient({ region });
-  const documentClient = DynamoDBDocumentClient.from(client);
+  const documentClient = DynamoDBDocumentClient.from(client, dynamoDocumentClientOptions);
 
   return { tableName, region, client, documentClient };
 };
