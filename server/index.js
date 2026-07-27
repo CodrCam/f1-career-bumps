@@ -94,6 +94,16 @@ app.get('/api/seasons/:year/analytics', async (req, res, next) => {
   }
 });
 
+app.get('/api/seasons/:year/status', async (req, res, next) => {
+  try {
+    const year = Number(req.params.year);
+    const status = await analyticsReader.getSeasonPublicationStatus(year);
+    res.json(status);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/seasons/:year/races/:round/analytics', async (req, res, next) => {
   try {
     const year = Number(req.params.year);
@@ -112,6 +122,31 @@ app.get('/api/seasons/:year/races/:round/analytics', async (req, res, next) => {
     }
 
     res.json(analytics);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/seasons/:year/races/:round/status', async (req, res, next) => {
+  try {
+    const year = Number(req.params.year);
+    const round = Number(req.params.round);
+
+    if (!Number.isInteger(year) || !Number.isInteger(round) || round < 1) {
+      res.status(400).json({ error: 'Invalid season year or race round' });
+      return;
+    }
+
+    const status = await analyticsReader.getRacePublicationStatus(year, round);
+
+    if (!status) {
+      res.status(404).json({
+        error: `No race publication status found for ${year} round ${round}`,
+      });
+      return;
+    }
+
+    res.json(status);
   } catch (error) {
     next(error);
   }

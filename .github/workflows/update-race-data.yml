@@ -55,7 +55,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_UPDATE_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update the latest completed race
+      - name: Update the latest completed race and require publishable analytics
         env:
           INPUT_ROUND: ${{ inputs.round }}
           FASTF1_PYTHON: python
@@ -63,4 +63,3 @@ jobs:
           args=(--year 2026 --retries 3 --retry-delay 45000)
           if [[ -n "$INPUT_ROUND" ]]; then args+=(--round "$INPUT_ROUND"); fi
           npm run pipeline:update -- "${args[@]}"
-

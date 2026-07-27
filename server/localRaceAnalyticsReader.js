@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
+import {
+  buildRacePublicationStatus,
+  missingDetailedTimingCapabilities,
+} from './racePublicationStatus.js';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const roots = [
@@ -65,11 +69,61 @@ const toRaceAnalyticsResponse = (analytics, validation) => {
   };
 };
 
+const toLocalPublicationStatus = (year, round, analytics, validation) => {
+  if (!analytics && !validation) return null;
+
+  const validationFailed = validation?.status === 'fail';
+  return buildRacePublicationStatus({
+    year,
+    round,
+    grandPrix: validation?.grand_prix
+      ?? analytics?.circuit_profile?.event_name
+      ?? `Round ${round}`,
+    state: validationFailed ? 'failed' : analytics ? 'published' : 'degraded',
+    sourceCoverage: {
+      detailedTiming: analytics ? 'ready' : 'missing',
+      validation: validation?.status ?? 'missing',
+    },
+    missingCapabilities: missingDetailedTimingCapabilities(
+      validation?.capability_matrix,
+    ),
+    lastAttemptAt: validation?.compared_at
+      ?? analytics?.calculated_at
+      ?? new Date().toISOString(),
+    publishedAt: analytics && !validationFailed ? analytics.calculated_at : undefined,
+    lastErrorCode: validationFailed ? 'SOURCE_VALIDATION_FAILED' : undefined,
+    lastErrorSummary: validationFailed
+      ? 'Detailed timing did not pass source validation.'
+      : undefined,
+  });
+};
+
 export const createLocalRaceAnalyticsReader = () => ({
   async getRaceAnalytics(year, round) {
     const { analytics, validation } = await readValidatedAnalytics(year, round);
     if (validation?.status === 'fail') return null;
     return toRaceAnalyticsResponse(analytics, validation);
+  },
+
+  async getRacePublicationStatus(year, round) {
+    const { analytics, validation } = await readValidatedAnalytics(year, round);
+    return toLocalPublicationStatus(year, round, analytics, validation);
+  },
+
+  async getSeasonPublicationStatus(year) {
+    const snapshots = await Promise.all(
+      Array.from({ length: 30 }, (_, index) => readValidatedAnalytics(year, index + 1)),
+    );
+
+    return {
+      year,
+      races: snapshots
+        .map(({ analytics, validation }, index) => (
+          toLocalPublicationStatus(year, index + 1, analytics, validation)
+        ))
+        .filter(Boolean),
+      dataStore: 'local-snapshot',
+    };
   },
 
   async getSeasonAnalytics(year) {

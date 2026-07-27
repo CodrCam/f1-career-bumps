@@ -20,6 +20,7 @@ import { useSeasonData } from '../hooks/useSeasonData.js';
 import {
   useRaceAnalytics,
   useSeasonRaceAnalytics,
+  useSeasonRacePublicationStatus,
 } from '../hooks/useRaceStoryData.js';
 import {
   DRIVER_CODE_NAMES_2026,
@@ -44,6 +45,16 @@ const formatCompound = (compound) => (
 );
 
 const compoundClass = (compound) => String(compound ?? 'unknown').toLowerCase();
+const publicationStateLabels = {
+  scheduled: 'scheduled',
+  awaiting_results: 'results pending',
+  results_ready: 'results ready',
+  awaiting_timing: 'story processing',
+  timing_ready: 'story processing',
+  published: 'story ready',
+  degraded: 'limited story',
+  failed: 'refresh failed',
+};
 
 const pluralizePlace = (count) => `${count} place${count === 1 ? '' : 's'}`;
 const finiteNumber = (value) => {
@@ -378,6 +389,7 @@ const RaceStoryPage = () => {
   const year = getSeasonFromParam(seasonYear);
   const { races: seasonRaces, status: seasonDataStatus } = useSeasonData(year);
   const { data: seasonAnalytics, status: seasonStatus } = useSeasonRaceAnalytics(year);
+  const { data: seasonPublication } = useSeasonRacePublicationStatus(year);
   const [selectedRound, setSelectedRound] = useState(null);
   const [roundTouched, setRoundTouched] = useState(false);
   const [overtakeFilter, setOvertakeFilter] = useState('all');
@@ -385,6 +397,9 @@ const RaceStoryPage = () => {
   const analyticsByRound = useMemo(() => new Map(
     (seasonAnalytics?.races ?? []).map((race) => [Number(race.round), race]),
   ), [seasonAnalytics]);
+  const publicationByRound = useMemo(() => new Map(
+    (seasonPublication?.races ?? []).map((status) => [Number(status.round), status]),
+  ), [seasonPublication]);
   const availableRaces = useMemo(
     () => {
       const racesByRound = new Map();
@@ -397,19 +412,23 @@ const RaceStoryPage = () => {
             location: getTrackName(race),
           },
           hasAnalytics: false,
+          publicationStatus: publicationByRound.get(Number(race.round)),
         });
       });
 
       analyticsByRound.forEach((race, round) => {
+        const existing = racesByRound.get(round);
         racesByRound.set(round, {
+          ...existing,
           ...race,
           hasAnalytics: true,
+          publicationStatus: publicationByRound.get(round) ?? existing?.publicationStatus,
         });
       });
 
       return [...racesByRound.values()].sort((a, b) => a.round - b.round);
     },
-    [analyticsByRound, seasonRaces],
+    [analyticsByRound, publicationByRound, seasonRaces],
   );
   const selectedHasAnalytics = analyticsByRound.has(Number(selectedRound));
   const { data: analytics, status: raceStatus } = useRaceAnalytics(
@@ -474,6 +493,7 @@ const RaceStoryPage = () => {
     ?? selectedSeasonRace?.grand_prix
     ?? `Round ${selectedRound ?? '—'}`;
   const selectedRaceOption = availableRaces.find((race) => race.round === selectedRound);
+  const selectedPublicationStatus = selectedRaceOption?.publicationStatus;
 
   const raceSelect = (
     <label className="race-story-select">
@@ -488,7 +508,9 @@ const RaceStoryPage = () => {
         {availableRaces.map((race) => (
           <option key={race.round} value={race.round}>
             R{race.round} · {race.circuitProfile?.location ?? race.session?.event_name ?? 'Race'}
-            {!race.hasAnalytics ? ' · timing pending' : ''}
+            {publicationStateLabels[race.publicationStatus?.state]
+              ? ` · ${publicationStateLabels[race.publicationStatus.state]}`
+              : !race.hasAnalytics ? ' · timing pending' : ''}
           </option>
         ))}
       </select>
@@ -532,9 +554,16 @@ const RaceStoryPage = () => {
 
         <div className="story-state">
           <CircleAlert size={24} />
-          <strong>Detailed race story timing is pending for this race.</strong>
+          <strong>
+            {selectedPublicationStatus?.state === 'failed'
+              ? 'The detailed race story did not pass publication checks.'
+              : selectedPublicationStatus?.state === 'degraded'
+                ? 'Official results are ready; detailed timing is temporarily unavailable.'
+                : 'Official results are ready while the detailed story is processing.'}
+          </strong>
           <p>
-            The completed race results are published, but FastF1 timing data for the story view is not available yet.
+            {selectedPublicationStatus?.lastErrorSummary
+              ?? 'The classification remains available and the refresh pipeline will retry the missing timing automatically.'}
           </p>
         </div>
       </main>

@@ -3,6 +3,7 @@ import test from 'node:test';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import {
   dynamoDocumentClientOptions,
+  writeRacePublicationStatusToDynamo,
   writeSeasonToDynamo,
 } from './dynamoSeasonWriter.js';
 
@@ -73,4 +74,44 @@ test('dynamo writer prunes stale season rows after replacement rows are written'
     lastRequests.map((request) => request.DeleteRequest.Key.sk),
     ['RACE#02'],
   );
+});
+
+test('dynamo writer stores publication status outside the replaceable race rows', async () => {
+  const documentInputs = [];
+  const context = {
+    tableName: 'f1-test',
+    region: 'test-region',
+    client: {
+      send: async () => ({}),
+    },
+    documentClient: {
+      send: async (command) => {
+        documentInputs.push(command.input);
+        return {};
+      },
+    },
+  };
+
+  const result = await writeRacePublicationStatusToDynamo(context, {
+    schemaVersion: 1,
+    year: 2026,
+    round: 10,
+    grandPrix: 'Belgian Grand Prix',
+    state: 'degraded',
+    sourceCoverage: {
+      formula1Official: 'ready',
+      detailedTiming: 'unavailable',
+    },
+    missingCapabilities: ['Detailed race timing and derived race story'],
+    lastAttemptAt: '2026-07-26T16:00:00.000Z',
+  });
+
+  const batchWrite = documentInputs.find((input) => input.RequestItems);
+  const item = batchWrite.RequestItems['f1-test'][0].PutRequest.Item;
+
+  assert.equal(item.pk, 'SEASON#2026');
+  assert.equal(item.sk, 'STATUS#ROUND#10');
+  assert.equal(item.itemType, 'race_publication_status');
+  assert.equal(item.state, 'degraded');
+  assert.equal(result.state, 'degraded');
 });

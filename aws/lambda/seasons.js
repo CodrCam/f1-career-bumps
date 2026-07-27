@@ -1,7 +1,9 @@
 import {
   getDynamoRaceAnalytics,
+  getDynamoRacePublicationStatus,
   getDynamoSeason,
   getDynamoSeasonAnalytics,
+  getDynamoSeasonPublicationStatus,
   getDynamoSeasonSummary,
 } from './dynamoSeasonData.js';
 
@@ -69,6 +71,7 @@ const getRoute = (event) => {
     view: params.view ?? tail[0],
     round: Number(params.round ?? (tail[0] === 'races' ? tail[1] : undefined)),
     isRaceAnalytics: tail[0] === 'races' && tail[2] === 'analytics',
+    isRaceStatus: tail[0] === 'races' && tail[2] === 'status',
   };
 };
 
@@ -88,21 +91,26 @@ export const handler = async (event) => {
     view,
     round,
     isRaceAnalytics,
+    isRaceStatus,
   } = getRoute(event);
 
   if (!Number.isInteger(year)) {
     return response(400, { error: 'Invalid season year' });
   }
 
-  if (isRaceAnalytics && (!Number.isInteger(round) || round < 1)) {
+  if ((isRaceAnalytics || isRaceStatus) && (!Number.isInteger(round) || round < 1)) {
     return response(400, { error: 'Invalid race round' });
   }
 
   try {
     const data = isRaceAnalytics
       ? await getDynamoRaceAnalytics(year, round)
+      : isRaceStatus
+        ? await getDynamoRacePublicationStatus(year, round)
       : view === 'summary'
         ? await getDynamoSeasonSummary(year)
+        : view === 'status'
+          ? await getDynamoSeasonPublicationStatus(year)
         : view === 'analytics'
           ? await getDynamoSeasonAnalytics(year)
         : await getDynamoSeason(year);
@@ -111,6 +119,8 @@ export const handler = async (event) => {
       return response(404, {
         error: isRaceAnalytics
           ? `No race analytics found for ${year} round ${round}`
+          : isRaceStatus
+            ? `No race publication status found for ${year} round ${round}`
           : `No season data found for ${year}`,
       });
     }

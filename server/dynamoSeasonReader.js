@@ -4,8 +4,10 @@ import {
   GetCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { publicRacePublicationStatus } from './racePublicationStatus.js';
 
 const seasonPk = (year) => `SEASON#${year}`;
+const raceStatusSk = (round) => `STATUS#ROUND#${String(round).padStart(2, '0')}`;
 const raceAnalyticsPk = (year, round) => (
   `RACE#${year}#${String(round).padStart(2, '0')}`
 );
@@ -122,6 +124,38 @@ export const createDynamoSeasonReader = ({
       }));
 
       return assembleRaceAnalytics(response.Items);
+    },
+
+    async getRacePublicationStatus(year, round) {
+      const response = await documentClient.send(new GetCommand({
+        TableName: tableName,
+        Key: {
+          pk: seasonPk(year),
+          sk: raceStatusSk(round),
+        },
+      }));
+
+      return publicRacePublicationStatus(response.Item);
+    },
+
+    async getSeasonPublicationStatus(year) {
+      const response = await documentClient.send(new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': seasonPk(year),
+          ':prefix': 'STATUS#ROUND#',
+        },
+        ScanIndexForward: true,
+      }));
+
+      return {
+        year,
+        races: (response.Items ?? [])
+          .map(publicRacePublicationStatus)
+          .sort((a, b) => a.round - b.round),
+        dataStore: 'dynamodb',
+      };
     },
 
     async getSeasonAnalytics(year) {

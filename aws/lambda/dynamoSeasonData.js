@@ -4,6 +4,7 @@ import {
   GetCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { publicRacePublicationStatus } from '../../server/racePublicationStatus.js';
 
 const tableName = process.env.DYNAMODB_TABLE ?? 'f1-website-data';
 
@@ -14,6 +15,7 @@ const client = new DynamoDBClient({
 const documentClient = DynamoDBDocumentClient.from(client);
 
 const seasonPk = (year) => `SEASON#${year}`;
+const raceStatusSk = (round) => `STATUS#ROUND#${String(round).padStart(2, '0')}`;
 const raceAnalyticsPk = (year, round) => (
   `RACE#${year}#${String(round).padStart(2, '0')}`
 );
@@ -117,6 +119,38 @@ export const getDynamoRaceAnalytics = async (year, round) => {
     attritionEvents: story?.attritionEvents ?? [],
     disruptionEvents: story?.disruptionEvents ?? [],
     drivers,
+    dataStore: 'dynamodb',
+  };
+};
+
+export const getDynamoRacePublicationStatus = async (year, round) => {
+  const response = await documentClient.send(new GetCommand({
+    TableName: tableName,
+    Key: {
+      pk: seasonPk(year),
+      sk: raceStatusSk(round),
+    },
+  }));
+
+  return publicRacePublicationStatus(response.Item);
+};
+
+export const getDynamoSeasonPublicationStatus = async (year) => {
+  const response = await documentClient.send(new QueryCommand({
+    TableName: tableName,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': seasonPk(year),
+      ':prefix': 'STATUS#ROUND#',
+    },
+    ScanIndexForward: true,
+  }));
+
+  return {
+    year,
+    races: (response.Items ?? [])
+      .map(publicRacePublicationStatus)
+      .sort((a, b) => a.round - b.round),
     dataStore: 'dynamodb',
   };
 };

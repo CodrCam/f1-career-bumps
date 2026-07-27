@@ -7,9 +7,11 @@ import {
 } from './dhlPitStopCollector.js';
 import {
   getDynamoContext,
+  writeRacePublicationStatusToDynamo,
   writeRaceAnalyticsToDynamo,
   writeSeasonToDynamo,
 } from './dynamoSeasonWriter.js';
+import { createDynamoSeasonReader } from './dynamoSeasonReader.js';
 import { collectFastF1Snapshot } from './fastF1Timing.js';
 import {
   buildFormula1Race,
@@ -17,6 +19,11 @@ import {
 } from './formula1SeasonBuilder.js';
 import { storeJsonSnapshot } from './rawDataStore.js';
 import { deriveRaceAnalytics } from './raceAnalytics.js';
+import {
+  auditRacePublication,
+  buildRacePublicationStatus,
+  missingDetailedTimingCapabilities,
+} from './racePublicationStatus.js';
 import { validateRaceSources } from './sourceValidation.js';
 
 const { values } = parseArgs({
@@ -43,6 +50,9 @@ if (!Number.isInteger(year) || (requestedRound !== null && !Number.isInteger(req
 }
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const nextRetryAt = (hours = 6) => (
+  new Date(Date.now() + (hours * 60 * 60 * 1000)).toISOString()
+);
 
 const withRetries = async (task, { attempts, delayMs }) => {
   let lastError;
@@ -118,9 +128,9 @@ const dhlSnapshot = dhlRace
   : null;
 
 let seasonWrite;
+const dynamoContext = canWriteDynamo ? getDynamoContext() : null;
 if (canWriteDynamo) {
-  const context = getDynamoContext();
-  seasonWrite = await writeSeasonToDynamo(context, year, season.races, {
+  seasonWrite = await writeSeasonToDynamo(dynamoContext, year, season.races, {
     source: season.source,
     sourceUrl: season.sourceUrl,
     skipped: season.skipped,
@@ -130,7 +140,52 @@ if (canWriteDynamo) {
   });
 }
 
+const sourceCoverage = {
+  formula1Official: 'ready',
+  dhlPitService: dhlSnapshot ? 'ready' : 'unavailable',
+  detailedTiming: 'awaiting',
+};
+const persistPublicationStatus = async (status) => (
+  dynamoContext
+    ? writeRacePublicationStatusToDynamo(dynamoContext, status)
+    : undefined
+);
+const getPublicationAudit = async (currentStatus) => {
+  if (!canWriteDynamo || !season) return undefined;
+
+  const reader = createDynamoSeasonReader();
+  const [seasonAnalytics, seasonStatuses] = await Promise.all([
+    reader.getSeasonAnalytics(year),
+    reader.getSeasonPublicationStatus(year),
+  ]);
+  const statuses = [
+    ...(seasonStatuses?.races ?? []).filter((status) => status.round !== currentStatus.round),
+    currentStatus,
+  ];
+
+  return auditRacePublication({
+    completedRaces: season.races,
+    analyticsRaces: seasonAnalytics?.races,
+    publicationStatuses: statuses,
+  });
+};
+
 if (values['official-only']) {
+  const publicationStatus = buildRacePublicationStatus({
+    year,
+    round: targetRound,
+    grandPrix: officialRace.grand_prix,
+    state: 'results_ready',
+    sourceCoverage: {
+      ...sourceCoverage,
+      detailedTiming: 'not_requested',
+    },
+    missingCapabilities: ['Detailed race timing and derived race story'],
+    contentVersion: officialSnapshot.sha256,
+  });
+  const publicationStatusWrite = await persistPublicationStatus(publicationStatus);
+  const publicationAudit = await getPublicationAudit(publicationStatus);
+
   console.log(JSON.stringify({
     ok: true,
     mode: 'official-only',
@@ -140,9 +195,23 @@ if (values['official-only']) {
     sessions: officialRace.source_manifest,
     officialSnapshot,
     seasonWrite,
+    publicationStatus,
+    publicationStatusWrite,
+    publicationAudit,
   }, null, 2));
   process.exit(0);
 }
+
+const awaitingTimingStatus = buildRacePublicationStatus({
+  year,
+  round: targetRound,
+  grandPrix: officialRace.grand_prix,
+  state: 'awaiting_timing',
+  sourceCoverage,
+  missingCapabilities: ['Detailed race timing and derived race story'],
+  contentVersion: officialSnapshot.sha256,
+});
+await persistPublicationStatus(awaitingTimingStatus);
 
 let timing;
 try {
@@ -156,10 +225,29 @@ try {
     { attempts: retryCount, delayMs: retryDelayMs },
   );
 } catch (error) {
-  console.warn(`FastF1 timing collection skipped: ${error.message}`);
+  const publicationStatus = buildRacePublicationStatus({
+    year,
+    round: targetRound,
+    grandPrix: officialRace.grand_prix,
+    state: 'degraded',
+    sourceCoverage: {
+      ...sourceCoverage,
+      detailedTiming: 'unavailable',
+      fastF1: 'failed',
+    },
+    missingCapabilities: ['Detailed race timing and derived race story'],
+    nextAttemptAt: nextRetryAt(),
+    contentVersion: officialSnapshot.sha256,
+    lastErrorCode: 'DETAILED_TIMING_UNAVAILABLE',
+    lastErrorSummary: String(error.message).slice(0, 500),
+  });
+  const publicationStatusWrite = await persistPublicationStatus(publicationStatus);
+  const publicationAudit = await getPublicationAudit(publicationStatus);
+
+  console.warn(`FastF1 timing collection failed: ${error.message}`);
   console.log(JSON.stringify({
-    ok: true,
-    mode: 'season-only',
+    ok: false,
+    mode: 'degraded',
     year,
     round: targetRound,
     grandPrix: officialRace.grand_prix,
@@ -169,8 +257,11 @@ try {
       dhl: dhlSnapshot,
     },
     seasonWrite,
+    publicationStatus,
+    publicationStatusWrite,
+    publicationAudit,
   }, null, 2));
-  process.exit(0);
+  process.exit(3);
 }
 
 const validation = validateRaceSources({ ...officialRace, year }, timing);
@@ -194,7 +285,7 @@ const analyticsSnapshot = await storeJsonSnapshot(analytics, {
 let analyticsWrite;
 if (canWriteDynamo && validation.status !== 'fail') {
   analyticsWrite = await writeRaceAnalyticsToDynamo(
-    getDynamoContext(),
+    dynamoContext,
     {
       year,
       round: targetRound,
@@ -210,6 +301,28 @@ if (canWriteDynamo && validation.status !== 'fail') {
     },
   );
 }
+
+const publicationStatus = buildRacePublicationStatus({
+  year,
+  round: targetRound,
+  grandPrix: officialRace.grand_prix,
+  state: validation.status === 'fail' ? 'failed' : 'published',
+  sourceCoverage: {
+    ...sourceCoverage,
+    detailedTiming: 'ready',
+    fastF1: 'ready',
+    sourceValidation: validation.status,
+  },
+  missingCapabilities: missingDetailedTimingCapabilities(validation.capability_matrix),
+  publishedAt: validation.status === 'fail' ? undefined : analytics.calculated_at,
+  contentVersion: analyticsSnapshot.sha256,
+  lastErrorCode: validation.status === 'fail' ? 'SOURCE_VALIDATION_FAILED' : undefined,
+  lastErrorSummary: validation.status === 'fail'
+    ? 'Detailed timing did not pass source validation.'
+    : undefined,
+});
+const publicationStatusWrite = await persistPublicationStatus(publicationStatus);
+const publicationAudit = await getPublicationAudit(publicationStatus);
 
 console.log(JSON.stringify({
   ok: validation.status !== 'fail',
@@ -235,6 +348,9 @@ console.log(JSON.stringify({
   },
   seasonWrite,
   analyticsWrite,
+  publicationStatus,
+  publicationStatusWrite,
+  publicationAudit,
 }, null, 2));
 
 if (validation.status === 'fail') process.exitCode = 2;

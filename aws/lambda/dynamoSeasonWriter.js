@@ -7,7 +7,9 @@ export {
   getDynamoContext,
   raceAnalyticsPk,
   raceSk,
+  raceStatusSk,
   seasonPk,
+  writeRacePublicationStatusToDynamo,
   writeRaceAnalyticsToDynamo,
   writeSeasonToDynamo,
 } from '../../server/dynamoSeasonWriter.js';

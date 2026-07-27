@@ -28,6 +28,7 @@ export const getDynamoContext = () => {
 
 export const seasonPk = (year) => `SEASON#${year}`;
 export const raceSk = (round) => `RACE#${String(round).padStart(2, '0')}`;
+export const raceStatusSk = (round) => `STATUS#ROUND#${String(round).padStart(2, '0')}`;
 export const raceAnalyticsPk = (year, round) => `RACE#${year}#${String(round).padStart(2, '0')}`;
 
 const chunk = (items, size) => {
@@ -216,6 +217,34 @@ export const writeSeasonToDynamo = async (context, year, races, metadata = {}) =
     rounds: races.length,
     results,
     items: items.length,
+  };
+};
+
+export const writeRacePublicationStatusToDynamo = async (
+  context,
+  publicationStatus,
+) => {
+  await ensureSeasonTable(context);
+
+  const item = {
+    pk: seasonPk(publicationStatus.year),
+    sk: raceStatusSk(publicationStatus.round),
+    itemType: 'race_publication_status',
+    ...publicationStatus,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await batchWriteAll(context, [{
+    PutRequest: { Item: item },
+  }]);
+
+  return {
+    table: context.tableName,
+    region: context.region,
+    year: publicationStatus.year,
+    round: publicationStatus.round,
+    state: publicationStatus.state,
+    updatedAt: item.updatedAt,
   };
 };
 

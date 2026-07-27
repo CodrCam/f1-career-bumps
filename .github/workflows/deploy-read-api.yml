@@ -168,6 +168,9 @@ jobs:
           curl --fail --silent --show-error \
             "${{ steps.api.outputs.endpoint }}/api/seasons/2026/analytics" \
             >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/seasons/2026/status" \
+            >/dev/null
 
           IFS=',' read -ra allowed_origins <<< "$CORS_ORIGINS"
           for origin in "${allowed_origins[@]}"; do

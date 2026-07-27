@@ -51,9 +51,20 @@ export const useSeasonRaceAnalytics = (year) => (
   useApiResource(`/api/seasons/${year}/analytics`)
 );
 
+export const useSeasonRacePublicationStatus = (year) => (
+  useApiResource(`/api/seasons/${year}/status`)
+);
+
 export const useRaceAnalytics = (year, round) => (
   useApiResource(
     `/api/seasons/${year}/races/${round}/analytics`,
+    Number.isInteger(round) && round > 0,
+  )
+);
+
+export const useRacePublicationStatus = (year, round) => (
+  useApiResource(
+    `/api/seasons/${year}/races/${round}/status`,
     Number.isInteger(round) && round > 0,
   )
 );
