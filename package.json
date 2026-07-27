@@ -16,6 +16,7 @@
     "db:update:f1": "node server/updateDynamoFromFormula1.js",
     "db:update:formula1": "node server/updateDynamoFromFormula1.js",
     "pipeline:update": "node server/updateRacePipeline.js",
+    "pipeline:refresh": "node server/refreshRacePublications.js",
     "pipeline:update:official": "node server/updateRacePipeline.js --official-only",
     "pipeline:backfill": "node server/backfillRaceAnalytics.js",
     "pipeline:rebuild": "node server/rebuildLocalRaceAnalytics.js",

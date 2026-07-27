@@ -20,7 +20,6 @@ const DriverProfile = lazy(() => import('./pages/DriverProfile'));
 const CompareWorkspace = lazy(() => import('./pages/CompareWorkspace'));
 const PaceLab = lazy(() => import('./pages/PaceLab'));
 const PitLaneWorkspace = lazy(() => import('./pages/PitLaneWorkspace'));
-const AskWorkspace = lazy(() => import('./pages/AskWorkspace'));
 const Methodology = lazy(() => import('./pages/Methodology'));
 const DriverStandings = lazy(() => (
   import('./pages/ChampionshipStandings').then((module) => ({ default: module.DriverStandings }))
@@ -43,7 +42,7 @@ const App = () => (
         <Suspense fallback={<LoadingFrame label="Loading analysis workspace" />}>
           <Routes>
             <Route path="/" element={<SeasonDesk />} />
-            <Route path="/ask" element={<AskWorkspace />} />
+            <Route path="/ask" element={<Navigate to="/2026" replace />} />
             <Route path="/:seasonYear" element={<SeasonDesk />} />
             <Route path="/:seasonYear/races" element={<RaceArchive />} />
             <Route path="/:seasonYear/races/:round" element={<RaceDossier />} />

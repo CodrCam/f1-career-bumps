@@ -145,6 +145,39 @@ interface LegacySummary {
   updatedAt?: string;
 }
 
+const publicationStates = new Set<PublicationState>([
+  'scheduled',
+  'awaiting_results',
+  'results_ready',
+  'awaiting_timing',
+  'timing_ready',
+  'published',
+  'degraded',
+  'failed',
+]);
+
+const validAnalytics = (value: LegacyAnalytics | null): LegacyAnalytics | null => {
+  const races = value?.races?.filter((candidate) => (
+    candidate
+    && Number.isFinite(Number(candidate.round))
+    && (
+      candidate.summary !== undefined
+      || candidate.updatedAt !== undefined
+    )
+    && !('grand_prix' in candidate)
+  )) ?? [];
+  return races.length ? { races } : null;
+};
+
+const validPublication = (value: LegacyPublication | null): LegacyPublication | null => {
+  const races = value?.races?.filter((candidate) => (
+    candidate
+    && typeof candidate.state === 'string'
+    && publicationStates.has(candidate.state)
+  )) ?? [];
+  return races.length ? { races } : null;
+};
+
 const buildLegacyStandings = (races: LegacyRace[], field: 'driver' | 'team') => {
   const totals = new Map<string, { name: string; code?: string; team?: string; points: number }>();
 
@@ -304,5 +337,11 @@ export const getSeasonOverview = async (
   ]);
 
   if (!season) throw new Error(`No season data found for ${year}`);
-  return buildLegacyEnvelope(year, season, summary, analytics, publication);
+  return buildLegacyEnvelope(
+    year,
+    season,
+    summary,
+    validAnalytics(analytics),
+    validPublication(publication),
+  );
 };

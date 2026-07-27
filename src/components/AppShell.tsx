@@ -4,7 +4,6 @@ import {
   Gauge,
   GitCompareArrows,
   Menu,
-  MessageCircleQuestion,
   Route,
   Trophy,
   Users,
@@ -22,7 +21,7 @@ import {
   CURRENT_SEASON,
   getSeasonFromParam,
 } from '../utils/seasons.js';
-import GlobalAsk from './GlobalAsk';
+import GlobalSearch from './GlobalSearch';
 import './AppShell.css';
 
 interface AppShellProps {
@@ -41,11 +40,8 @@ const AppShell = ({ children }: AppShellProps) => {
   const headerRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const seasonMatch = location.pathname.match(/^\/(\d{4})(?:\/|$)/);
-  const querySeason = location.pathname === '/ask'
-    ? new URLSearchParams(location.search).get('season')
-    : null;
   const activeSeason = getSeasonFromParam(
-    seasonMatch?.[1] ?? querySeason ?? CURRENT_SEASON,
+    seasonMatch?.[1] ?? CURRENT_SEASON,
   );
   const isSeasonDesk = /^\/(?:\d{4})?\/?$/.test(location.pathname);
   const navigation: NavigationItem[] = [
@@ -84,11 +80,6 @@ const AppShell = ({ children }: AppShellProps) => {
       path: `/${activeSeason}/pit-lane`,
       icon: Wrench,
     },
-    {
-      label: 'Ask',
-      path: `/ask?season=${activeSeason}`,
-      icon: MessageCircleQuestion,
-    },
   ];
 
   useEffect(() => {
@@ -122,10 +113,6 @@ const AppShell = ({ children }: AppShellProps) => {
 
   const handleSeasonChange = (value: string) => {
     const year = getSeasonFromParam(value);
-    if (location.pathname === '/ask') {
-      navigate(`/ask?season=${year}`);
-      return;
-    }
     if (!seasonMatch) {
       navigate(`/${year}`);
       return;
@@ -184,6 +171,8 @@ const AppShell = ({ children }: AppShellProps) => {
           </nav>
 
           <div className="slip-header__tools">
+            <GlobalSearch activeSeason={activeSeason} />
+
             <label className="slip-season-select">
               <span>Season</span>
               <select
@@ -215,8 +204,6 @@ const AppShell = ({ children }: AppShellProps) => {
         {children}
       </div>
 
-      <GlobalAsk activeSeason={activeSeason} />
-
       <footer className="slip-footer">
         <div>
           <span>Slipstream</span>
@@ -224,7 +211,7 @@ const AppShell = ({ children }: AppShellProps) => {
         </div>
         <nav aria-label="Footer navigation">
           <Link to={`/${activeSeason}`}>Season desk</Link>
-          <Link to={`/ask?season=${activeSeason}`}>Ask Slipstream</Link>
+          <Link to={`/${activeSeason}/races`}>Race dossiers</Link>
           <Link to="/methodology">Methodology</Link>
         </nav>
       </footer>

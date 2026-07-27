@@ -71,7 +71,6 @@ const createFallbackMarkup = (page) => {
       label: `${season} Pit Lane Analysis`,
       path: `/${season}/pit-lane`,
     },
-    { label: "Ask F1 Statistics", path: `/ask?season=${season}` },
     { label: "Methodology", path: "/methodology" },
   ];
 

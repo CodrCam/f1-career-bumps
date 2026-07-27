@@ -164,15 +164,6 @@ const methodologyPage = {
   pageType: "WebPage",
 };
 
-const askPage = {
-  path: "/ask",
-  title: "Ask F1 Driver Statistics | Slipstream",
-  description:
-    "Ask a Formula 1 driver-statistics question, inspect the exact filters and calculation, and verify every answer against published race evidence.",
-  label: "Ask Slipstream F1 Statistics",
-  pageType: "WebApplication",
-};
-
 export const NOT_FOUND_PAGE = {
   path: "/404",
   title: "Page Not Found | Slipstream",
@@ -187,7 +178,6 @@ export const SEO_PAGES = [
   homePage,
   ...seasonDeskPages,
   ...seasonPages,
-  askPage,
   methodologyPage,
 ];
 

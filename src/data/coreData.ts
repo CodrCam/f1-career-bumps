@@ -178,6 +178,8 @@ interface LegacyAnalyticsRace {
   round: number;
   summary?: RaceStorySummary;
   updatedAt?: string;
+  validationStatus?: string;
+  circuitProfile?: Record<string, unknown>;
 }
 
 interface LegacySeasonAnalytics {
@@ -201,6 +203,49 @@ interface LegacyStatus {
 interface LegacyPublication {
   races?: LegacyStatus[];
 }
+
+const publicationStates = new Set<PublicationState>([
+  'scheduled',
+  'awaiting_results',
+  'results_ready',
+  'awaiting_timing',
+  'timing_ready',
+  'published',
+  'degraded',
+  'failed',
+]);
+
+const isAnalyticsRecord = (value: unknown): value is LegacyAnalyticsRace => {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return Number.isFinite(Number(record.round))
+    && (
+      'summary' in record
+      || 'validationStatus' in record
+      || 'circuitProfile' in record
+      || 'storyEvents' in record
+    );
+};
+
+const isPublicationRecord = (value: unknown): value is LegacyStatus => {
+  if (!value || typeof value !== 'object') return false;
+  const state = (value as Record<string, unknown>).state;
+  return typeof state === 'string' && publicationStates.has(state as PublicationState);
+};
+
+const validSeasonAnalytics = (
+  value: LegacySeasonAnalytics | null,
+): LegacySeasonAnalytics | null => {
+  const races = value?.races?.filter(isAnalyticsRecord) ?? [];
+  return races.length ? { races } : null;
+};
+
+const validPublication = (
+  value: LegacyPublication | null,
+): LegacyPublication | null => {
+  const races = value?.races?.filter(isPublicationRecord) ?? [];
+  return races.length ? { races } : null;
+};
 
 const numberValue = (value: unknown, fallback = 0) => {
   const candidate = Number(value);
@@ -325,7 +370,12 @@ const getLegacyBundle = async (
     requestJson<LegacyPublication>(`/api/seasons/${year}/status`, signal, true),
   ]);
   if (!season) throw new Error(`No season data found for ${year}`);
-  return { season, summary, seasonAnalytics, publication };
+  return {
+    season,
+    summary,
+    seasonAnalytics: validSeasonAnalytics(seasonAnalytics),
+    publication: validPublication(publication),
+  };
 };
 
 const latestState = (
@@ -504,7 +554,7 @@ const legacyDossier = async (
 ): Promise<RaceDossierEnvelope> => {
   const race = bundle.season.races?.find((entry) => entry.round === round);
   if (!race) throw new Error(`No race found for ${year} round ${round}`);
-  const [analysis, status] = await Promise.all([
+  const [analysisCandidate, statusCandidate] = await Promise.all([
     requestJson<LegacyRaceAnalytics>(
       `/api/seasons/${year}/races/${round}/analytics`,
       signal,
@@ -516,6 +566,10 @@ const legacyDossier = async (
       true,
     ),
   ]);
+  const analysis = isAnalyticsRecord(analysisCandidate)
+    ? analysisCandidate as LegacyRaceAnalytics
+    : null;
+  const status = isPublicationRecord(statusCandidate) ? statusCandidate : null;
   const state = status?.state ?? (analysis ? 'published' : 'results_ready');
 
   return {

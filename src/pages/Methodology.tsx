@@ -86,7 +86,6 @@ const Methodology = () => (
       <a href="#sources">Sources</a>
       <a href="#publication-states">Publication states</a>
       <a href="#definitions">Metric definitions</a>
-      <a href="#ask-slipstream">Ask Slipstream</a>
       <a href="#limitations">Known limitations</a>
     </nav>
 
@@ -142,44 +141,6 @@ const Methodology = () => (
       </dl>
     </section>
 
-    <section id="ask-slipstream" className="methodology-section">
-      <header>
-        <span className="core-page__eyebrow">Question answering</span>
-        <h2>How Ask Slipstream works</h2>
-        <p>
-          The statistics engine is deterministic: a question becomes a validated
-          season, metric, driver, team, round range, ranking direction, and result
-          limit before any calculation runs.
-        </p>
-      </header>
-      <div className="methodology-sources">
-        <article>
-          <span>01</span>
-          <Database aria-hidden="true" size={19} />
-          <h3>Published data only</h3>
-          <p>Answers use the same v2 driver and race read models shown elsewhere on the site.</p>
-        </article>
-        <article>
-          <span>02</span>
-          <CheckCircle2 aria-hidden="true" size={19} />
-          <h3>Validated calculations</h3>
-          <p>Allowlisted metrics and filters are calculated in code, with the exact source rows attached.</p>
-        </article>
-        <article>
-          <span>03</span>
-          <Clock3 aria-hidden="true" size={19} />
-          <h3>Fixed data snapshot</h3>
-          <p>Every answer retains the season, round range, sample size, and publication timestamp used in the calculation.</p>
-        </article>
-        <article>
-          <span>04</span>
-          <AlertTriangle aria-hidden="true" size={19} />
-          <h3>Explicit limitations</h3>
-          <p>Unsupported metrics and ambiguous questions are rejected instead of producing an untraceable answer.</p>
-        </article>
-      </div>
-    </section>
-
     <section id="limitations" className="methodology-section methodology-limitations">
       <header>
         <span className="core-page__eyebrow">Known gaps</span>
@@ -191,7 +152,6 @@ const Methodology = () => (
         <li>Average finishing position describes classification order; it is not a pure pace measurement.</li>
         <li>Pit-service and full-lane clocks are joined only when driver and lap identity agree.</li>
         <li>Strategy context is descriptive and does not claim a counterfactual race outcome.</li>
-        <li>Ask Slipstream currently supports driver statistics within one season; cross-season and constructor questions are rejected.</li>
       </ul>
     </section>
 

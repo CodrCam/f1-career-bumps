@@ -103,7 +103,7 @@ The site should not imitate the official F1 broadcast package. Slipstream needs 
 4. Drivers
 5. Compare
 6. Technical
-7. Ask Slipstream
+7. Search
 
 Methodology, data sources, about, accessibility, and legal information live in the footer and remain directly addressable.
 
@@ -122,7 +122,6 @@ Methodology, data sources, about, accessibility, and legal information live in t
 | `/:season/compare` | Driver/team comparison workspace | Redirect `/:season/head-to-head` |
 | `/:season/pace` | Sector and pace lab | Redirect `/:season/sector-analysis` |
 | `/:season/pit-lane` | Pit service, lane loss, and strategy | Redirect `/:season/pit-stop-analysis` |
-| `/ask` | Statistics query interface | New |
 | `/methodology` | Sources, calculations, freshness, limitations | Expand `/about` |
 
 All old indexable paths receive permanent redirects after the new routes pass production acceptance.
@@ -219,7 +218,7 @@ Structure:
 - championship movers, not complete duplicate standings
 - one leading analytical observation with a route into the relevant tool
 - next session time and track
-- persistent “Ask about this season” entry
+- persistent search entry for races, drivers, teams, and tools
 
 The current eleven-team presentation becomes a compact grid reference lower on the page. The current generic feature-card catalog becomes contextual entry points attached to real current-season information.
 
@@ -321,13 +320,12 @@ This absorbs the useful parts of the current Driver Statistics page while elimin
 - preserve the existing crew-versus-lane distinction
 - use a compact mobile team timing list instead of an 800 px internal table
 
-### Ask Slipstream
+### Search
 
-- available globally as a compact query field and as a full workspace at `/ask`
-- provide suggested queries based on the current route
-- show the interpreted filters before running the query
-- return the answer, supporting rows, calculation, scope, data timestamp, and links to related pages
-- allow a user to edit the interpreted filters without rephrasing the question
+- available globally from the header and keyboard shortcuts
+- indexes tools immediately and adds published races, drivers, and teams on open
+- routes directly to canonical pages without a public write endpoint
+- remains deterministic, fast, and free of metered model dependencies
 
 ### Methodology
 
@@ -469,7 +467,6 @@ Suggested endpoints:
 - `GET /api/v2/seasons/:year/compare`
 - `GET /api/v2/seasons/:year/pace`
 - `GET /api/v2/seasons/:year/pit-lane`
-- `POST /api/v2/query`
 
 Every response includes:
 
@@ -693,21 +690,21 @@ at 320, 390, 768, 1024, 1280, and 1440 pixels.
 
 Exit criterion: no route owns bespoke controls, loading states, or mobile table conversions.
 
-### Phase 4 — Ask Slipstream
+### Phase 4 — Search and publication resilience
 
-- [x] deterministic query schema and engine
-- [x] structured query UI
-- [x] answer evidence/citations
+- [x] deterministic global navigation search
+- [x] race, driver, team, and tool index
+- [x] missing-round retry orchestration
+- [x] OpenF1 fallback when FastF1 is late
 
-Phase 4 completed locally on 2026-07-27. Ask Slipstream now turns supported
-driver-statistics questions into a strict query contract, runs every calculation
-against the same published v2 read model, and keeps its sample, formula,
-methodology link, timestamp, and supporting race rows attached. The workspace
-also exposes the interpreted parameters for editing. It has no metered model
-dependency or public AI endpoint.
+Phase 4 was revised locally on 2026-07-27 after product review. The statistics
+question interface and public query endpoint were retired. A faster,
+non-metered navigation search replaced them. The publication pipeline now
+repairs legacy status records, retries missing completed rounds instead of only
+the latest race, and falls back from FastF1 to OpenF1 historical timing.
 
-Exit criterion: every displayed statistic is reproducible from the published
-source rows.
+Exit criterion: users can reach published information quickly, and a missed
+timing window cannot leave an older race permanently unpublished.
 
 ### Phase 5 — retire v1
 

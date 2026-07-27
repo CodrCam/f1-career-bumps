@@ -16,15 +16,10 @@ import {
   getDynamoSeasonStandings,
   getDynamoSeasonSummary,
 } from './dynamoSeasonData.js';
-import {
-  runStatisticsQuery,
-  StatisticsQueryError,
-} from '../../server/statisticsQuery.js';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.CORS_ORIGIN ?? '*',
   'Access-Control-Allow-Headers': 'content-type',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,OPTIONS',
 };
 
 const response = (statusCode, body, { cacheable = statusCode === 200 } = {}) => ({
@@ -84,7 +79,6 @@ const getRoute = (event) => {
   return {
     year,
     isV2,
-    isV2Query: parts[0] === 'api' && parts[1] === 'v2' && parts[2] === 'query',
     view: params.view ?? tail[0],
     driverId: params.driverId ?? (tail[0] === 'drivers' ? tail[1] : undefined),
     isV2DriverProfile: isV2 && tail[0] === 'drivers' && tail.length === 2,
@@ -105,7 +99,6 @@ export const handler = async (event) => {
   const {
     year,
     isV2,
-    isV2Query,
     view,
     driverId,
     isV2DriverProfile,
@@ -115,11 +108,11 @@ export const handler = async (event) => {
     isRaceStatus,
   } = getRoute(event);
 
-  if ((isV2Query && method !== 'POST') || (!isV2Query && method !== 'GET')) {
+  if (method !== 'GET') {
     return response(405, { error: 'Method not allowed' });
   }
 
-  if (!isV2Query && !Number.isInteger(year)) {
+  if (!Number.isInteger(year)) {
     return response(400, { error: 'Invalid season year' });
   }
 
@@ -131,32 +124,6 @@ export const handler = async (event) => {
   }
 
   try {
-    if (isV2Query) {
-      let input;
-      try {
-        const body = event.isBase64Encoded
-          ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
-          : event.body;
-        input = JSON.parse(body ?? '{}');
-      } catch {
-        return response(400, { error: 'Request body must be valid JSON.' });
-      }
-
-      const queryYear = Number(input?.query?.season ?? input?.season);
-      if (!Number.isInteger(queryYear)) {
-        return response(400, { error: 'A valid query season is required.' });
-      }
-      const directory = await getDynamoDriverDirectory(queryYear);
-      if (!directory) {
-        return response(404, { error: `No season data found for ${queryYear}` });
-      }
-      return response(
-        200,
-        runStatisticsQuery({ input, directory }),
-        { cacheable: false },
-      );
-    }
-
     const data = isV2 && view === 'overview'
       ? await getDynamoSeasonOverview(year)
       : isV2DriverProfile
@@ -205,12 +172,6 @@ export const handler = async (event) => {
 
     return response(200, normalizeSeasonTeams(data, year));
   } catch (error) {
-    if (error instanceof StatisticsQueryError) {
-      return response(error.statusCode, {
-        error: error.message,
-        issues: error.issues,
-      });
-    }
     console.error(error);
     return response(500, { error: 'Unexpected data store error' });
   }

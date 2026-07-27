@@ -198,9 +198,44 @@ interface LegacyPublication {
 interface LegacyAnalytics {
   races?: Array<{
     round: number;
+    summary?: Record<string, unknown>;
+    validationStatus?: string;
     circuitProfile?: Record<string, unknown>;
   }>;
 }
+
+const publicationStates = new Set<PublicationState>([
+  'scheduled',
+  'awaiting_results',
+  'results_ready',
+  'awaiting_timing',
+  'timing_ready',
+  'published',
+  'degraded',
+  'failed',
+]);
+
+const validPublication = (value: LegacyPublication | null): LegacyPublication | null => {
+  const races = value?.races?.filter((candidate) => (
+    candidate
+    && typeof candidate.state === 'string'
+    && publicationStates.has(candidate.state)
+  )) ?? [];
+  return races.length ? { races } : null;
+};
+
+const validAnalytics = (value: LegacyAnalytics | null): LegacyAnalytics | null => {
+  const races = value?.races?.filter((candidate) => (
+    candidate
+    && Number.isFinite(Number(candidate.round))
+    && (
+      candidate.summary !== undefined
+      || candidate.validationStatus !== undefined
+      || candidate.circuitProfile !== undefined
+    )
+  )) ?? [];
+  return races.length ? { races } : null;
+};
 
 const requestJson = async <T>(
   path: string,
@@ -256,8 +291,8 @@ const getLegacySource = async (year: number, signal: AbortSignal) => {
   return {
     season,
     summary,
-    publication,
-    analytics,
+    publication: validPublication(publication),
+    analytics: validAnalytics(analytics),
   };
 };
 

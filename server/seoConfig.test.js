@@ -43,18 +43,6 @@ test("creates canonical metadata for race dossier routes", () => {
   assert.match(page.title, /Round 12 Race Dossier/);
 });
 
-test("publishes Ask Slipstream as a canonical web application", () => {
-  const page = getSeoPage("/ask?season=2026");
-  const structuredData = createStructuredData(page);
-  const webpage = structuredData["@graph"].find(
-    (entry) => entry["@id"] === `${SITE_URL}/ask#webpage`,
-  );
-
-  assert.equal(page.path, "/ask");
-  assert.equal(page.pageType, "WebApplication");
-  assert.equal(webpage["@type"], "WebApplication");
-});
-
 test("marks unknown routes as non-indexable instead of treating them as home", () => {
   const page = getSeoPage("/not-a-real-route");
 

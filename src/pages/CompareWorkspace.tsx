@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import {
   ArrowLeftRight,
   ArrowUpRight,
@@ -17,6 +17,7 @@ import { FilterBar, FilterField } from '../ui/AnalysisControls';
 import { DefinitionLink } from '../ui/DefinitionLink';
 import { LoadingFrame } from '../ui/LoadingFrame';
 import { ResponsiveDataView, type DataColumn } from '../ui/ResponsiveDataView';
+import { getTeamColor } from '../utils/dataProcessing.js';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './AnalysisPages.css';
 
@@ -157,6 +158,10 @@ const CompareWorkspace = () => {
     { label: 'Reliability', left: left.reliability * 100, right: right.reliability * 100, suffix: '%', definition: 'reliability' },
     { label: 'Points / start', left: left.pointsPerStart, right: right.pointsPerStart, definition: 'points-per-start' },
   ];
+  const compareColors = {
+    '--compare-left': getTeamColor(left.team),
+    '--compare-right': getTeamColor(right.team),
+  } as CSSProperties;
 
   return (
     <main className="core-page analysis-page">
@@ -192,9 +197,13 @@ const CompareWorkspace = () => {
         </FilterField>
       </FilterBar>
 
-      <section className="compare-verdict">
-        <DriverIdentity name={left.name} code={left.code} team={left.team} year={year} size="md" />
-        <div>
+      <section className="compare-verdict" style={compareColors}>
+        <div className="compare-verdict__driver is-left">
+          <span className="compare-verdict__slot">Driver A</span>
+          <DriverIdentity name={left.name} code={left.code} team={left.team} year={year} size="lg" />
+          <small>{left.points} pts · {left.wins} wins · {left.podiums} podiums</small>
+        </div>
+        <div className="compare-verdict__delta">
           <span className="core-page__eyebrow">Current factual delta</span>
           <strong>{pointGap} points</strong>
           <p>
@@ -204,7 +213,11 @@ const CompareWorkspace = () => {
           </p>
           <span><Link2 aria-hidden="true" size={13} /> Shareable selection is encoded in this URL.</span>
         </div>
-        <DriverIdentity name={right.name} code={right.code} team={right.team} year={year} size="md" />
+        <div className="compare-verdict__driver is-right">
+          <span className="compare-verdict__slot">Driver B</span>
+          <DriverIdentity name={right.name} code={right.code} team={right.team} year={year} size="lg" />
+          <small>{right.points} pts · {right.wins} wins · {right.podiums} podiums</small>
+        </div>
       </section>
 
       <section className="compare-head-to-head">
@@ -214,10 +227,20 @@ const CompareWorkspace = () => {
           ['Sprint H2H', sprintH2H, 'sprint-head-to-head'],
         ].map(([label, score, definition]) => {
           const typedScore = score as { left: number; right: number };
+          const scored = typedScore.left + typedScore.right;
+          const leftShare = scored ? (typedScore.left / scored) * 100 : 50;
           return (
-            <article key={label as string}>
+            <article
+              key={label as string}
+              style={{ '--left-share': `${leftShare}%` } as CSSProperties}
+            >
               <small>{label as string}</small>
               <strong>{typedScore.left}<i>–</i>{typedScore.right}</strong>
+              <span className="compare-head-to-head__drivers">
+                <b>{left.code ?? 'A'}</b>
+                <b>{right.code ?? 'B'}</b>
+              </span>
+              <span className="compare-head-to-head__bar" aria-hidden="true"><i /></span>
               <DefinitionLink definition={definition as string} />
             </article>
           );
@@ -241,7 +264,7 @@ const CompareWorkspace = () => {
               value === null ? '—' : `${Number.isInteger(value) ? value : value.toFixed(1)}${metric.suffix ?? ''}`
             );
             return (
-              <div key={metric.label}>
+              <div className={`winner-${winner}`} key={metric.label}>
                 <strong className={winner === 'left' ? 'is-leading' : ''}>{format(leftValue)}</strong>
                 <span>
                   {metric.label}

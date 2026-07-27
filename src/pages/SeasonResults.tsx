@@ -70,7 +70,7 @@ const SeasonResults = () => {
         ]}
       />
 
-      <section className="results-matrix">
+      <section className={`results-matrix is-${mode}`}>
         <div className="results-matrix__toolbar">
           <div>
             <span className="core-page__eyebrow">Field scan</span>
@@ -131,6 +131,9 @@ const SeasonResults = () => {
                       <td
                         className={cellClass(result, mode)}
                         key={race.round}
+                        style={{
+                          '--result-team-color': getTeamColor(result?.team ?? driver.team),
+                        } as CSSProperties}
                         title={`${race.grandPrix}: ${resultLabel(result, mode)}`}
                       >
                         {resultLabel(result, mode)}

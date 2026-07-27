@@ -8,7 +8,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "20 12 * * 1,2"
+    - cron: "20 */6 * * 0,1,2"
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     env:
       AWS_REGION: us-west-2
       DYNAMODB_TABLE: ${{ vars.DYNAMODB_TABLE || 'f1-website-data' }}
@@ -55,11 +55,21 @@ jobs:
           role-to-assume: ${{ secrets.AWS_UPDATE_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update the latest completed race and require publishable analytics
+      - name: Refresh every unpublished completed race
         env:
           INPUT_ROUND: ${{ inputs.round }}
           FASTF1_PYTHON: python
         run: |
-          args=(--year 2026 --retries 3 --retry-delay 45000)
-          if [[ -n "$INPUT_ROUND" ]]; then args+=(--round "$INPUT_ROUND"); fi
-          npm run pipeline:update -- "${args[@]}"
+          if [[ -n "$INPUT_ROUND" ]]; then
+            npm run pipeline:update -- \
+              --year 2026 \
+              --round "$INPUT_ROUND" \
+              --retries 3 \
+              --retry-delay 45000
+          else
+            npm run pipeline:refresh -- \
+              --year 2026 \
+              --max-rounds 2 \
+              --retries 2 \
+              --retry-delay 30000
+          fi

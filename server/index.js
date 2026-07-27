@@ -19,10 +19,6 @@ import {
   buildPitLaneReadModel,
 } from './analysisReadModels.js';
 import { buildSeasonOverview } from './seasonOverview.js';
-import {
-  runStatisticsQuery,
-  StatisticsQueryError,
-} from './statisticsQuery.js';
 
 const port = Number(process.env.PORT ?? 3001);
 const app = express();
@@ -119,32 +115,6 @@ const getSeasonData = async (year) => {
     publication,
   };
 };
-
-app.post('/api/v2/query', async (req, res, next) => {
-  try {
-    const year = Number(req.body?.query?.season ?? req.body?.season);
-    if (!Number.isInteger(year)) {
-      res.status(400).json({ error: 'A valid query season is required.' });
-      return;
-    }
-    const source = await getSeasonData(year);
-    if (!source) {
-      res.status(404).json({ error: `No season data found for ${year}` });
-      return;
-    }
-    const directory = buildDriverDirectoryReadModel({ year, ...source });
-    res.json(runStatisticsQuery({ input: req.body, directory }));
-  } catch (error) {
-    if (error instanceof StatisticsQueryError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        issues: error.issues,
-      });
-      return;
-    }
-    next(error);
-  }
-});
 
 app.get('/api/v2/seasons/:year/standings', async (req, res, next) => {
   try {

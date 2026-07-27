@@ -27,8 +27,9 @@ npm run dev:local
 - Sector pace and consistency analysis
 - Pit-stop service and full pit-lane timing
 - Race stories built from overtakes, traffic, strategy, and attrition
-- Ask Slipstream statistics search with editable filters and source-row evidence
+- Fast site search across tools, races, drivers, and teams
 - Official Formula1.com race result sync
+- Automatic FastF1-to-OpenF1 timing fallback and missing-round retries
 - Mobile-first responsive design
 
 ## Tech Stack
@@ -53,19 +54,10 @@ npm run db:seed
 npm run dev:api
 ```
 
-The dashboard pages request the versioned `/api/v2` read models. Ask Slipstream
-posts to `/api/v2/query`; if that new endpoint is not deployed yet, the browser
-runs the identical deterministic query engine against the already-published
-driver read model. Local JSON fallback is off by default so a missing data
-backend is visible instead of silently showing stale data.
-
-## Ask Slipstream
-
-Ask Slipstream is a deterministic statistics search, not an AI service. It
-parses supported driver-statistics questions into an allowlisted query,
-calculates the result from published race rows, and displays its scope, formula,
-timestamp, caveats, and evidence. Users can inspect and edit every interpreted
-parameter before rerunning a calculation.
+The dashboard pages request the versioned `/api/v2` read models. Local JSON
+fallback is off by default so a missing data backend is visible instead of
+silently showing stale data. The header search is a client-side navigation
+index; it adds no public write endpoint or metered service.
 
 ### Local environment keys
 
@@ -76,6 +68,11 @@ parameter before rerunning a calculation.
 - frontend routing: `VITE_API_BASE_URL` and `VITE_ALLOW_JSON_FALLBACK`
 - ingestion overrides: `F1_RAW_DATA_BUCKET`, `F1_RAW_DATA_DIR`, and
   `FASTF1_PYTHON`
+
+The scheduled `pipeline:refresh` task checks every completed official round,
+repairs missing publication-status records, and retries up to two missing
+analytics rounds per run. Detailed timing uses FastF1 first and OpenF1 as the
+free historical fallback.
 
 Never expose AWS credentials through a `VITE_` variable. Vite embeds all
 `VITE_` values in public browser code.

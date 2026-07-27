@@ -7,7 +7,7 @@ interface DriverIdentityProps {
   code?: string;
   year: number;
   detail?: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export const DriverIdentity = ({
@@ -21,7 +21,7 @@ export const DriverIdentity = ({
   <span className={`analysis-driver-identity is-${size}`}>
     <span className="analysis-driver-identity__marks" aria-hidden="true">
       <DriverMark driver={name} size={size} team={team} year={year} />
-      <TeamLogo size="xs" team={team} tone="team" year={year} />
+      <TeamLogo size={size === 'lg' ? 'sm' : 'xs'} team={team} tone="team" year={year} />
     </span>
     <span>
       <strong>{name}</strong>

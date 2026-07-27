@@ -13,6 +13,7 @@ import {
 } from './dynamoSeasonWriter.js';
 import { createDynamoSeasonReader } from './dynamoSeasonReader.js';
 import { collectFastF1Snapshot } from './fastF1Timing.js';
+import { collectOpenF1Snapshot } from './openF1Timing.js';
 import {
   buildFormula1Race,
   buildFormula1Season,
@@ -214,6 +215,8 @@ const awaitingTimingStatus = buildRacePublicationStatus({
 await persistPublicationStatus(awaitingTimingStatus);
 
 let timing;
+let timingSource = 'fastf1';
+let fastF1Error;
 try {
   timing = await withRetries(
     () => collectFastF1Snapshot({
@@ -225,6 +228,22 @@ try {
     { attempts: retryCount, delayMs: retryDelayMs },
   );
 } catch (error) {
+  fastF1Error = error;
+  console.warn(`FastF1 timing collection failed; trying OpenF1: ${error.message}`);
+  try {
+    timing = await withRetries(
+      () => collectOpenF1Snapshot({
+        year,
+        round: targetRound,
+        officialRace,
+      }),
+      {
+        attempts: Math.min(2, retryCount),
+        delayMs: retryDelayMs,
+      },
+    );
+    timingSource = 'openf1';
+  } catch (openF1Error) {
   const publicationStatus = buildRacePublicationStatus({
     year,
     round: targetRound,
@@ -234,24 +253,25 @@ try {
       ...sourceCoverage,
       detailedTiming: 'unavailable',
       fastF1: 'failed',
+      openF1: 'failed',
     },
     missingCapabilities: ['Detailed race timing and derived race story'],
     nextAttemptAt: nextRetryAt(),
     contentVersion: officialSnapshot.sha256,
     lastErrorCode: 'DETAILED_TIMING_UNAVAILABLE',
-    lastErrorSummary: String(error.message).slice(0, 500),
+    lastErrorSummary: `FastF1: ${error.message}; OpenF1: ${openF1Error.message}`.slice(0, 500),
   });
   const publicationStatusWrite = await persistPublicationStatus(publicationStatus);
   const publicationAudit = await getPublicationAudit(publicationStatus);
 
-  console.warn(`FastF1 timing collection failed: ${error.message}`);
+  console.warn(`OpenF1 timing collection also failed: ${openF1Error.message}`);
   console.log(JSON.stringify({
     ok: false,
     mode: 'degraded',
     year,
     round: targetRound,
     grandPrix: officialRace.grand_prix,
-    reason: 'FastF1 timing data was unavailable; Formula1.com season data was updated.',
+    reason: 'FastF1 and OpenF1 timing were unavailable; Formula1.com season data was updated.',
     storage: {
       official: officialSnapshot,
       dhl: dhlSnapshot,
@@ -262,6 +282,7 @@ try {
     publicationAudit,
   }, null, 2));
   process.exit(3);
+  }
 }
 
 const validation = validateRaceSources({ ...officialRace, year }, timing);
@@ -269,7 +290,7 @@ const analytics = deriveRaceAnalytics(timing);
 const timingSnapshot = await storeJsonSnapshot(timing, {
   year,
   round: targetRound,
-  source: 'fastf1-timing',
+  source: `${timingSource}-timing`,
 });
 const validationSnapshot = await storeJsonSnapshot(validation, {
   year,
@@ -310,7 +331,8 @@ const publicationStatus = buildRacePublicationStatus({
   sourceCoverage: {
     ...sourceCoverage,
     detailedTiming: 'ready',
-    fastF1: 'ready',
+    fastF1: timingSource === 'fastf1' ? 'ready' : 'failed',
+    openF1: timingSource === 'openf1' ? 'ready' : 'not_requested',
     sourceValidation: validation.status,
   },
   missingCapabilities: missingDetailedTimingCapabilities(validation.capability_matrix),
@@ -329,6 +351,8 @@ console.log(JSON.stringify({
   year,
   round: targetRound,
   grandPrix: officialRace.grand_prix,
+  timingSource,
+  fastF1FallbackReason: fastF1Error?.message,
   validation: {
     status: validation.status,
     checks: validation.checks.map((check) => ({

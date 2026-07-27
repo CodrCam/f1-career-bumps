@@ -57,6 +57,7 @@ const PaceLab = () => {
   const [metric, setMetric] = useState<PaceMetric>('lap');
   const [treatment, setTreatment] = useState<LapTreatment>('best');
   const [selectedDrivers, setSelectedDrivers] = useState<Set<number>>(new Set());
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (!activeSession || requestedSession === activeSession.sessionKey) return;
@@ -68,8 +69,9 @@ const PaceLab = () => {
   useEffect(() => {
     if (!sessionState.data) return;
     setSelectedDrivers(new Set(
-      sessionState.data.drivers.slice(0, 6).map((driver) => driver.driverNumber),
+      sessionState.data.drivers.map((driver) => driver.driverNumber),
     ));
+    setShowAll(false);
   }, [sessionState.data?.sessionKey]);
 
   const rows = useMemo<PaceRow[]>(() => {
@@ -131,6 +133,7 @@ const PaceLab = () => {
       render: (driver) => formatSeconds(driver.consistency),
     },
   ], [treatment, year]);
+  const visibleRows = showAll ? rows : rows.slice(0, 10);
 
   if (!envelope && status === 'loading') return <LoadingFrame label="Loading Pace Lab" />;
   if (!envelope) {
@@ -146,8 +149,8 @@ const PaceLab = () => {
   const toggleDriver = (driverNumber: number) => {
     setSelectedDrivers((current) => {
       const next = new Set(current);
-      if (next.has(driverNumber)) next.delete(driverNumber);
-      else if (next.size < 6) next.add(driverNumber);
+      if (next.has(driverNumber) && next.size > 1) next.delete(driverNumber);
+      else next.add(driverNumber);
       return next;
     });
   };
@@ -168,7 +171,11 @@ const PaceLab = () => {
         items={[
           { label: 'Sessions', value: sessionsState.sessions.length || '—', detail: 'Race, qualifying, sprint' },
           { label: 'Story timing', value: readyRaces, detail: `${envelope.data.races.length} classified races` },
-          { label: 'Selected drivers', value: selectedDrivers.size || 'All', detail: 'Maximum six' },
+          {
+            label: 'Driver sample',
+            value: selectedDrivers.size || sessionState.data?.drivers.length || '—',
+            detail: rows.length > 10 && !showAll ? 'Top 10 shown' : 'Full field shown',
+          },
           { label: 'Source', value: 'OpenF1', detail: sessionState.data ? `Fetched ${new Date(sessionState.data.fetchedAt).toLocaleTimeString()}` : 'Session timing' },
         ]}
       />
@@ -243,7 +250,7 @@ const PaceLab = () => {
         <>
           <details className="pace-driver-picker">
             <summary>
-              Driver sample · {selectedDrivers.size || sessionState.data.drivers.length} selected
+              Driver sample · {selectedDrivers.size || sessionState.data.drivers.length} of {sessionState.data.drivers.length} included
             </summary>
             <div>
               {sessionState.data.drivers.map((driver) => {
@@ -254,7 +261,6 @@ const PaceLab = () => {
                     key={driver.driverNumber}
                     type="button"
                     aria-pressed={selected}
-                    disabled={!selected && selectedDrivers.size >= 6}
                     onClick={() => toggleDriver(driver.driverNumber)}
                     style={{ '--driver-color': driver.color } as CSSProperties}
                   >
@@ -281,7 +287,7 @@ const PaceLab = () => {
                   {' '}sample at {formatSeconds(fastest.value)} across {sessionState.data.validLaps} valid laps.
                 </p>
                 <ol className="pace-tower__rows">
-                  {rows.map((driver) => {
+                  {visibleRows.map((driver) => {
                     const relative = 100 - ((driver.value - fastest.value) / valueRange) * 42;
                     return (
                       <li key={driver.driverNumber}>
@@ -296,6 +302,15 @@ const PaceLab = () => {
                     );
                   })}
                 </ol>
+                {rows.length > 10 && (
+                  <button
+                    className="pace-tower__toggle"
+                    type="button"
+                    onClick={() => setShowAll((current) => !current)}
+                  >
+                    {showAll ? 'Show top 10' : `Expand to all ${rows.length} drivers`}
+                  </button>
+                )}
               </>
             ) : (
               <AnalysisState
@@ -315,7 +330,7 @@ const PaceLab = () => {
               <Database aria-hidden="true" size={19} />
             </header>
             <ResponsiveDataView
-              rows={rows}
+              rows={visibleRows}
               columns={columns}
               getKey={(driver) => String(driver.driverNumber)}
               label="Pace Lab timing results"

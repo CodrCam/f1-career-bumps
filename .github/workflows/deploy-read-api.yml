@@ -2,6 +2,20 @@ name: Deploy DynamoDB read API
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "aws/lambda/**"
+      - "aws/iam/**"
+      - "server/analysisReadModels.js"
+      - "server/coreReadModels.js"
+      - "server/dynamoSeasonReader.js"
+      - "server/racePublicationStatus.js"
+      - "server/seasonOverview.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-read-api.yml"
 
 permissions:
   contents: read
@@ -121,7 +135,7 @@ jobs:
             --arg origins "$CORS_ORIGINS" \
             '{
               AllowOrigins: ($origins | split(",")),
-              AllowMethods: ["GET", "POST", "OPTIONS"],
+              AllowMethods: ["GET", "OPTIONS"],
               AllowHeaders: ["content-type"],
               MaxAge: 300
             }')"
@@ -198,13 +212,6 @@ jobs:
           curl --fail --silent --show-error \
             "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/pit-lane" \
             >/dev/null
-          curl --fail --silent --show-error \
-            --request POST \
-            --header "Content-Type: application/json" \
-            --data '{"season":2026,"question":"Who has the most race wins?"}' \
-            "${{ steps.api.outputs.endpoint }}/api/v2/query" \
-            >/dev/null
-
           IFS=',' read -ra allowed_origins <<< "$CORS_ORIGINS"
           for origin in "${allowed_origins[@]}"; do
             headers_file="$(mktemp)"
