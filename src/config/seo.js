@@ -14,7 +14,7 @@ const seasons = [2026, 2025];
 
 const sectionDefinitions = [
   {
-    section: "drivers",
+    path: "standings/drivers",
     title: (year) => `${year} F1 Driver Championship Standings | Slipstream`,
     description: (year) =>
       `Follow the ${year} Formula 1 driver championship race by race with cumulative points, standings movement, team colors, and driver comparisons.`,
@@ -26,7 +26,7 @@ const sectionDefinitions = [
     ],
   },
   {
-    section: "constructors",
+    path: "standings/constructors",
     title: (year) => `${year} F1 Constructor Championship | Slipstream`,
     description: (year) =>
       `Track the ${year} Formula 1 constructor championship round by round, including team rankings, position changes, and season-long performance.`,
@@ -38,7 +38,7 @@ const sectionDefinitions = [
     ],
   },
   {
-    section: "driver-results",
+    path: "results",
     title: (year) => `${year} F1 Race Results & Finishing Trends | Slipstream`,
     description: (year) =>
       `Compare ${year} Formula 1 race results and finishing-position trends across every completed round, driver, and team.`,
@@ -50,21 +50,35 @@ const sectionDefinitions = [
     ],
   },
   {
-    section: "driver-stats",
-    title: (year) => `${year} F1 Driver Statistics & Performance | Slipstream`,
+    path: "races",
+    title: (year) => `${year} F1 Race Archive & Analysis | Slipstream`,
     description: (year) =>
-      `Explore ${year} Formula 1 driver statistics, qualifying and race performance, consistency, points efficiency, and team comparisons.`,
-    datasetName: (year) => `${year} Formula 1 driver performance statistics`,
+      `Open every completed ${year} Formula 1 race dossier, with the official classification published first and detailed overtakes, pit cycles, and attrition added when timing is ready.`,
+    datasetName: (year) => `${year} Formula 1 race archive`,
     variables: [
-      "Driver points",
-      "Average qualifying position",
-      "Average race finish",
-      "Performance consistency",
+      "Official race classification",
+      "Race-story publication status",
+      "Retained overtakes",
+      "Pit cycles",
+      "Race attrition",
     ],
   },
   {
-    section: "head-to-head",
-    title: (year) => `${year} F1 Driver Head-to-Head Comparison | Slipstream`,
+    path: "drivers",
+    title: (year) => `${year} F1 Driver Directory & Form Guide | Slipstream`,
+    description: (year) =>
+      `Explore every ${year} Formula 1 driver through championship position, recent form, reliability, points efficiency, and linked race evidence.`,
+    datasetName: (year) => `${year} Formula 1 driver directory`,
+    variables: [
+      "Driver championship points",
+      "Recent finishing form",
+      "Average race finish",
+      "Reliability rate",
+    ],
+  },
+  {
+    path: "compare",
+    title: (year) => `${year} F1 Driver Comparison Workspace | Slipstream`,
     description: (year) =>
       `Compare any two ${year} Formula 1 drivers across qualifying, races, sprints, championship points, and average finishing performance.`,
     datasetName: (year) => `${year} Formula 1 driver head-to-head comparisons`,
@@ -76,8 +90,8 @@ const sectionDefinitions = [
     ],
   },
   {
-    section: "sector-analysis",
-    title: (year) => `${year} F1 Sector Time Analysis | Slipstream`,
+    path: "pace",
+    title: (year) => `${year} F1 Pace & Sector Analysis Lab | Slipstream`,
     description: (year) =>
       `Analyze ${year} Formula 1 sector times, driver pace, consistency, and session-relative performance from completed race weekends.`,
     datasetName: (year) => `${year} Formula 1 sector timing analysis`,
@@ -89,7 +103,7 @@ const sectionDefinitions = [
     ],
   },
   {
-    section: "pit-stop-analysis",
+    path: "pit-lane",
     title: (year) => `${year} F1 Pit Stop & Pit-Lane Analysis | Slipstream`,
     description: (year) =>
       `Compare ${year} Formula 1 pit-stop service times, total pit-lane transit, team and driver trends, and operational time gained or lost.`,
@@ -113,7 +127,7 @@ const homePage = {
 
 const seasonPages = seasons.flatMap((year) =>
   sectionDefinitions.map((definition) => ({
-    path: `/${year}/${definition.section}`,
+    path: `/${year}/${definition.path}`,
     title: definition.title(year),
     description: definition.description(year),
     label: definition.title(year).replace(" | Slipstream", ""),
@@ -124,31 +138,39 @@ const seasonPages = seasons.flatMap((year) =>
   })),
 );
 
-const raceStoryPage = {
-  path: "/2026/race-story",
-  title: "2026 F1 Race Story & Overtake Analysis | Slipstream",
+const seasonDeskPages = seasons.map((year) => ({
+  path: `/${year}`,
+  title: `${year} F1 Season Desk, Results & Standings | Slipstream`,
   description:
-    "Read each completed 2026 Formula 1 race through overtakes, traffic, pit cycles, attrition, position changes, and race-shaping events.",
-  label: "2026 F1 Race Story",
+    `Open the ${year} Formula 1 season desk for the latest classified race, championship leaders, publication status, and direct access to pace and strategy analysis.`,
+  label: `${year} F1 Season Desk`,
   pageType: "WebPage",
-  season: 2026,
-  datasetName: "2026 Formula 1 race stories and overtaking analysis",
+  season: year,
+  datasetName: `${year} Formula 1 season overview`,
   variables: [
-    "On-track passes",
-    "Retained overtakes",
-    "Traffic laps",
-    "Pit cycles",
-    "Race attrition",
+    "Latest race classification",
+    "Driver championship points",
+    "Constructor championship points",
+    "Race-story publication coverage",
   ],
+}));
+
+const methodologyPage = {
+  path: "/methodology",
+  title: "Slipstream F1 Data Sources & Methodology",
+  description:
+    "Review Slipstream data sources, publication states, analytical definitions, timing limitations, and the rules used to calculate each Formula 1 metric.",
+  label: "Slipstream Methodology",
+  pageType: "WebPage",
 };
 
-const aboutPage = {
-  path: "/about",
-  title: "About Slipstream F1 Analytics",
+const askPage = {
+  path: "/ask",
+  title: "Ask F1 Driver Statistics | Slipstream",
   description:
-    "Learn how Slipstream turns Formula 1 standings, race results, timing records, pit-stop data, and strategy events into focused visual analysis.",
-  label: "About Slipstream",
-  pageType: "AboutPage",
+    "Ask a Formula 1 driver-statistics question, inspect the exact filters and calculation, and verify every answer against published race evidence.",
+  label: "Ask Slipstream F1 Statistics",
+  pageType: "WebApplication",
 };
 
 export const NOT_FOUND_PAGE = {
@@ -161,7 +183,13 @@ export const NOT_FOUND_PAGE = {
   noindex: true,
 };
 
-export const SEO_PAGES = [homePage, ...seasonPages, raceStoryPage, aboutPage];
+export const SEO_PAGES = [
+  homePage,
+  ...seasonDeskPages,
+  ...seasonPages,
+  askPage,
+  methodologyPage,
+];
 
 export const normalizeSeoPath = (pathname = "/") => {
   const withoutQuery = String(pathname).split(/[?#]/, 1)[0] || "/";
@@ -171,6 +199,55 @@ export const normalizeSeoPath = (pathname = "/") => {
 
 export const getSeoPage = (pathname) => {
   const normalizedPath = normalizeSeoPath(pathname);
+  const driverProfileMatch = normalizedPath.match(
+    /^\/(2025|2026)\/drivers\/([^/]+)$/,
+  );
+  if (driverProfileMatch) {
+    const season = Number(driverProfileMatch[1]);
+    const driverName = decodeURIComponent(driverProfileMatch[2])
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+    return {
+      path: normalizedPath,
+      title: `${driverName} ${season} F1 Profile & Results | Slipstream`,
+      description:
+        `Review ${driverName}'s ${season} Formula 1 results, recent form, qualifying performance, reliability, points efficiency, and teammate context.`,
+      label: `${driverName} ${season} F1 Driver Profile`,
+      pageType: "ProfilePage",
+      season,
+      datasetName: `${driverName} ${season} Formula 1 performance`,
+      variables: [
+        "Race result by round",
+        "Qualifying position",
+        "Championship points",
+        "Reliability rate",
+      ],
+    };
+  }
+  const raceDossierMatch = normalizedPath.match(/^\/(2025|2026)\/races\/(\d+)$/);
+  if (raceDossierMatch) {
+    const season = Number(raceDossierMatch[1]);
+    const round = Number(raceDossierMatch[2]);
+    return {
+      path: normalizedPath,
+      title: `${season} F1 Round ${round} Race Dossier | Slipstream`,
+      description:
+        `Review the official classification and available race-shaping analysis for round ${round} of the ${season} Formula 1 season.`,
+      label: `${season} F1 Round ${round} Race Dossier`,
+      pageType: "WebPage",
+      season,
+      datasetName: `${season} Formula 1 round ${round} race dossier`,
+      variables: [
+        "Official race classification",
+        "Grid position change",
+        "Retained overtakes",
+        "Pit cycles",
+        "Race attrition",
+      ],
+    };
+  }
   return (
     SEO_PAGES.find(({ path }) => path === normalizedPath) ?? {
       ...NOT_FOUND_PAGE,

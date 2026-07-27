@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.netlify
 .venv
 .cache
 .data
@@ -17,8 +18,6 @@ dist-ssr
 f1-api.zip
 .env
 .env.*
-!.env.example
-!.env.local.example
 *.local
 db/*.sqlite
 

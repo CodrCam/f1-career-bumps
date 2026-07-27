@@ -121,7 +121,7 @@ jobs:
             --arg origins "$CORS_ORIGINS" \
             '{
               AllowOrigins: ($origins | split(",")),
-              AllowMethods: ["GET", "OPTIONS"],
+              AllowMethods: ["GET", "POST", "OPTIONS"],
               AllowHeaders: ["content-type"],
               MaxAge: 300
             }')"
@@ -170,6 +170,39 @@ jobs:
             >/dev/null
           curl --fail --silent --show-error \
             "${{ steps.api.outputs.endpoint }}/api/seasons/2026/status" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/overview" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/races" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/races/1" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/standings" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/results" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/drivers" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/compare" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/pace" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            "${{ steps.api.outputs.endpoint }}/api/v2/seasons/2026/pit-lane" \
+            >/dev/null
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"season":2026,"question":"Who has the most race wins?"}' \
+            "${{ steps.api.outputs.endpoint }}/api/v2/query" \
             >/dev/null
 
           IFS=',' read -ra allowed_origins <<< "$CORS_ORIGINS"

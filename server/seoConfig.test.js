@@ -25,14 +25,34 @@ test("provides unique canonical metadata for every indexable route", () => {
 });
 
 test("normalizes route lookups and returns machine-readable structured data", () => {
-  const page = getSeoPage("/2026/drivers/?source=test");
+  const page = getSeoPage("/2026/standings/drivers/?source=test");
   const structuredData = createStructuredData(page);
   const types = structuredData["@graph"].map((entry) => entry["@type"]);
 
-  assert.equal(page.path, "/2026/drivers");
+  assert.equal(page.path, "/2026/standings/drivers");
   assert.ok(types.includes("WebSite"));
   assert.ok(types.includes("WebPage"));
   assert.ok(types.includes("Dataset"));
+});
+
+test("creates canonical metadata for race dossier routes", () => {
+  const page = getSeoPage("/2025/races/12");
+
+  assert.equal(page.path, "/2025/races/12");
+  assert.equal(page.season, 2025);
+  assert.match(page.title, /Round 12 Race Dossier/);
+});
+
+test("publishes Ask Slipstream as a canonical web application", () => {
+  const page = getSeoPage("/ask?season=2026");
+  const structuredData = createStructuredData(page);
+  const webpage = structuredData["@graph"].find(
+    (entry) => entry["@id"] === `${SITE_URL}/ask#webpage`,
+  );
+
+  assert.equal(page.path, "/ask");
+  assert.equal(page.pageType, "WebApplication");
+  assert.equal(webpage["@type"], "WebApplication");
 });
 
 test("marks unknown routes as non-indexable instead of treating them as home", () => {

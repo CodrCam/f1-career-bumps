@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import netlify from '@netlify/vite-plugin';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), netlify()],
   server: {
     proxy: {
       '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:3001',

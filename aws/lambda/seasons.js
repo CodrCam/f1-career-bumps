@@ -1,24 +1,38 @@
 import {
+  getDynamoCompare,
+  getDynamoDriverDirectory,
+  getDynamoDriverProfile,
+  getDynamoPaceCatalog,
+  getDynamoPitLane,
+  getDynamoRaceArchive,
   getDynamoRaceAnalytics,
+  getDynamoRaceDossier,
   getDynamoRacePublicationStatus,
   getDynamoSeason,
   getDynamoSeasonAnalytics,
+  getDynamoSeasonOverview,
   getDynamoSeasonPublicationStatus,
+  getDynamoSeasonResults,
+  getDynamoSeasonStandings,
   getDynamoSeasonSummary,
 } from './dynamoSeasonData.js';
+import {
+  runStatisticsQuery,
+  StatisticsQueryError,
+} from '../../server/statisticsQuery.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.CORS_ORIGIN ?? '*',
   'Access-Control-Allow-Headers': 'content-type',
-  'Access-Control-Allow-Methods': 'GET,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
 };
 
-const response = (statusCode, body) => ({
+const response = (statusCode, body, { cacheable = statusCode === 200 } = {}) => ({
   statusCode,
   headers: {
     ...corsHeaders,
     'Content-Type': 'application/json',
-    'Cache-Control': statusCode === 200
+    'Cache-Control': cacheable
       ? 'public, max-age=30, stale-while-revalidate=300'
       : 'no-store',
   },
@@ -63,13 +77,19 @@ const getRoute = (event) => {
   const params = event.pathParameters ?? {};
   const parts = getPathParts(event);
   const seasonsIndex = parts.indexOf('seasons');
+  const isV2 = parts[0] === 'api' && parts[1] === 'v2';
   const year = Number(params.year ?? parts[seasonsIndex + 1]);
   const tail = parts.slice(seasonsIndex + 2);
 
   return {
     year,
+    isV2,
+    isV2Query: parts[0] === 'api' && parts[1] === 'v2' && parts[2] === 'query',
     view: params.view ?? tail[0],
+    driverId: params.driverId ?? (tail[0] === 'drivers' ? tail[1] : undefined),
+    isV2DriverProfile: isV2 && tail[0] === 'drivers' && tail.length === 2,
     round: Number(params.round ?? (tail[0] === 'races' ? tail[1] : undefined)),
+    isV2RaceDossier: isV2 && tail[0] === 'races' && tail.length === 2,
     isRaceAnalytics: tail[0] === 'races' && tail[2] === 'analytics',
     isRaceStatus: tail[0] === 'races' && tail[2] === 'status',
   };
@@ -82,28 +102,82 @@ export const handler = async (event) => {
     return response(204, {});
   }
 
-  if (method !== 'GET') {
-    return response(405, { error: 'Method not allowed' });
-  }
-
   const {
     year,
+    isV2,
+    isV2Query,
     view,
+    driverId,
+    isV2DriverProfile,
     round,
+    isV2RaceDossier,
     isRaceAnalytics,
     isRaceStatus,
   } = getRoute(event);
 
-  if (!Number.isInteger(year)) {
+  if ((isV2Query && method !== 'POST') || (!isV2Query && method !== 'GET')) {
+    return response(405, { error: 'Method not allowed' });
+  }
+
+  if (!isV2Query && !Number.isInteger(year)) {
     return response(400, { error: 'Invalid season year' });
   }
 
-  if ((isRaceAnalytics || isRaceStatus) && (!Number.isInteger(round) || round < 1)) {
+  if (
+    (isV2RaceDossier || isRaceAnalytics || isRaceStatus)
+    && (!Number.isInteger(round) || round < 1)
+  ) {
     return response(400, { error: 'Invalid race round' });
   }
 
   try {
-    const data = isRaceAnalytics
+    if (isV2Query) {
+      let input;
+      try {
+        const body = event.isBase64Encoded
+          ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
+          : event.body;
+        input = JSON.parse(body ?? '{}');
+      } catch {
+        return response(400, { error: 'Request body must be valid JSON.' });
+      }
+
+      const queryYear = Number(input?.query?.season ?? input?.season);
+      if (!Number.isInteger(queryYear)) {
+        return response(400, { error: 'A valid query season is required.' });
+      }
+      const directory = await getDynamoDriverDirectory(queryYear);
+      if (!directory) {
+        return response(404, { error: `No season data found for ${queryYear}` });
+      }
+      return response(
+        200,
+        runStatisticsQuery({ input, directory }),
+        { cacheable: false },
+      );
+    }
+
+    const data = isV2 && view === 'overview'
+      ? await getDynamoSeasonOverview(year)
+      : isV2DriverProfile
+        ? await getDynamoDriverProfile(year, driverId)
+      : isV2 && view === 'drivers'
+        ? await getDynamoDriverDirectory(year)
+      : isV2 && view === 'compare'
+        ? await getDynamoCompare(year)
+      : isV2 && view === 'pace'
+        ? await getDynamoPaceCatalog(year)
+      : isV2 && view === 'pit-lane'
+        ? await getDynamoPitLane(year)
+      : isV2RaceDossier
+        ? await getDynamoRaceDossier(year, round)
+      : isV2 && view === 'races'
+        ? await getDynamoRaceArchive(year)
+      : isV2 && view === 'standings'
+        ? await getDynamoSeasonStandings(year)
+      : isV2 && view === 'results'
+        ? await getDynamoSeasonResults(year)
+      : isRaceAnalytics
       ? await getDynamoRaceAnalytics(year, round)
       : isRaceStatus
         ? await getDynamoRacePublicationStatus(year, round)
@@ -119,6 +193,10 @@ export const handler = async (event) => {
       return response(404, {
         error: isRaceAnalytics
           ? `No race analytics found for ${year} round ${round}`
+          : isV2DriverProfile
+            ? `No driver found for ${year}: ${driverId}`
+          : isV2RaceDossier
+            ? `No race found for ${year} round ${round}`
           : isRaceStatus
             ? `No race publication status found for ${year} round ${round}`
           : `No season data found for ${year}`,
@@ -127,6 +205,12 @@ export const handler = async (event) => {
 
     return response(200, normalizeSeasonTeams(data, year));
   } catch (error) {
+    if (error instanceof StatisticsQueryError) {
+      return response(error.statusCode, {
+        error: error.message,
+        issues: error.issues,
+      });
+    }
     console.error(error);
     return response(500, { error: 'Unexpected data store error' });
   }

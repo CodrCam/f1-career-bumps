@@ -34,7 +34,7 @@ const parseEnvFile = (filePath) => {
 const env = parseEnvFile(localEnvPath);
 
 if (!env.exists) {
-  console.log('.env.local is missing. Copy .env.local.example to .env.local.');
+  console.log('.env.local is missing. Create it using the key list in README.md.');
   process.exit(1);
 }
 
@@ -47,7 +47,9 @@ const emptyRequired = localRequired.filter((key) => env.empty.has(key));
 
 console.log(JSON.stringify({
   file: localEnvPath,
-  ok: duplicates.length === 0 && missing.length === 0 && emptyRequired.length === 0,
+  ok: duplicates.length === 0
+    && missing.length === 0
+    && emptyRequired.length === 0,
   keys: env.keys.map(({ key, line }) => ({ key, line })),
   duplicates,
   missing,
@@ -60,6 +62,9 @@ console.log(JSON.stringify({
     'DYNAMODB_TABLE',
     'VITE_API_BASE_URL',
     'VITE_ALLOW_JSON_FALLBACK',
+    'F1_RAW_DATA_BUCKET',
+    'F1_RAW_DATA_DIR',
+    'FASTF1_PYTHON',
   ],
 }, null, 2));
 

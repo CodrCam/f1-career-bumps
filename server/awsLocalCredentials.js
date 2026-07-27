@@ -12,8 +12,8 @@ export const printLocalCredentialHelp = () => {
   console.error('AWS credentials are not configured for this local project.');
   console.error('');
   console.error('Do this once:');
-  console.error('1. Copy .env.local.example to .env.local');
-  console.error('2. Fill in AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY');
+  console.error('1. Create the ignored .env.local file');
+  console.error('2. Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY');
   console.error('3. Keep AWS_REGION=us-west-2');
   console.error('4. Keep DYNAMODB_TABLE=f1-website-data');
   console.error('');

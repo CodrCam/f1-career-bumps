@@ -5,6 +5,20 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { publicRacePublicationStatus } from '../../server/racePublicationStatus.js';
+import {
+  buildRaceArchiveReadModel,
+  buildRaceDossierReadModel,
+  buildResultsReadModel,
+  buildStandingsReadModel,
+} from '../../server/coreReadModels.js';
+import {
+  buildCompareReadModel,
+  buildDriverDirectoryReadModel,
+  buildDriverProfileReadModel,
+  buildPaceCatalogReadModel,
+  buildPitLaneReadModel,
+} from '../../server/analysisReadModels.js';
+import { buildSeasonOverview } from '../../server/seasonOverview.js';
 
 const tableName = process.env.DYNAMODB_TABLE ?? 'f1-website-data';
 
@@ -181,4 +195,139 @@ export const getDynamoSeasonAnalytics = async (year) => {
       })),
     dataStore: 'dynamodb',
   };
+};
+
+export const getDynamoSeasonOverview = async (year) => {
+  const [season, summary, analytics, publication] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoSeasonAnalytics(year),
+    getDynamoSeasonPublicationStatus(year),
+  ]);
+
+  if (!season) return null;
+
+  return buildSeasonOverview({
+    year,
+    season,
+    summary,
+    analytics,
+    publication,
+  });
+};
+
+export const getDynamoSeasonStandings = async (year) => {
+  const [season, summary, publication] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoSeasonPublicationStatus(year),
+  ]);
+
+  if (!season) return null;
+
+  return buildStandingsReadModel({
+    year,
+    season,
+    summary,
+    publication,
+  });
+};
+
+export const getDynamoSeasonResults = async (year) => {
+  const [season, summary, publication] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoSeasonPublicationStatus(year),
+  ]);
+
+  if (!season) return null;
+
+  return buildResultsReadModel({
+    year,
+    season,
+    summary,
+    publication,
+  });
+};
+
+export const getDynamoRaceArchive = async (year) => {
+  const [season, summary, analytics, publication] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoSeasonAnalytics(year),
+    getDynamoSeasonPublicationStatus(year),
+  ]);
+
+  if (!season) return null;
+
+  return buildRaceArchiveReadModel({
+    year,
+    season,
+    summary,
+    analytics,
+    publication,
+  });
+};
+
+export const getDynamoRaceDossier = async (year, round) => {
+  const [season, summary, analytics, publication] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoRaceAnalytics(year, round),
+    getDynamoRacePublicationStatus(year, round),
+  ]);
+
+  if (!season) return null;
+
+  return buildRaceDossierReadModel({
+    year,
+    round,
+    season,
+    summary,
+    analytics,
+    publication,
+  });
+};
+
+const getDynamoAnalysisSeason = async (year, { includeAnalytics = false } = {}) => {
+  const [season, summary, publication, analytics] = await Promise.all([
+    getDynamoSeason(year),
+    getDynamoSeasonSummary(year),
+    getDynamoSeasonPublicationStatus(year),
+    includeAnalytics ? getDynamoSeasonAnalytics(year) : Promise.resolve(null),
+  ]);
+  if (!season) return null;
+  return {
+    season,
+    summary,
+    publication,
+    analytics,
+  };
+};
+
+export const getDynamoDriverDirectory = async (year) => {
+  const source = await getDynamoAnalysisSeason(year);
+  return source ? buildDriverDirectoryReadModel({ year, ...source }) : null;
+};
+
+export const getDynamoDriverProfile = async (year, driverId) => {
+  const source = await getDynamoAnalysisSeason(year);
+  return source
+    ? buildDriverProfileReadModel({ year, driverId, ...source })
+    : null;
+};
+
+export const getDynamoCompare = async (year) => {
+  const source = await getDynamoAnalysisSeason(year);
+  return source ? buildCompareReadModel({ year, ...source }) : null;
+};
+
+export const getDynamoPaceCatalog = async (year) => {
+  const source = await getDynamoAnalysisSeason(year, { includeAnalytics: true });
+  return source ? buildPaceCatalogReadModel({ year, ...source }) : null;
+};
+
+export const getDynamoPitLane = async (year) => {
+  const source = await getDynamoAnalysisSeason(year);
+  return source ? buildPitLaneReadModel({ year, ...source }) : null;
 };

@@ -62,14 +62,17 @@ const createFallbackMarkup = (page) => {
   const season = page.season ?? 2026;
   const links = [
     { label: "Home", path: "/" },
-    { label: `${season} Drivers`, path: `/${season}/drivers` },
-    { label: `${season} Constructors`, path: `/${season}/constructors` },
-    { label: `${season} Race Results`, path: `/${season}/driver-results` },
+    { label: `${season} Driver Profiles`, path: `/${season}/drivers` },
+    { label: `${season} Championship`, path: `/${season}/standings/drivers` },
+    { label: `${season} Constructors`, path: `/${season}/standings/constructors` },
+    { label: `${season} Race Archive`, path: `/${season}/races` },
+    { label: `${season} Race Results`, path: `/${season}/results` },
     {
-      label: `${season} Pit Stop Analysis`,
-      path: `/${season}/pit-stop-analysis`,
+      label: `${season} Pit Lane Analysis`,
+      path: `/${season}/pit-lane`,
     },
-    { label: "About", path: "/about" },
+    { label: "Ask F1 Statistics", path: `/ask?season=${season}` },
+    { label: "Methodology", path: "/methodology" },
   ];
 
   const navigation = links

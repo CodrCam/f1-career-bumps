@@ -5,6 +5,51 @@
 [build.processing.html]
   pretty_urls = true
 
+[[redirects]]
+  from = "/:year/constructors"
+  to = "/:year/standings/constructors"
+  status = 301
+
+[[redirects]]
+  from = "/:year/driver-results"
+  to = "/:year/results"
+  status = 301
+
+[[redirects]]
+  from = "/:year/race-story"
+  to = "/:year/races"
+  status = 301
+
+[[redirects]]
+  from = "/:year/driver-stats"
+  to = "/:year/drivers"
+  status = 301
+
+[[redirects]]
+  from = "/:year/head-to-head"
+  to = "/:year/compare"
+  status = 301
+
+[[redirects]]
+  from = "/:year/sector-analysis"
+  to = "/:year/pace"
+  status = 301
+
+[[redirects]]
+  from = "/:year/pit-strategy"
+  to = "/:year/pit-lane"
+  status = 301
+
+[[redirects]]
+  from = "/:year/pit-stop-analysis"
+  to = "/:year/pit-lane"
+  status = 301
+
+[[redirects]]
+  from = "/about"
+  to = "/methodology"
+  status = 301
+
 [[headers]]
   for = "/*"
 

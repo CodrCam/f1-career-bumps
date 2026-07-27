@@ -2,7 +2,7 @@
 
 Status: architecture and design gate  
 Date: 2026-07-27  
-Scope: every public route, the shared frontend system, ingestion, publishing, observability, responsive behavior, and the proposed statistics assistant
+Scope: every public route, the shared frontend system, ingestion, publishing, observability, responsive behavior, and the deterministic statistics search
 
 ## Executive decision
 
@@ -18,7 +18,7 @@ The recommended shape is:
 - Keep the existing Netlify, S3, DynamoDB, Lambda, and API Gateway footprint. Add scheduling and status records, not a new platform.
 - Publish every race progressively: classification first, detailed story when timing is ready, enrichment later.
 - Make freshness and source provenance visible in the interface.
-- Make the statistics assistant deterministic first. An OpenAI model may translate natural language into a constrained query, but it must never invent or calculate the displayed statistics.
+- Keep the statistics search deterministic, auditable, and free of metered model dependencies.
 
 This is a replacement architecture delivered incrementally behind the existing site. It is not a big-bang rewrite.
 
@@ -384,7 +384,6 @@ flowchart LR
     K --> L["Versioned API"]
     L --> M["React application"]
     L --> N["Deterministic statistics query engine"]
-    O["Optional OpenAI language translator"] --> N
 ```
 
 ### Source authority
@@ -570,26 +569,11 @@ It computes the result from published data and returns:
 - source versions
 - related routes
 
-This layer works without OpenAI and can answer common questions through structured controls and templates.
-
-### Layer 2: optional OpenAI translator
-
-The model only translates a natural-language question into the constrained JSON query and, optionally, rewrites the deterministic result into concise prose.
-
-Guardrails:
-
-- schema validation before execution
-- allowlisted metrics and filters
-- no arbitrary code or database access
-- no raw source secrets in prompts
-- no statistic displayed unless returned by the deterministic engine
-- answer citations link to the supporting rows and methodology
-- per-IP and global rate limits
-- result cache keyed by normalized query
-- daily request and spend ceiling
-- automatic fallback to structured search when the ceiling is reached
-
-There is no honest way to offer an unlimited public OpenAI-powered feature with a guaranteed zero API cost. The build should therefore ship the deterministic experience first and keep model use optional, capped, cached, and server-side. Netlify AI Gateway can remove key-management friction, but its plan/credit terms must be confirmed before enabling public model calls. The model identifier should be configuration, selected from the gateway’s currently supported OpenAI models during implementation.
+This layer answers supported questions through structured controls, templates,
+and a constrained local parser. Unsupported wording is rejected with editable
+parameters instead of being sent to a metered external model. That keeps every
+answer reproducible, removes an abuse and billing surface, and preserves the
+same evidence trail for every user.
 
 ## Performance budgets
 
@@ -658,41 +642,72 @@ Exit criterion: the newest completed race can never disappear merely because Fas
 
 ### Phase 1 — foundation
 
-- add TypeScript
-- create tokens and internal primitives
-- build the new shell, navigation, status/freshness UI, and responsive contracts
-- add the versioned response envelope and query client
-- build the new season desk
+- [x] add TypeScript and a required type-check
+- [x] create tokens and the first internal primitives
+- [x] build the new shell, navigation, status/freshness UI, and responsive contracts
+- [x] add the versioned season-overview envelope and typed query client
+- [x] build the new season desk
+
+Phase 1 completed locally on 2026-07-27. The new shell keeps every legacy
+analysis route available while replacing the global navigation and homepage.
+The season desk is driven by a v2 overview response with a rollout-safe v1
+compatibility path, preserves stale data during refresh, and polls only while
+publication remains incomplete. Responsive checks pass without body overflow
+at 320, 390, 768, 1024, 1440, and 1920 pixels.
 
 Exit criterion: the shell passes accessibility, 320–1920 px responsive checks, and performance budgets.
 
 ### Phase 2 — core publication surfaces
 
-- race archive and race dossier
-- driver and constructor standings
-- season results matrix
-- legacy redirects and SEO metadata
+- [x] race archive and race dossier
+- [x] driver and constructor standings
+- [x] season results matrix
+- [x] legacy redirects and SEO metadata
+
+Phase 2 completed locally on 2026-07-27. Canonical v2 read models now drive
+the race archive, progressive race dossier, both championship tables, and the
+season results matrix. The same publication envelope and automatic polling
+contract is used for 2025 and 2026. Official classifications remain available
+while detailed timing is processing, and legacy routes redirect permanently to
+the new structure. Live-data validation confirmed Hungary at round 11, Spa at
+round 10, and Silverstone at round 9 for the 2026 archive.
 
 Exit criterion: season, race, and standings share one data/status language and support at least 2025 and 2026.
 
 ### Phase 3 — analytical workspaces
 
-- driver directory/profile
-- Compare
-- Pace Lab
-- Pit Lane
-- methodology definitions linked from every metric
+- [x] driver directory/profile
+- [x] Compare
+- [x] Pace Lab
+- [x] Pit Lane
+- [x] methodology definitions linked from every metric
+
+Phase 3 completed locally on 2026-07-27. Shared v2 analytical read models now
+drive the driver directory and profiles, the shareable Compare workspace, the
+OpenF1-backed Pace Lab, and Pit Lane's separate service, lane, and transit
+clocks. Every workspace uses the same controls, loading and publication states,
+responsive data-view conversion, and linked metric definitions. Canonical
+routes support 2025 and 2026, while the former analytics URLs permanently
+redirect to the new structure. Browser checks pass without horizontal overflow
+at 320, 390, 768, 1024, 1280, and 1440 pixels.
 
 Exit criterion: no route owns bespoke controls, loading states, or mobile table conversions.
 
 ### Phase 4 — Ask Slipstream
 
-- deterministic query schema and engine
-- structured query UI
-- answer evidence/citations
-- optional OpenAI translator behind quotas and feature flag
+- [x] deterministic query schema and engine
+- [x] structured query UI
+- [x] answer evidence/citations
 
-Exit criterion: every displayed statistic is reproducible without the model.
+Phase 4 completed locally on 2026-07-27. Ask Slipstream now turns supported
+driver-statistics questions into a strict query contract, runs every calculation
+against the same published v2 read model, and keeps its sample, formula,
+methodology link, timestamp, and supporting race rows attached. The workspace
+also exposes the interpreted parameters for editing. It has no metered model
+dependency or public AI endpoint.
+
+Exit criterion: every displayed statistic is reproducible from the published
+source rows.
 
 ### Phase 5 — retire v1
 

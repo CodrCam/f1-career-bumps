@@ -193,13 +193,7 @@ Avoid leaving broad policies attached permanently.
 
 You do not need the AWS CLI installed to seed from this repo. The Node scripts can read local credentials from `.env.local`.
 
-Create `.env.local` from the example:
-
-```bash
-cp .env.local.example .env.local
-```
-
-Fill in:
+Create the ignored `.env.local` file and add:
 
 ```text
 AWS_ACCESS_KEY_ID=...
@@ -517,5 +511,4 @@ server/formula1SeasonBuilder.js
 server/dynamoSeasonWriter.js
 src/hooks/useSeasonData.js
 src/hooks/useRaceStoryData.js
-.env.example
 ```
