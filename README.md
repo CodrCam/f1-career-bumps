@@ -68,11 +68,48 @@ index; it adds no public write endpoint or metered service.
 - frontend routing: `VITE_API_BASE_URL` and `VITE_ALLOW_JSON_FALLBACK`
 - ingestion overrides: `F1_RAW_DATA_BUCKET`, `F1_RAW_DATA_DIR`, and
   `FASTF1_PYTHON`
+- fixture recorder state: `TIMING_RECORDER_DIR` (defaults to
+  `.data/timing-recorder`)
+- public timing-check API: `VITE_TIMING_CHECK_API_URL`
 
 The scheduled `pipeline:refresh` task checks every completed official round,
 repairs missing publication-status records, and retries up to two missing
 analytics rounds per run. Detailed timing uses FastF1 first and OpenF1 as the
 free historical fallback.
+
+The next ingestion architecture is being developed against self-owned fixtures
+until source storage and display rights are documented. Run the safe vertical
+slice with:
+
+```bash
+npm run pipeline:fixture
+```
+
+It replays a synthetic timing stream through append-only compressed raw batches,
+normalization, an idempotent race-event ledger, and pit-stop anomaly analysis.
+It writes only below `.data/fixture-replay` and does not call a live source.
+See [the race-ingestion ADR](docs/race-ingestion-adr.md) for the refresh audit,
+source-authorization matrix, architecture, and phased rollout.
+
+The production-shaped recorder control plane can also be rehearsed locally:
+
+```bash
+npm run timing:prepare:fixture
+npm run timing:record:fixture
+```
+
+It adds a single-writer lease, durable cursor and health checkpoints, bounded
+batch flushing, persistent local race events, disconnect recovery, and an
+`already_complete` guard. With the local API running, recorder status is
+available at `GET /api/v2/timing-recorder/sessions`; raw timing records and
+credentials are never exposed by that endpoint. See the
+[timing recorder runbook](docs/timing-recorder-runbook.md) for the rehearsal
+workflow and contracted-provider onboarding gates.
+
+Race dossiers also contain a rate-limited timing-check button. It can enqueue a
+cheap source-availability probe, but it cannot launch AWS resources directly.
+The backend enforces a per-session cooldown and a single dispatch reservation,
+then starts one recorder only after an authorized source reports data.
 
 Never expose AWS credentials through a `VITE_` variable. Vite embeds all
 `VITE_` values in public browser code.
@@ -104,12 +141,20 @@ Pushing to the production branch triggers the Netlify frontend deployment and
 the GitHub Actions AWS read-API deployment. Local `.env.local` values are not
 uploaded. Configure production values in the relevant host:
 
-- Netlify: `VITE_API_BASE_URL` and `VITE_ALLOW_JSON_FALLBACK`
+- Netlify: `VITE_API_BASE_URL`, `VITE_TIMING_CHECK_API_URL`, and
+  `VITE_ALLOW_JSON_FALLBACK`
 - GitHub/AWS: AWS credentials, data bucket, DynamoDB table, API CORS origin,
   and Lambda deployment variables
 
 Both Netlify values are intentionally public build configuration. AWS
 credentials and ingestion settings do not belong in Netlify.
 
----
-*Private repository - Cameron Griffin*
+## License
+
+The original software and documentation in this repository are licensed under
+the [MIT License](LICENSE), Copyright (c) 2026 Cameron Griffin.
+
+The MIT License covers the program itself. It does not grant rights to Formula
+1 timing data, trademarks, logos, photographs, third-party datasets, or other
+materials supplied under separate terms. Each data source must still be used
+within its own authorization and license.

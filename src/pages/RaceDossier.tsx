@@ -15,6 +15,7 @@ import { useCoreData } from '../hooks/useCoreData';
 import { DataStatus } from '../ui/DataStatus';
 import { LoadingFrame } from '../ui/LoadingFrame';
 import { MetricStrip } from '../ui/MetricStrip';
+import { TimingCheckControl } from '../ui/TimingCheckControl';
 import { getTeamColor } from '../utils/dataProcessing.js';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './CorePages.css';
@@ -101,6 +102,12 @@ const RaceDossier = () => {
             : 'The official classification is live. Detailed timing is still processing.'}
         />
       </section>
+
+      <TimingCheckControl
+        year={year}
+        round={data.race.round}
+        sessionType="race"
+      />
 
       <MetricStrip
         label={`${data.race.grandPrix} race summary`}
@@ -205,15 +212,22 @@ const RaceDossier = () => {
                 <h3><Wrench aria-hidden="true" size={16} /> Pit cycles</h3>
                 {pitCycles.slice(0, 5).map((event, index) => {
                   const delta = numberValue(event.position_delta);
+                  const pitLap = textValue(event.pit_lap ?? event.lap);
+                  const pitDriver = textValue(event.driver);
                   return (
-                    <div className="dossier-event" key={textValue(event.id, `pit-${index}`)}>
-                      <span>L{textValue(event.pit_lap ?? event.lap)}</span>
+                    <Link
+                      className="dossier-event dossier-event--link"
+                      key={textValue(event.id, `pit-${index}`)}
+                      title="Highlight this stop in Pit Lane"
+                      to={`/${year}/pit-lane?round=${data.race.round}&driver=${encodeURIComponent(pitDriver)}&lap=${encodeURIComponent(pitLap)}#pit-stop-scatter`}
+                    >
+                      <span>L{pitLap}</span>
                       <p>
-                        <strong>{textValue(event.driver)}</strong> ·{' '}
+                        <strong>{pitDriver}</strong> ·{' '}
                         {textValue(event.strategy_context, 'green flag stop').replaceAll('_', ' ')}
                       </p>
                       <small>{delta === null || delta === 0 ? 'Position held' : `${delta > 0 ? '+' : ''}${delta} positions`}</small>
-                    </div>
+                    </Link>
                   );
                 })}
                 {pitCycles.length === 0 && <p className="core-page__empty">No pit-cycle events published.</p>}

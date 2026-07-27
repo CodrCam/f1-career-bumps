@@ -109,6 +109,24 @@ export interface PitStopRecord {
   hasBreakdown: boolean;
   serviceSource?: string | null;
   pitLaneSource?: string | null;
+  expectedServiceTime?: number | null;
+  expectedPitLaneTime?: number | null;
+  expectedTransitTime?: number | null;
+  serviceAnomalyScore?: number | null;
+  laneAnomalyScore?: number | null;
+  transitAnomalyScore?: number | null;
+  anomalyScore?: number;
+  anomalyType?: string;
+  anomalyLabel?: string;
+  isAnomaly?: boolean;
+  explanationStatus?: 'confirmed' | 'likely' | 'unexplained';
+  explanation?: string;
+  evidence?: Array<{
+    kind: string;
+    source?: string;
+    eventId?: string;
+    message?: string;
+  }>;
 }
 
 export interface PitRanking {

@@ -19,6 +19,8 @@ import {
   buildPitLaneReadModel,
 } from './analysisReadModels.js';
 import { buildSeasonOverview } from './seasonOverview.js';
+import { buildTimingRecorderReadModel } from './timingRecorderReadModel.js';
+import { createLocalTimingRecorderStateStore } from './timingRecorderStateStore.js';
 
 const port = Number(process.env.PORT ?? 3001);
 const app = express();
@@ -26,6 +28,9 @@ const useDynamo = Boolean(process.env.DYNAMODB_TABLE) && hasLocalAwsCredentials(
 const database = useDynamo ? null : await createF1Database();
 const dynamoReader = useDynamo ? createDynamoSeasonReader() : null;
 const analyticsReader = dynamoReader ?? createLocalRaceAnalyticsReader();
+const timingRecorderState = createLocalTimingRecorderStateStore({
+  root: process.env.TIMING_RECORDER_DIR,
+});
 const audiTeamPattern = /\b(sauber|kick|stake)\b/i;
 const resultKeys = ['race_results', 'qualifying_results', 'sprint_results', 'sprint_qualifying_results'];
 
@@ -60,6 +65,17 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, dataSource: useDynamo ? 'dynamodb' : 'sqlite' });
+});
+
+app.get('/api/v2/timing-recorder/sessions', async (req, res, next) => {
+  try {
+    const states = await timingRecorderState.list({
+      sourceId: req.query.source || undefined,
+    });
+    res.json(buildTimingRecorderReadModel(states));
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/api/v2/seasons/:year/overview', async (req, res, next) => {

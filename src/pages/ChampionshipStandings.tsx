@@ -4,7 +4,6 @@ import {
   ChevronUp,
   CircleMinus,
   Trophy,
-  Users,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { CorePageHeader } from '../components/CorePageHeader';
@@ -13,7 +12,6 @@ import TeamLogo from '../components/TeamLogo.jsx';
 import type {
   ConstructorStanding,
 } from '../data/coreData';
-import type { Standing } from '../data/seasonOverview';
 import { useCoreData } from '../hooks/useCoreData';
 import { LoadingFrame } from '../ui/LoadingFrame';
 import { MetricStrip } from '../ui/MetricStrip';
@@ -47,32 +45,6 @@ const Movement = ({ movement }: { movement: number | null }) => {
   );
 };
 
-interface ChampionshipStandingsProps {
-  mode: 'drivers' | 'constructors';
-}
-
-const DriverRow = ({ standing, year }: { standing: Standing; year: number }) => (
-  <li
-    className="standing-row"
-    style={{ '--team-color': getTeamColor(standing.team) } as CSSProperties}
-  >
-    <span className="standing-row__rank">{String(standing.rank).padStart(2, '0')}</span>
-    <span className="standing-row__mark">
-      <TeamLogo size="sm" team={standing.team} tone="team" year={year} />
-    </span>
-    <span className="standing-row__identity">
-      <strong>{standing.name}</strong>
-      <small>{standing.team ?? 'Independent entry'}</small>
-    </span>
-    <Movement movement={standing.movement} />
-    <span className="standing-row__gap">
-      {standing.rank === 1 ? 'Leader' : `+${formatPoints(standing.gapToLeader)}`}
-      <small>{standing.gapToAhead ? `+${formatPoints(standing.gapToAhead)} ahead` : 'championship'}</small>
-    </span>
-    <strong className="standing-row__points">{formatPoints(standing.points)}<small>PTS</small></strong>
-  </li>
-);
-
 const ConstructorRow = ({
   standing,
   year,
@@ -105,7 +77,7 @@ const ConstructorRow = ({
   </li>
 );
 
-const ChampionshipStandings = ({ mode }: ChampionshipStandingsProps) => {
+export const ConstructorStandings = () => {
   const { seasonYear } = useParams();
   const year = getSeasonFromParam(seasonYear);
   const { envelope, status, error, retry } = useCoreData(year, 'standings');
@@ -115,30 +87,22 @@ const ChampionshipStandings = ({ mode }: ChampionshipStandingsProps) => {
     return <CorePageState year={year} message={error?.message} onRetry={retry} />;
   }
 
-  const standings = mode === 'drivers'
-    ? envelope.data.driverStandings
-    : envelope.data.constructorStandings;
+  const standings = envelope.data.constructorStandings;
   const leader = standings[0];
   const closest = standings[1];
   const changed = standings.filter((standing) => standing.movement).length;
-  const counterpart = mode === 'drivers'
-    ? `/${year}/standings/constructors`
-    : `/${year}/standings/drivers`;
-  const Icon = mode === 'drivers' ? Trophy : Users;
 
   return (
     <main className="core-page">
       <CorePageHeader
         eyebrow={`Season ${year} / through round ${envelope.data.throughRound}`}
-        title={mode === 'drivers' ? 'Driver championship' : 'Constructor championship'}
-        description={mode === 'drivers'
-          ? 'The complete title order, with the latest-round movement and the gaps that matter.'
-          : 'Every team in title order, with each driver’s current contribution kept in view.'}
+        title="Constructor championship"
+        description="Every team in title order, with each driver’s current contribution kept in view."
         meta={envelope.meta}
         actions={(
-          <Link className="core-page__switch" to={counterpart}>
-            <Icon aria-hidden="true" size={15} />
-            {mode === 'drivers' ? 'View teams' : 'View drivers'}
+          <Link className="core-page__switch" to={`/${year}/drivers`}>
+            <Trophy aria-hidden="true" size={15} />
+            Open drivers
           </Link>
         )}
       />
@@ -153,11 +117,11 @@ const ChampionshipStandings = ({ mode }: ChampionshipStandingsProps) => {
             detail: closest ? `over ${closest.name}` : 'No challenger classified',
           },
           { label: 'Movers', value: changed, detail: 'Changed position last round' },
-          { label: 'Classified', value: standings.length, detail: mode },
+          { label: 'Classified', value: standings.length, detail: 'constructors' },
         ]}
       />
 
-      <section className="standings-board" aria-label={`${year} ${mode} championship standings`}>
+      <section className="standings-board" aria-label={`${year} constructor championship standings`}>
         <div className="standings-board__head" aria-hidden="true">
           <span>Rank</span>
           <span>Entry</span>
@@ -166,20 +130,13 @@ const ChampionshipStandings = ({ mode }: ChampionshipStandingsProps) => {
           <span>Points</span>
         </div>
         <ol>
-          {mode === 'drivers'
-            ? envelope.data.driverStandings.map((standing) => (
-              <DriverRow key={standing.name} standing={standing} year={year} />
-            ))
-            : envelope.data.constructorStandings.map((standing) => (
-              <ConstructorRow key={standing.name} standing={standing} year={year} />
-            ))}
+          {envelope.data.constructorStandings.map((standing) => (
+            <ConstructorRow key={standing.name} standing={standing} year={year} />
+          ))}
         </ol>
       </section>
     </main>
   );
 };
 
-export const DriverStandings = () => <ChampionshipStandings mode="drivers" />;
-export const ConstructorStandings = () => <ChampionshipStandings mode="constructors" />;
-
-export default ChampionshipStandings;
+export default ConstructorStandings;

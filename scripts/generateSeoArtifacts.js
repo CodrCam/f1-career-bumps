@@ -62,8 +62,7 @@ const createFallbackMarkup = (page) => {
   const season = page.season ?? 2026;
   const links = [
     { label: "Home", path: "/" },
-    { label: `${season} Driver Profiles`, path: `/${season}/drivers` },
-    { label: `${season} Championship`, path: `/${season}/standings/drivers` },
+    { label: `${season} Drivers & Championship`, path: `/${season}/drivers` },
     { label: `${season} Constructors`, path: `/${season}/standings/constructors` },
     { label: `${season} Race Archive`, path: `/${season}/races` },
     { label: `${season} Race Results`, path: `/${season}/results` },

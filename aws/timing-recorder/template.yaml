@@ -1,0 +1,522 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Slipstream timing recorder foundation. Creates a Fargate task definition and
+  EventBridge Scheduler control-plane resources, but no live session schedules.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: shadow
+    AllowedPattern: "[a-z0-9-]+"
+  RecorderImageUri:
+    Type: String
+    Description: Immutable ECR image URI, preferably pinned by digest.
+  TimingSourceId:
+    Type: String
+    Default: slipstream-fixture
+  TimingDeploymentScope:
+    Type: String
+    Default: test
+    AllowedValues:
+      - test
+      - production
+  DynamoTableName:
+    Type: String
+    Default: f1-website-data
+  RawDataBucketName:
+    Type: String
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  ProviderSecretArn:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Optional Secrets Manager secret containing provider credentials.
+  DispatcherCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the bundled dispatcher Lambda zip.
+  DispatcherCodeS3Key:
+    Type: String
+    Description: S3 key for the bundled dispatcher Lambda zip.
+  PublicCheckApiCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the bundled public-check API Lambda zip.
+  PublicCheckApiCodeS3Key:
+    Type: String
+    Description: S3 key for the bundled public-check API Lambda zip.
+  PublicCheckAllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://f1datadesktop.com,https://www.f1datadesktop.com
+  PublicCheckMaxPerSession:
+    Type: Number
+    Default: 24
+    MinValue: 1
+    MaxValue: 100
+    Description: Maximum public-button checks accepted for one registered session.
+  TaskCpu:
+    Type: String
+    Default: "512"
+    AllowedValues:
+      - "256"
+      - "512"
+      - "1024"
+  TaskMemory:
+    Type: String
+    Default: "1024"
+    AllowedValues:
+      - "512"
+      - "1024"
+      - "2048"
+      - "3072"
+      - "4096"
+
+Conditions:
+  HasProviderSecret: !Not [!Equals [!Ref ProviderSecretArn, ""]]
+
+Resources:
+  RecorderCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub slipstream-timing-${EnvironmentName}
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: application
+          Value: slipstream
+        - Key: component
+          Value: timing-recorder
+
+  RecorderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /slipstream/timing-recorder/${EnvironmentName}
+      RetentionInDays: 30
+
+  RecorderExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-provider-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - !If
+                - HasProviderSecret
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource: !Ref ProviderSecretArn
+                - !Ref AWS::NoValue
+
+  RecorderTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: timing-recorder-runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AppendRawBatches
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${RawDataBucketName}/raw-events/*
+              - Sid: RecorderStateAndLedger
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoTableName}
+              - Sid: PublishRecorderLifecycle
+                Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource: !GetAtt RecorderEventBus.Arn
+
+  RecorderTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub slipstream-timing-${EnvironmentName}
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt RecorderExecutionRole.Arn
+      TaskRoleArn: !GetAtt RecorderTaskRole.Arn
+      ContainerDefinitions:
+        - Name: recorder
+          Image: !Ref RecorderImageUri
+          Essential: true
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: DYNAMODB_TABLE
+              Value: !Ref DynamoTableName
+            - Name: F1_RAW_DATA_BUCKET
+              Value: !Ref RawDataBucketName
+            - Name: TIMING_SOURCE_ID
+              Value: !Ref TimingSourceId
+            - Name: TIMING_DEPLOYMENT_SCOPE
+              Value: !Ref TimingDeploymentScope
+            - Name: TIMING_RAW_BATCH_SIZE
+              Value: "100"
+            - Name: TIMING_FLUSH_INTERVAL_MS
+              Value: "5000"
+            - Name: TIMING_LEASE_DURATION_MS
+              Value: "60000"
+          Secrets: !If
+            - HasProviderSecret
+            - - Name: TIMING_PROVIDER_CREDENTIALS
+                ValueFrom: !Ref ProviderSecretArn
+            - !Ref AWS::NoValue
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RecorderLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: recorder
+          StopTimeout: 120
+
+  RecorderScheduleDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub slipstream-timing-scheduler-${EnvironmentName}-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  IngestionCheckDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub slipstream-timing-check-${EnvironmentName}-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  IngestionCheckQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub slipstream-timing-check-${EnvironmentName}
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 300
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt IngestionCheckDeadLetterQueue.Arn
+        maxReceiveCount: 60
+
+  IngestionCheckSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: enqueue-ingestion-check
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt IngestionCheckQueue.Arn
+
+  IngestionCheckDispatcherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: dispatch-timing-recorder
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt IngestionCheckQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoTableName}
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                Resource: !Ref RecorderTaskDefinition
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt RecorderCluster.Arn
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt RecorderExecutionRole.Arn
+                  - !GetAtt RecorderTaskRole.Arn
+
+  IngestionCheckDispatcher:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub slipstream-timing-check-${EnvironmentName}
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt IngestionCheckDispatcherRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      ReservedConcurrentExecutions: 1
+      Code:
+        S3Bucket: !Ref DispatcherCodeS3Bucket
+        S3Key: !Ref DispatcherCodeS3Key
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoTableName
+          TIMING_DEPLOYMENT_SCOPE: !Ref TimingDeploymentScope
+          RECORDER_CLUSTER_ARN: !GetAtt RecorderCluster.Arn
+          RECORDER_TASK_DEFINITION_ARN: !Ref RecorderTaskDefinition
+          RECORDER_SUBNET_IDS: !Join [",", !Ref PrivateSubnetIds]
+          RECORDER_SECURITY_GROUP_IDS: !Join [",", !Ref SecurityGroupIds]
+          RECORDER_CONTAINER_NAME: recorder
+          RECORDER_ASSIGN_PUBLIC_IP: DISABLED
+
+  IngestionCheckEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt IngestionCheckQueue.Arn
+      FunctionName: !Ref IngestionCheckDispatcher
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      Enabled: true
+
+  PublicTimingCheckApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: enqueue-public-timing-check
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoTableName}
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt IngestionCheckQueue.Arn
+
+  PublicTimingCheckFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub slipstream-public-timing-check-${EnvironmentName}
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt PublicTimingCheckApiRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      ReservedConcurrentExecutions: 2
+      Code:
+        S3Bucket: !Ref PublicCheckApiCodeS3Bucket
+        S3Key: !Ref PublicCheckApiCodeS3Key
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoTableName
+          TIMING_SOURCE_ID: !Ref TimingSourceId
+          INGESTION_CHECK_QUEUE_URL: !Ref IngestionCheckQueue
+          PUBLIC_CHECK_COOLDOWN_SECONDS: "90"
+          PUBLIC_CHECK_MAX_PER_SESSION: !Ref PublicCheckMaxPerSession
+          CORS_ORIGINS: !Join [",", !Ref PublicCheckAllowedOrigins]
+
+  PublicTimingCheckHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub slipstream-public-timing-check-${EnvironmentName}
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: !Ref PublicCheckAllowedOrigins
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+        MaxAge: 300
+
+  PublicTimingCheckIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref PublicTimingCheckHttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt PublicTimingCheckFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  PublicTimingCheckPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PublicTimingCheckHttpApi
+      RouteKey: POST /api/v2/timing-checks
+      Target: !Sub integrations/${PublicTimingCheckIntegration}
+
+  PublicTimingCheckGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PublicTimingCheckHttpApi
+      RouteKey: GET /api/v2/timing-checks/{year}/{round}/{sessionType}
+      Target: !Sub integrations/${PublicTimingCheckIntegration}
+
+  PublicTimingCheckStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref PublicTimingCheckHttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 3
+        ThrottlingRateLimit: 1
+
+  PublicTimingCheckInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PublicTimingCheckFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${PublicTimingCheckHttpApi}/*/*
+
+  RecorderSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: start-recorder-task
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                Resource: !Ref RecorderTaskDefinition
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt RecorderCluster.Arn
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt RecorderExecutionRole.Arn
+                  - !GetAtt RecorderTaskRole.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt RecorderScheduleDeadLetterQueue.Arn
+
+  RecorderScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: !Sub slipstream-timing-${EnvironmentName}
+      Tags:
+        - Key: application
+          Value: slipstream
+        - Key: component
+          Value: timing-recorder
+
+  RecorderEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub slipstream-timing-${EnvironmentName}
+
+Outputs:
+  ClusterArn:
+    Value: !GetAtt RecorderCluster.Arn
+  TaskDefinitionArn:
+    Value: !Ref RecorderTaskDefinition
+  SchedulerRoleArn:
+    Value: !GetAtt RecorderSchedulerRole.Arn
+  ScheduleGroupName:
+    Value: !Ref RecorderScheduleGroup
+  ScheduleDeadLetterQueueArn:
+    Value: !GetAtt RecorderScheduleDeadLetterQueue.Arn
+  IngestionCheckQueueUrl:
+    Value: !Ref IngestionCheckQueue
+  IngestionCheckQueueArn:
+    Value: !GetAtt IngestionCheckQueue.Arn
+  IngestionCheckSchedulerRoleArn:
+    Value: !GetAtt IngestionCheckSchedulerRole.Arn
+  IngestionCheckDispatcherArn:
+    Value: !GetAtt IngestionCheckDispatcher.Arn
+  PublicTimingCheckApiUrl:
+    Value: !GetAtt PublicTimingCheckHttpApi.ApiEndpoint
+  RecorderEventBusArn:
+    Value: !GetAtt RecorderEventBus.Arn
+  PrivateSubnetIds:
+    Value: !Join [",", !Ref PrivateSubnetIds]
+  SecurityGroupIds:
+    Value: !Join [",", !Ref SecurityGroupIds]

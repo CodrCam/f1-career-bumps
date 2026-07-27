@@ -1,0 +1,14 @@
+{
+  "sourceId": "slipstream-fixture",
+  "sessions": [
+    {
+      "id": "2026-99-R",
+      "year": 2026,
+      "round": 99,
+      "type": "race",
+      "name": "Fixture Grand Prix",
+      "startsAt": "2026-03-01T12:00:00.000Z",
+      "checkAt": "2026-03-01T13:40:00.000Z"
+    }
+  ]
+}

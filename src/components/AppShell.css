@@ -70,7 +70,7 @@
   .slip-brand__copy small {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.55rem;
+    font-size: 0.62rem;
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
@@ -92,7 +92,7 @@
     border-bottom: 2px solid transparent;
     color: var(--slip-muted-strong);
     display: flex;
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     font-weight: 760;
     gap: 0.42rem;
     justify-content: center;
@@ -124,14 +124,14 @@
 
   .slip-nav__desk span {
     color: var(--slip-ink);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
   }
 
   .slip-nav__desk small {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.58rem;
+    font-size: 0.64rem;
     font-weight: 500;
   }
 
@@ -158,7 +158,7 @@
   .slip-season-select span {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.54rem;
+    font-size: 0.62rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -208,7 +208,7 @@
 
   .slip-footer p {
     color: var(--slip-muted);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     margin: 0.4rem 0 0;
   }
 
@@ -219,7 +219,7 @@
 
   .slip-footer a {
     color: var(--slip-muted-strong);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     text-decoration: none;
   }
 
@@ -227,7 +227,7 @@
     color: var(--slip-ink);
   }
 
-  @media (max-width: 76rem) {
+  @media (max-width: 84rem) {
     .slip-brand__copy small,
     .slip-nav__link svg {
       display: none;

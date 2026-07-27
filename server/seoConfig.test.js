@@ -25,11 +25,11 @@ test("provides unique canonical metadata for every indexable route", () => {
 });
 
 test("normalizes route lookups and returns machine-readable structured data", () => {
-  const page = getSeoPage("/2026/standings/drivers/?source=test");
+  const page = getSeoPage("/2026/drivers/?source=test");
   const structuredData = createStructuredData(page);
   const types = structuredData["@graph"].map((entry) => entry["@type"]);
 
-  assert.equal(page.path, "/2026/standings/drivers");
+  assert.equal(page.path, "/2026/drivers");
   assert.ok(types.includes("WebSite"));
   assert.ok(types.includes("WebPage"));
   assert.ok(types.includes("Dataset"));

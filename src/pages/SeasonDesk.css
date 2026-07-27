@@ -20,7 +20,7 @@
   .season-desk__eyebrow {
     color: var(--slip-signal);
     font-family: var(--slip-font-mono);
-    font-size: 0.66rem;
+    font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -70,7 +70,7 @@
   .desk-latest__rail {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -95,7 +95,7 @@
   .desk-state {
     color: var(--slip-caution);
     font-family: var(--slip-font-mono);
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -114,7 +114,7 @@
   .desk-latest__heading p {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.69rem;
+    font-size: 0.76rem;
     margin: 0.75rem 0 0;
   }
 
@@ -166,7 +166,7 @@
   .desk-podium__driver small,
   .desk-podium__delta {
     color: var(--slip-muted);
-    font-size: 0.67rem;
+    font-size: 0.74rem;
   }
 
   .desk-podium__points {
@@ -187,7 +187,7 @@
     background: var(--slip-ink);
     color: var(--slip-track);
     display: inline-flex;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 900;
     gap: 0.5rem;
     min-height: 3.25rem;
@@ -331,14 +331,14 @@
   .desk-championship__leaders span {
     color: var(--slip-muted);
     display: grid;
-    font-size: 0.58rem;
+    font-size: 0.66rem;
     gap: 0.25rem;
     text-transform: uppercase;
   }
 
   .desk-championship__leaders strong {
     color: var(--slip-ink);
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     overflow: hidden;
     text-overflow: ellipsis;
     text-transform: none;
@@ -392,7 +392,7 @@
   .desk-workbench__index {
     color: var(--slip-muted);
     font-family: var(--slip-font-mono);
-    font-size: 0.64rem;
+    font-size: 0.72rem;
   }
 
   .desk-workbench__routes > a > svg {
@@ -410,7 +410,7 @@
 
   .desk-workbench__routes small {
     color: var(--slip-muted);
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     line-height: 1.35;
   }
 

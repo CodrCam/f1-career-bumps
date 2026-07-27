@@ -21,9 +21,6 @@ const CompareWorkspace = lazy(() => import('./pages/CompareWorkspace'));
 const PaceLab = lazy(() => import('./pages/PaceLab'));
 const PitLaneWorkspace = lazy(() => import('./pages/PitLaneWorkspace'));
 const Methodology = lazy(() => import('./pages/Methodology'));
-const DriverStandings = lazy(() => (
-  import('./pages/ChampionshipStandings').then((module) => ({ default: module.DriverStandings }))
-));
 const ConstructorStandings = lazy(() => (
   import('./pages/ChampionshipStandings').then((module) => ({ default: module.ConstructorStandings }))
 ));
@@ -46,7 +43,7 @@ const App = () => (
             <Route path="/:seasonYear" element={<SeasonDesk />} />
             <Route path="/:seasonYear/races" element={<RaceArchive />} />
             <Route path="/:seasonYear/races/:round" element={<RaceDossier />} />
-            <Route path="/:seasonYear/standings/drivers" element={<DriverStandings />} />
+            <Route path="/:seasonYear/standings/drivers" element={<LegacyCoreRedirect destination="drivers" />} />
             <Route path="/:seasonYear/standings/constructors" element={<ConstructorStandings />} />
             <Route path="/:seasonYear/results" element={<SeasonResults />} />
             <Route path="/:seasonYear/drivers" element={<DriverDirectory />} />
@@ -64,7 +61,7 @@ const App = () => (
             <Route path="/:seasonYear/pit-stop-analysis" element={<LegacyCoreRedirect destination="pit-lane" />} />
             <Route path="/:seasonYear/race-story" element={<LegacyCoreRedirect destination="races" />} />
             <Route path="/2025-constructors" element={<Navigate to="/2025/standings/constructors" replace />} />
-            <Route path="/2025-drivers" element={<Navigate to="/2025/standings/drivers" replace />} />
+            <Route path="/2025-drivers" element={<Navigate to="/2025/drivers" replace />} />
             <Route path="/driver-results" element={<Navigate to="/2026/results" replace />} />
             <Route path="/driver-stats" element={<Navigate to="/2026/drivers" replace />} />
             <Route path="/head-to-head" element={<Navigate to="/2026/compare" replace />} />

@@ -2,6 +2,8 @@
   "name": "f1-career-bumps",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
+  "author": "Cameron Griffin",
   "type": "module",
   "engines": {
     "node": "22.x"
@@ -21,6 +23,12 @@
     "pipeline:backfill": "node server/backfillRaceAnalytics.js",
     "pipeline:rebuild": "node server/rebuildLocalRaceAnalytics.js",
     "pipeline:sync": "node server/syncLocalRaceAnalyticsToDynamo.js",
+    "pipeline:fixture": "node server/replayTimingFixture.js",
+    "timing:prepare:fixture": "node server/runTimingRecorderFixture.js --prepare",
+    "timing:record:fixture": "node server/runTimingRecorderFixture.js",
+    "timing:check:fixture": "node server/runTimingCheckFixture.js",
+    "timing:check:request": "node server/createIngestionCheckRequest.js",
+    "timing:check:schedules": "node server/createTimingCheckSchedules.js",
     "data:pit-timing": "node server/exportPitStopTimingFallback.js",
     "timing:setup": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-fastf1.txt",
     "db:check:ddb": "node server/checkDynamoDbAccess.js",
@@ -35,7 +43,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1088.0",
+    "@aws-sdk/client-ecs": "^3.1096.0",
     "@aws-sdk/client-s3": "^3.1089.0",
+    "@aws-sdk/client-sqs": "^3.1096.0",
     "@aws-sdk/lib-dynamodb": "^3.1088.0",
     "axios": "^1.9.0",
     "chart.js": "^4.4.9",

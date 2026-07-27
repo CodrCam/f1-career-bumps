@@ -14,18 +14,6 @@ const seasons = [2026, 2025];
 
 const sectionDefinitions = [
   {
-    path: "standings/drivers",
-    title: (year) => `${year} F1 Driver Championship Standings | Slipstream`,
-    description: (year) =>
-      `Follow the ${year} Formula 1 driver championship race by race with cumulative points, standings movement, team colors, and driver comparisons.`,
-    datasetName: (year) => `${year} Formula 1 driver championship standings`,
-    variables: [
-      "Driver championship points",
-      "Race-by-race standings movement",
-      "Driver position",
-    ],
-  },
-  {
     path: "standings/constructors",
     title: (year) => `${year} F1 Constructor Championship | Slipstream`,
     description: (year) =>
@@ -65,12 +53,13 @@ const sectionDefinitions = [
   },
   {
     path: "drivers",
-    title: (year) => `${year} F1 Driver Directory & Form Guide | Slipstream`,
+    title: (year) => `${year} F1 Driver Championship & Profiles | Slipstream`,
     description: (year) =>
-      `Explore every ${year} Formula 1 driver through championship position, recent form, reliability, points efficiency, and linked race evidence.`,
-    datasetName: (year) => `${year} Formula 1 driver directory`,
+      `Follow the ${year} Formula 1 driver championship and open every driver profile with points, standings movement, recent form, reliability, and race evidence.`,
+    datasetName: (year) => `${year} Formula 1 driver championship and profiles`,
     variables: [
       "Driver championship points",
+      "Championship gap and position movement",
       "Recent finishing form",
       "Average race finish",
       "Reliability rate",

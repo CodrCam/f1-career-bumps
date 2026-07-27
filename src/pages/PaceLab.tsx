@@ -16,6 +16,7 @@ import { FilterBar, FilterField, SegmentedControl } from '../ui/AnalysisControls
 import { DefinitionLink } from '../ui/DefinitionLink';
 import { LoadingFrame } from '../ui/LoadingFrame';
 import { MetricStrip } from '../ui/MetricStrip';
+import { PaceGapFormation } from '../ui/PaceGapFormation';
 import { ResponsiveDataView, type DataColumn } from '../ui/ResponsiveDataView';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './AnalysisPages.css';
@@ -271,6 +272,18 @@ const PaceLab = () => {
               })}
             </div>
           </details>
+
+          {rows.length > 1 && (
+            <PaceGapFormation
+              drivers={rows}
+              location={activeSession?.location}
+              meetingName={activeSession?.meetingName}
+              metric={metric}
+              sessionName={activeSession?.sessionName}
+              treatment={treatment}
+              year={year}
+            />
+          )}
 
           <section className="analysis-panel pace-tower">
             <header className="analysis-panel__header">

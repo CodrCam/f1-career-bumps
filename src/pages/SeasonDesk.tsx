@@ -136,7 +136,7 @@ const SeasonDesk = () => {
       index: '01',
       title: 'Championship movement',
       detail: 'Follow every lead change, gap, and position swing.',
-      path: `/${year}/standings/drivers`,
+      path: `/${year}/drivers`,
       icon: Trophy,
     },
     {
@@ -257,7 +257,7 @@ const SeasonDesk = () => {
               <span>Championship pulse</span>
               <h2 id="championship-pulse-title">Drivers</h2>
             </div>
-            <Link to={`/${year}/standings/drivers`} aria-label="Open full driver championship">
+            <Link to={`/${year}/drivers`} aria-label="Open driver championship and profiles">
               <ArrowRight aria-hidden="true" size={17} />
             </Link>
           </div>

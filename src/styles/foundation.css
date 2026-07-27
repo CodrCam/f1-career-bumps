@@ -39,6 +39,7 @@
   html {
     background: var(--slip-track);
     color-scheme: dark;
+    font-size: 17px;
     scroll-padding-top: 5.5rem;
   }
 
@@ -142,14 +143,14 @@
 
   .slip-data-status__copy strong {
     color: var(--slip-ink);
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     letter-spacing: 0.02em;
   }
 
   .slip-data-status__copy span,
   .slip-data-status time {
     color: var(--slip-muted);
-    font-size: 0.69rem;
+    font-size: 0.75rem;
     line-height: 1.35;
   }
 
@@ -188,7 +189,7 @@
 
   .slip-metric-strip dt {
     color: var(--slip-muted);
-    font-size: 0.66rem;
+    font-size: 0.72rem;
     font-weight: 850;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -204,7 +205,7 @@
 
   .slip-metric-strip__item > span {
     color: var(--slip-muted);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
   }
 
   .slip-loading-frame {

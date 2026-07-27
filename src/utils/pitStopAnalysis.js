@@ -1,3 +1,5 @@
+import { analyzePitStopRecords } from './pitStopAnomalies.js';
+
 const toFiniteNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -212,7 +214,7 @@ export const buildPitStopRecords = (
     });
   });
 
-  return allRecords.sort((a, b) => (
+  return analyzePitStopRecords(allRecords).sort((a, b) => (
     a.round - b.round
     || (a.lap ?? Number.MAX_SAFE_INTEGER) - (b.lap ?? Number.MAX_SAFE_INTEGER)
   ));

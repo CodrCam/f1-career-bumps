@@ -1,11 +1,26 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from 'react';
+import {
+  Chart as ChartJS,
+  LinearScale,
+  PointElement,
+  Tooltip,
+  type ChartData,
+  type ChartOptions,
+  type ScatterDataPoint,
+} from 'chart.js';
+import { Scatter } from 'react-chartjs-2';
 import {
   Activity,
   Database,
   Timer,
   Wrench,
 } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { CorePageHeader } from '../components/CorePageHeader';
 import { CorePageState } from '../components/CorePageState';
 import { DriverIdentity } from '../components/DriverIdentity';
@@ -30,6 +45,9 @@ import './AnalysisPages.css';
 
 type EntityMode = 'team' | 'driver';
 type PitMetric = 'service' | 'lane' | 'transit';
+type PitScatterPoint = ScatterDataPoint & { record: PitStopRecord };
+
+ChartJS.register(LinearScale, PointElement, Tooltip);
 
 const metricField: Record<PitMetric, keyof PitRanking> = {
   service: 'serviceMedian',
@@ -50,10 +68,19 @@ const formatSeconds = (value: number | null | undefined, digits = 2) => (
 const PitLaneWorkspace = () => {
   const { seasonYear } = useParams();
   const year = getSeasonFromParam(seasonYear);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { envelope, status, error, retry } = useAnalysisData(year, 'pit-lane');
-  const [round, setRound] = useState('all');
+  const linkedRound = searchParams.get('round');
+  const [round, setRound] = useState(linkedRound ?? 'all');
   const [entityMode, setEntityMode] = useState<EntityMode>('team');
   const [metric, setMetric] = useState<PitMetric>('lane');
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(
+    searchParams.get('pitStop'),
+  );
+
+  useEffect(() => {
+    if (linkedRound) setRound(linkedRound);
+  }, [linkedRound]);
 
   const filteredRecords = useMemo(() => (
     (envelope?.data.records ?? []).filter((record) => (
@@ -102,6 +129,136 @@ const PitLaneWorkspace = () => {
     });
     return buckets;
   }, [filteredRecords, metric]);
+  const matchedRecords = useMemo(() => (
+    filteredRecords.filter((record) => (
+      record.hasBreakdown
+      && Number.isFinite(record.serviceTime)
+      && Number.isFinite(record.pitLaneTime)
+    ))
+  ), [filteredRecords]);
+  const linkedStop = useMemo(() => {
+    const pitStopId = searchParams.get('pitStop');
+    if (pitStopId) {
+      const exact = filteredRecords.find((record) => record.id === pitStopId);
+      if (exact) return exact;
+    }
+
+    const driver = searchParams.get('driver')?.toUpperCase();
+    const lap = Number(searchParams.get('lap'));
+    if (!driver || !Number.isFinite(lap)) return null;
+    return filteredRecords.find((record) => (
+      record.driverCode?.toUpperCase() === driver
+      && record.lap === lap
+    )) ?? null;
+  }, [filteredRecords, searchParams]);
+  const activeStopId = selectedStopId ?? linkedStop?.id ?? null;
+  const selectedStop = activeStopId
+    ? filteredRecords.find((record) => record.id === activeStopId) ?? null
+    : null;
+
+  const selectStop = (record: PitStopRecord) => {
+    setSelectedStopId(record.id);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('round', String(record.round));
+      next.set('pitStop', record.id);
+      if (record.driverCode) next.set('driver', record.driverCode);
+      if (Number.isFinite(record.lap)) next.set('lap', String(record.lap));
+      return next;
+    }, { replace: true });
+  };
+
+  const scatterData = useMemo<ChartData<'scatter', PitScatterPoint[]>>(() => ({
+    datasets: [{
+      label: 'Individual pit stops',
+      data: matchedRecords.map((record) => ({
+        x: Number(record.serviceTime),
+        y: Number(record.pitLaneTime),
+        record,
+      })),
+      backgroundColor: matchedRecords.map((record) => getTeamColor(record.team)),
+      borderColor: matchedRecords.map((record) => (
+        record.id === activeStopId
+          ? '#ffffff'
+          : record.isAnomaly
+            ? '#e35d5d'
+            : '#11151b'
+      )),
+      borderWidth: matchedRecords.map((record) => (
+        record.id === activeStopId ? 3 : record.isAnomaly ? 2 : 1
+      )),
+      pointRadius: matchedRecords.map((record) => record.isAnomaly ? 7 : 5),
+      pointHoverRadius: 9,
+    }],
+  }), [activeStopId, matchedRecords]);
+
+  const scatterOptions = useMemo<ChartOptions<'scatter'>>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: true,
+      mode: 'nearest',
+    },
+    onClick: (_event, elements) => {
+      const index = elements[0]?.index;
+      if (index === undefined) return;
+      selectStop(matchedRecords[index]);
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#101318',
+        borderColor: '#353b46',
+        borderWidth: 1,
+        titleColor: '#ffffff',
+        bodyColor: '#d5dae2',
+        padding: 10,
+        callbacks: {
+          title: (items) => {
+            const point = items[0]?.raw as PitScatterPoint | undefined;
+            return point?.record.driver ?? point?.record.driverCode ?? 'Pit stop';
+          },
+          label: (context) => {
+            const point = context.raw as PitScatterPoint;
+            const record = point.record;
+            return [
+              `Team: ${record.team ?? 'Unknown'}`,
+              `Race: ${record.grandPrix ?? `Round ${record.round}`} · Lap ${record.lap ?? '—'}`,
+              `Service: ${formatSeconds(record.serviceTime)}`,
+              `Pit lane: ${formatSeconds(record.pitLaneTime)}`,
+              `Transit: ${formatSeconds(record.transitTime)}`,
+              `Anomaly score: ${Number(record.anomalyScore ?? 0).toFixed(2)}`,
+              `Explanation: ${record.explanationStatus ?? 'unexplained'}`,
+            ];
+          },
+          footer: (items) => {
+            const point = items[0]?.raw as PitScatterPoint | undefined;
+            return point?.record.isAnomaly ? 'Click to inspect supporting evidence' : '';
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8', callback: (value) => `${value}s` },
+        title: {
+          display: true,
+          text: 'Stationary service time',
+          color: '#aeb5c0',
+        },
+      },
+      y: {
+        grid: { color: 'rgba(255, 255, 255, 0.07)' },
+        ticks: { color: '#929aa8', callback: (value) => `${value}s` },
+        title: {
+          display: true,
+          text: 'Full pit-lane time',
+          color: '#aeb5c0',
+        },
+      },
+    },
+  }), [matchedRecords]);
 
   const columns = useMemo<Array<DataColumn<PitRanking>>>(() => [
     {
@@ -184,7 +341,20 @@ const PitLaneWorkspace = () => {
 
       <FilterBar title="Choose the pit sample">
         <FilterField label="Race">
-          <select value={round} onChange={(event) => setRound(event.target.value)}>
+          <select
+            value={round}
+            onChange={(event) => {
+              setRound(event.target.value);
+              setSelectedStopId(null);
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                ['pitStop', 'driver', 'lap'].forEach((key) => next.delete(key));
+                if (event.target.value === 'all') next.delete('round');
+                else next.set('round', event.target.value);
+                return next;
+              }, { replace: true });
+            }}
+          >
             <option value="all">All available rounds</option>
             {envelope.data.races.map((race) => (
               <option key={race.round} value={race.round}>R{race.round} · {race.grandPrix}</option>
@@ -252,6 +422,84 @@ const PitLaneWorkspace = () => {
           <p>{fastest?.stops ?? 0} recorded stops in this sample.</p>
           <DefinitionLink definition={metricDefinition[metric]} />
         </aside>
+      </section>
+
+      <section className="analysis-panel pit-scatter-panel" id="pit-stop-scatter">
+        <header className="analysis-panel__header">
+          <div>
+            <span className="core-page__eyebrow">Individual matched stops</span>
+            <h2>Crew speed versus total lane time</h2>
+          </div>
+          <span>{matchedRecords.length} points</span>
+        </header>
+        <p className="analysis-summary">
+          Each point is one matched stop. Low and left is quick on both clocks;
+          outlined points are statistical outliers. Select a point to inspect its evidence.
+        </p>
+        {matchedRecords.length ? (
+          <div className="pit-scatter-chart">
+            <Scatter
+              data={scatterData}
+              options={scatterOptions}
+              aria-label="Pit-stop service time versus total lane time scatter plot"
+              role="img"
+            />
+          </div>
+        ) : (
+          <p className="analysis-empty">Matched service and pit-lane clocks are required for this plot.</p>
+        )}
+
+        {selectedStop && (
+          <article
+            className="pit-stop-evidence"
+            aria-live="polite"
+            style={{ '--team-color': getTeamColor(selectedStop.team) } as CSSProperties}
+          >
+            <header>
+              <div>
+                <span className="core-page__eyebrow">
+                  {selectedStop.grandPrix ?? `Round ${selectedStop.round}`} · lap {selectedStop.lap ?? '—'}
+                </span>
+                <h3>{selectedStop.driver ?? selectedStop.driverCode ?? 'Selected stop'}</h3>
+                <small>{selectedStop.team ?? 'Team unavailable'}</small>
+              </div>
+              <span className={`pit-anomaly-status is-${selectedStop.explanationStatus ?? 'unexplained'}`}>
+                {selectedStop.isAnomaly ? selectedStop.anomalyLabel : 'Within distribution'}
+              </span>
+            </header>
+            <div className="pit-stop-evidence__metrics">
+              <div>
+                <span>Service</span>
+                <strong>{formatSeconds(selectedStop.serviceTime)}</strong>
+                <small>Expected {formatSeconds(selectedStop.expectedServiceTime)}</small>
+              </div>
+              <div>
+                <span>Full lane</span>
+                <strong>{formatSeconds(selectedStop.pitLaneTime)}</strong>
+                <small>Expected {formatSeconds(selectedStop.expectedPitLaneTime)}</small>
+              </div>
+              <div>
+                <span>Transit</span>
+                <strong>{formatSeconds(selectedStop.transitTime)}</strong>
+                <small>Expected {formatSeconds(selectedStop.expectedTransitTime)}</small>
+              </div>
+              <div>
+                <span>Anomaly score</span>
+                <strong>{Number(selectedStop.anomalyScore ?? 0).toFixed(2)}</strong>
+                <small>{selectedStop.explanationStatus ?? 'unexplained'}</small>
+              </div>
+            </div>
+            <p>{selectedStop.explanation}</p>
+            <ul>
+              {(selectedStop.evidence ?? []).map((evidence, index) => (
+                <li key={`${evidence.kind}-${evidence.eventId ?? evidence.source}-${index}`}>
+                  <strong>{evidence.kind.replaceAll('_', ' ')}</strong>
+                  <span>{evidence.message ?? evidence.source ?? 'Source record'}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        )}
       </section>
 
       <section className="analysis-panel pit-rankings">
