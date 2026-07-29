@@ -1,7 +1,7 @@
 import { analyzePitStopRecords } from '../src/utils/pitStopAnomalies.js';
 import { buildRaceEvent } from './raceEventLedger.js';
 
-export const TIMING_NORMALIZER_VERSION = 'fixture-normalizer-1.0.0';
+export const TIMING_NORMALIZER_VERSION = 'owned-timing-normalizer-2.0.0';
 export const PIT_EVENT_PROCESSING_VERSION = 'pit-event-analysis-1.0.0';
 
 const eventTypeMap = {
@@ -9,6 +9,18 @@ const eventTypeMap = {
   pit_entry: 'pit_entry',
   pit_service: 'pit_service',
   pit_exit: 'pit_exit',
+  lap: 'lap_timing',
+  lap_timing: 'lap_timing',
+  sector: 'sector_timing',
+  sector_timing: 'sector_timing',
+  position: 'position_update',
+  position_update: 'position_update',
+  stint: 'stint_update',
+  stint_update: 'stint_update',
+  weather: 'weather_sample',
+  weather_sample: 'weather_sample',
+  telemetry: 'telemetry_sample',
+  telemetry_sample: 'telemetry_sample',
   race_control: 'race_control_notice',
   classification: 'classification',
 };
@@ -29,7 +41,7 @@ export const normalizeTimingMessage = (
   } = {},
 ) => {
   const eventType = normalizedEventType(message);
-  if (!eventType) throw new Error(`Unsupported fixture timing message type: ${message.type}`);
+  if (!eventType) throw new Error(`Unsupported owned timing message type: ${message.type}`);
 
   return buildRaceEvent({
     year: message.year,

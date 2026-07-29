@@ -7,7 +7,6 @@ const { values } = parseArgs({
     year: { type: 'string', short: 'y' },
     from: { type: 'string', default: '1' },
     to: { type: 'string' },
-    telemetry: { type: 'boolean', default: false },
     'no-dynamo': { type: 'boolean', default: false },
   },
 });
@@ -40,13 +39,8 @@ const runRound = (round) => new Promise((resolve, reject) => {
     String(year),
     '--round',
     String(round),
-    '--retries',
-    '3',
-    '--retry-delay',
-    '30000',
   ];
 
-  if (values.telemetry) args.push('--telemetry');
   if (values['no-dynamo']) args.push('--no-dynamo');
 
   const child = spawn(process.execPath, args, {

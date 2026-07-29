@@ -26,31 +26,26 @@ jobs:
       AWS_REGION: us-west-2
       DYNAMODB_TABLE: ${{ vars.DYNAMODB_TABLE || 'f1-website-data' }}
       F1_RAW_DATA_BUCKET: ${{ vars.F1_RAW_DATA_BUCKET }}
+      TIMING_SOURCE_ID: slipstream-owned
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-fastf1.txt
-
       - name: Install dependencies
-        run: |
-          npm ci
-          python -m pip install -r requirements-fastf1.txt
+        run: npm ci
+
+      - name: Verify owned publication code
+        run: node --test server/ownedTimingMaterializer.test.js server/ownedRacePublication.test.js server/sourceValidation.test.js
 
       - name: Configure temporary AWS access
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
           role-to-assume: ${{ secrets.AWS_UPDATE_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -58,18 +53,20 @@ jobs:
       - name: Refresh every unpublished completed race
         env:
           INPUT_ROUND: ${{ inputs.round }}
-          FASTF1_PYTHON: python
         run: |
           if [[ -n "$INPUT_ROUND" ]]; then
             npm run pipeline:update -- \
               --year 2026 \
-              --round "$INPUT_ROUND" \
-              --retries 3 \
-              --retry-delay 45000
+              --round "$INPUT_ROUND"
           else
             npm run pipeline:refresh -- \
               --year 2026 \
-              --max-rounds 2 \
-              --retries 2 \
-              --retry-delay 30000
+              --max-rounds 2
           fi
+
+      - name: Record publication result
+        if: always()
+        run: |
+          echo "### Owned timing publication" >> "$GITHUB_STEP_SUMMARY"
+          echo "Detailed timing source: Slipstream recorder and event ledger." >> "$GITHUB_STEP_SUMMARY"
+          echo "A missing upstream session is deferred without a third-party fallback." >> "$GITHUB_STEP_SUMMARY"

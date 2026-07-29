@@ -441,11 +441,10 @@ npm run db:update:f1 -- 2025 2026
 npm run db:check:ddb -- 2026
 ```
 
-Build the validated 2026 Race Story dataset:
+Verify the owned timing materializer:
 
 ```bash
-npm run timing:setup
-npm run pipeline:backfill -- --year 2026 --no-dynamo
+node --test server/ownedTimingMaterializer.test.js server/ownedRacePublication.test.js
 ```
 
 Refresh only the latest completed 2026 race:

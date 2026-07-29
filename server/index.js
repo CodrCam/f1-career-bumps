@@ -210,6 +210,29 @@ app.get('/api/v2/seasons/:year/races/:round', async (req, res, next) => {
   }
 });
 
+app.get('/api/v2/seasons/:year/races/:round/timing', async (req, res, next) => {
+  try {
+    const year = Number(req.params.year);
+    const round = Number(req.params.round);
+    if (!Number.isInteger(year) || !Number.isInteger(round) || round < 1) {
+      res.status(400).json({ error: 'Invalid season year or race round' });
+      return;
+    }
+    if (!useDynamo || typeof dynamoReader.getRaceTiming !== 'function') {
+      res.status(404).json({ error: 'Owned timing is not available in the local data store' });
+      return;
+    }
+    const timing = await dynamoReader.getRaceTiming(year, round);
+    if (!timing) {
+      res.status(404).json({ error: `No owned timing found for ${year} round ${round}` });
+      return;
+    }
+    res.json(timing);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/v2/seasons/:year/drivers', async (req, res, next) => {
   try {
     const year = Number(req.params.year);

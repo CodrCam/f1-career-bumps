@@ -3,6 +3,7 @@ import test from 'node:test';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import {
   dynamoDocumentClientOptions,
+  writeRaceAnalyticsToDynamo,
   writeRacePublicationStatusToDynamo,
   writeSeasonToDynamo,
 } from './dynamoSeasonWriter.js';
@@ -23,6 +24,72 @@ test('dynamo writer drops undefined values from nested race records', () => {
   const marshalled = marshall(item, dynamoDocumentClientOptions.marshallOptions);
   assert.equal(marshalled.race.M.race_results.L[0].M.time, undefined);
   assert.equal(marshalled.race.M.race_results.L[0].M.driver_code.S, 'AAA');
+});
+
+test('dynamo writer chunks owned laps and stores a public timing materialization', async () => {
+  const documentInputs = [];
+  const context = {
+    tableName: 'f1-test',
+    region: 'test-region',
+    client: {
+      send: async () => ({}),
+    },
+    documentClient: {
+      send: async (command) => {
+        documentInputs.push(command.input);
+        if (command.input?.KeyConditionExpression) return { Items: [] };
+        return {};
+      },
+    },
+  };
+  const laps = Array.from({ length: 101 }, (_, index) => ({
+    driver: 'AAA',
+    lap_number: index + 1,
+    lap_time: 90,
+  }));
+
+  await writeRaceAnalyticsToDynamo(context, {
+    year: 2026,
+    round: 1,
+    analytics: {
+      schema_version: 2,
+      calculation_version: 'test',
+      session: { event_name: 'Test Grand Prix' },
+      summary: {},
+      definitions: {},
+      circuit_profile: {},
+      overtake_events: [],
+      story_events: [],
+      traffic_segments: [],
+      pit_cycle_events: [],
+      attrition_events: [],
+      disruption_events: [],
+      drivers: [],
+    },
+    validation: { status: 'pass' },
+    timing: {
+      schema_version: 2,
+      materializer_version: 'test',
+      source: { id: 'slipstream-owned' },
+      session: { session_id: '2026-01-R' },
+      capabilities: { lap_timing: true },
+      results: [],
+      weather: [],
+      race_control_messages: [],
+      laps,
+    },
+  });
+
+  const putItems = documentInputs
+    .filter((input) => input.RequestItems)
+    .flatMap((input) => input.RequestItems['f1-test'])
+    .flatMap((request) => request.PutRequest?.Item ?? []);
+  const timingMeta = putItems.find((item) => item.sk === 'TIMING#META');
+  const timingChunks = putItems.filter((item) => item.sk.startsWith('TIMING#LAPS#'));
+
+  assert.equal(timingMeta.source.id, 'slipstream-owned');
+  assert.equal(timingMeta.lapChunks, 2);
+  assert.deepEqual(timingChunks.map((item) => item.laps.length), [100, 1]);
 });
 
 test('dynamo writer prunes stale season rows after replacement rows are written', async () => {

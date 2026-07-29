@@ -638,101 +638,6 @@
     height: auto;
   }
 
-  .timing-check-control {
-    align-items: center;
-    background:
-      linear-gradient(105deg, color-mix(in srgb, var(--slip-telemetry) 8%, var(--slip-surface)), var(--slip-surface));
-    border: 1px solid var(--slip-line);
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 0.9fr) auto;
-    margin: 1rem 0 clamp(2rem, 5vw, 4rem);
-    padding: 1rem;
-  }
-
-  .timing-check-control__copy h2 {
-    font-size: clamp(1.05rem, 2vw, 1.45rem);
-    letter-spacing: -0.035em;
-    margin: 0.35rem 0;
-  }
-
-  .timing-check-control__copy p {
-    color: var(--slip-muted);
-    font-size: 0.72rem;
-    line-height: 1.5;
-    margin: 0;
-    max-width: 46rem;
-  }
-
-  .timing-check-control__result {
-    align-items: center;
-    border-left: 2px solid var(--slip-telemetry);
-    display: grid;
-    gap: 0.65rem;
-    grid-template-columns: auto minmax(0, 1fr);
-    min-width: 0;
-    padding-left: 0.8rem;
-  }
-
-  .timing-check-control__result.state-up_to_date,
-  .timing-check-control__result.state-provisional {
-    border-color: var(--slip-success);
-    color: var(--slip-success);
-  }
-
-  .timing-check-control__result.state-error,
-  .timing-check-control__result.state-session_not_registered {
-    border-color: var(--slip-danger);
-    color: var(--slip-danger);
-  }
-
-  .timing-check-control__result span {
-    display: grid;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-
-  .timing-check-control__result strong {
-    color: var(--slip-ink);
-    font-size: 0.72rem;
-    line-height: 1.35;
-  }
-
-  .timing-check-control__result small {
-    color: var(--slip-muted);
-    font-size: 0.62rem;
-    line-height: 1.4;
-  }
-
-  .timing-check-control button {
-    align-items: center;
-    background: var(--slip-telemetry);
-    border: 0;
-    color: var(--slip-canvas);
-    cursor: pointer;
-    display: inline-flex;
-    font-size: 0.7rem;
-    font-weight: 900;
-    gap: 0.45rem;
-    justify-content: center;
-    min-height: 2.7rem;
-    min-width: 10.5rem;
-    padding: 0.65rem 0.9rem;
-  }
-
-  .timing-check-control button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .timing-check-control .is-spinning {
-    animation: timing-check-spin 0.9s linear infinite;
-  }
-
-  @keyframes timing-check-spin {
-    to { transform: rotate(360deg); }
-  }
-
   .dossier-grid {
     align-items: start;
     display: grid;
@@ -997,15 +902,6 @@
 
     .dossier-lede {
       grid-template-columns: 1fr;
-    }
-
-    .timing-check-control {
-      align-items: stretch;
-      grid-template-columns: 1fr;
-    }
-
-    .timing-check-control button {
-      width: 100%;
     }
 
     .dossier-winner {

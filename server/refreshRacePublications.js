@@ -14,13 +14,16 @@ const { values } = parseArgs({
   options: {
     year: { type: 'string', short: 'y' },
     'max-rounds': { type: 'string', default: '2' },
-    retries: { type: 'string', default: '2' },
-    'retry-delay': { type: 'string', default: '30000' },
+    source: { type: 'string' },
+    // Accepted while old manual commands are being retired.
+    retries: { type: 'string' },
+    'retry-delay': { type: 'string' },
   },
 });
 
 const year = Number(values.year ?? new Date().getFullYear());
 const maxRounds = Math.max(1, Number(values['max-rounds']) || 2);
+const now = new Date();
 if (!Number.isInteger(year)) throw new Error('Year must be a whole number.');
 
 const reader = createDynamoSeasonReader();
@@ -62,34 +65,45 @@ for (const race of officialSeason.races) {
   repairedStatuses.push(await writeRacePublicationStatusToDynamo(context, status));
 }
 
-const missing = officialSeason.races
-  .filter((race) => !analyticsByRound.has(Number(race.round)))
-  .slice(-maxRounds);
+const isRetryDue = (race) => {
+  const status = statusByRound.get(Number(race.round));
+  if (!status?.nextAttemptAt) return true;
+  const due = Date.parse(status.nextAttemptAt);
+  return !Number.isFinite(due) || due <= now.getTime();
+};
+
+const unpublished = officialSeason.races.filter(
+  (race) => !analyticsByRound.has(Number(race.round)),
+);
+const eligible = unpublished.filter(isRetryDue).slice(-maxRounds);
+const deferredByBackoff = unpublished
+  .filter((race) => !isRetryDue(race))
+  .map((race) => ({
+    round: race.round,
+    grandPrix: race.grand_prix,
+    state: statusByRound.get(Number(race.round))?.state,
+    nextAttemptAt: statusByRound.get(Number(race.round))?.nextAttemptAt,
+  }));
 
 const runRound = (round) => new Promise((resolvePromise) => {
-  const child = spawn(
-    process.execPath,
-    [
-      resolve(import.meta.dirname, 'updateRacePipeline.js'),
-      '--year',
-      String(year),
-      '--round',
-      String(round),
-      '--retries',
-      String(values.retries),
-      '--retry-delay',
-      String(values['retry-delay']),
-    ],
-    {
-      env: process.env,
-      stdio: 'inherit',
-    },
-  );
+  const args = [
+    resolve(import.meta.dirname, 'updateRacePipeline.js'),
+    '--year',
+    String(year),
+    '--round',
+    String(round),
+  ];
+  if (values.source) args.push('--source', values.source);
+
+  const child = spawn(process.execPath, args, {
+    env: process.env,
+    stdio: 'inherit',
+  });
   child.on('exit', (code) => resolvePromise(code ?? 1));
 });
 
 const attempted = [];
-for (const race of missing) {
+for (const race of eligible) {
   const exitCode = await runRound(race.round);
   attempted.push({
     round: race.round,
@@ -106,10 +120,11 @@ console.log(JSON.stringify({
   analyticsBeforeRefresh: analyticsByRound.size,
   repairedStatuses,
   attempted,
-  deferredMissingRounds: officialSeason.races
+  deferredByBackoff,
+  deferredByBatchLimit: unpublished
     .filter((race) => (
-      !analyticsByRound.has(Number(race.round))
-      && !missing.some((attempt) => attempt.round === race.round)
+      isRetryDue(race)
+      && !eligible.some((attempt) => attempt.round === race.round)
     ))
     .map((race) => race.round),
 }, null, 2));

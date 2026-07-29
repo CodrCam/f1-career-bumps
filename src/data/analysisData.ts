@@ -186,7 +186,7 @@ const buildTypedPitLaneReadModel = buildPitLaneReadModel as unknown as (input: {
   season: LegacySeason;
   summary: LegacySummary | null;
   publication: LegacyPublication | null;
-  legacyDhlData: unknown[];
+  legacyDhlData?: unknown[];
 }) => AnalysisEnvelope<PitLaneData>;
 
 interface LegacySeason {
@@ -268,36 +268,6 @@ const requestJson = async <T>(
   return response.json() as Promise<T>;
 };
 
-const mergePitFallback = (
-  season: LegacySeason,
-  fallback: { races?: NonNullable<LegacySeason['races']> },
-): LegacySeason => {
-  const racesByRound = new Map(
-    (fallback.races ?? []).map(
-      (race) => [Number(race.round), race as Record<string, unknown>],
-    ),
-  );
-  (season.races ?? []).forEach((race) => {
-    const current = racesByRound.get(Number(race.round));
-    racesByRound.set(Number(race.round), {
-      ...current,
-      ...race,
-      pit_stops: Array.isArray(race.pit_stops) && race.pit_stops.length
-        ? race.pit_stops
-        : current?.pit_stops ?? [],
-      dhl_pit_stops: Array.isArray(race.dhl_pit_stops) && race.dhl_pit_stops.length
-        ? race.dhl_pit_stops
-        : current?.dhl_pit_stops ?? [],
-    });
-  });
-  return {
-    ...season,
-    races: [...racesByRound.values()].sort(
-      (left, right) => Number(left.round) - Number(right.round),
-    ) as NonNullable<LegacySeason['races']>,
-  };
-};
-
 const getLegacySource = async (year: number, signal: AbortSignal) => {
   const [season, summary, publication, analytics] = await Promise.all([
     requestJson<LegacySeason>(`/api/seasons/${year}`, signal),
@@ -350,24 +320,8 @@ export const getAnalysisData = async <R extends AnalysisResource>(
     return buildPaceCatalogReadModel({ year, ...source }) as AnalysisEnvelopeMap[R];
   }
 
-  const [pitFallbackModule, legacyDhlModule] = await Promise.all([
-    Number(year) === 2025
-      ? import('./pitStopTiming2025.json')
-      : import('./pitStopTiming2026.json'),
-    Number(year) === 2025
-      ? import('./Driver_Pitstop.json')
-      : Promise.resolve({ default: [] }),
-  ]);
-  const season = mergePitFallback(
-    source.season,
-    pitFallbackModule.default as unknown as {
-      races: NonNullable<LegacySeason['races']>;
-    },
-  );
   return buildTypedPitLaneReadModel({
     year,
     ...source,
-    season,
-    legacyDhlData: legacyDhlModule.default,
   }) as AnalysisEnvelopeMap[R];
 };

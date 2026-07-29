@@ -65,7 +65,7 @@ export const buildRacePublicationStatus = ({
 
 export const missingDetailedTimingCapabilities = (capabilityMatrix = []) => (
   capabilityMatrix
-    .filter((entry) => !entry.detailed_timing)
+    .filter((entry) => !(entry.owned_recorder ?? entry.detailed_timing))
     .map((entry) => entry.capability)
 );
 

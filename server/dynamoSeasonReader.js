@@ -55,6 +55,30 @@ const assembleRaceAnalytics = (items = []) => {
   };
 };
 
+const assembleRaceTiming = (items = []) => {
+  const metadata = items.find((item) => item.sk === 'TIMING#META');
+  if (!metadata) return null;
+  const laps = items
+    .filter((item) => item.sk.startsWith('TIMING#LAPS#'))
+    .sort((left, right) => left.chunk - right.chunk)
+    .flatMap((item) => item.laps ?? []);
+
+  return {
+    schemaVersion: metadata.schemaVersion,
+    materializerVersion: metadata.materializerVersion,
+    year: metadata.year,
+    round: metadata.round,
+    source: metadata.source,
+    session: metadata.session,
+    capabilities: metadata.capabilities,
+    results: metadata.results ?? [],
+    weather: metadata.weather ?? [],
+    raceControlMessages: metadata.raceControlMessages ?? [],
+    laps,
+    dataStore: 'dynamodb',
+  };
+};
+
 export const createDynamoSeasonReader = ({
   tableName = process.env.DYNAMODB_TABLE ?? 'f1-website-data',
   region = process.env.AWS_REGION ?? 'us-west-2',
@@ -124,6 +148,19 @@ export const createDynamoSeasonReader = ({
       }));
 
       return assembleRaceAnalytics(response.Items);
+    },
+
+    async getRaceTiming(year, round) {
+      const response = await documentClient.send(new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': raceAnalyticsPk(year, round),
+          ':prefix': 'TIMING#',
+        },
+      }));
+
+      return assembleRaceTiming(response.Items);
     },
 
     async getRacePublicationStatus(year, round) {

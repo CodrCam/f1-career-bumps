@@ -30,6 +30,7 @@ const timing = {
   session: { name: 'Race' },
   capabilities: {
     results: true,
+    starting_grid: true,
     lap_timing: true,
     sector_timing: true,
     pit_markers: true,

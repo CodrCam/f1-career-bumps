@@ -137,6 +137,38 @@ export const getDynamoRaceAnalytics = async (year, round) => {
   };
 };
 
+export const getDynamoRaceTiming = async (year, round) => {
+  const response = await documentClient.send(new QueryCommand({
+    TableName: tableName,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': raceAnalyticsPk(year, round),
+      ':prefix': 'TIMING#',
+    },
+  }));
+  const items = response.Items ?? [];
+  const metadata = items.find((item) => item.sk === 'TIMING#META');
+  if (!metadata) return null;
+
+  return {
+    schemaVersion: metadata.schemaVersion,
+    materializerVersion: metadata.materializerVersion,
+    year: metadata.year,
+    round: metadata.round,
+    source: metadata.source,
+    session: metadata.session,
+    capabilities: metadata.capabilities,
+    results: metadata.results ?? [],
+    weather: metadata.weather ?? [],
+    raceControlMessages: metadata.raceControlMessages ?? [],
+    laps: items
+      .filter((item) => item.sk.startsWith('TIMING#LAPS#'))
+      .sort((left, right) => left.chunk - right.chunk)
+      .flatMap((item) => item.laps ?? []),
+    dataStore: 'dynamodb',
+  };
+};
+
 export const getDynamoRacePublicationStatus = async (year, round) => {
   const response = await documentClient.send(new GetCommand({
     TableName: tableName,

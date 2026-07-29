@@ -255,6 +255,7 @@ export const writeRaceAnalyticsToDynamo = async (
     round,
     analytics,
     validation,
+    timing,
     rawSnapshots = {},
   },
 ) => {
@@ -262,6 +263,9 @@ export const writeRaceAnalyticsToDynamo = async (
 
   const pk = raceAnalyticsPk(year, round);
   await deletePartition(context, pk);
+  const timingLapChunks = timing?.laps
+    ? chunk(timing.laps, 100)
+    : [];
 
   const items = [
     {
@@ -288,6 +292,31 @@ export const writeRaceAnalyticsToDynamo = async (
       round,
       validation,
     },
+    ...(timing ? [{
+      pk,
+      sk: 'TIMING#META',
+      itemType: 'owned_timing_snapshot',
+      year,
+      round,
+      schemaVersion: timing.schema_version,
+      materializerVersion: timing.materializer_version,
+      source: timing.source,
+      session: timing.session,
+      capabilities: timing.capabilities,
+      results: timing.results,
+      weather: timing.weather,
+      raceControlMessages: timing.race_control_messages,
+      lapChunks: timingLapChunks.length,
+    }] : []),
+    ...timingLapChunks.map((laps, index) => ({
+      pk,
+      sk: `TIMING#LAPS#${String(index).padStart(3, '0')}`,
+      itemType: 'owned_timing_laps',
+      year,
+      round,
+      chunk: index,
+      laps,
+    })),
     {
       pk,
       sk: 'ANALYTICS#OVERTAKES',

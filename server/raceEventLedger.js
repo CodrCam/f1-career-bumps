@@ -6,7 +6,7 @@ import {
   readdir,
 } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
 export const RACE_EVENT_SCHEMA_VERSION = 1;
 
@@ -263,5 +263,39 @@ export const createDynamoRaceEventLedger = ({
     const results = [];
     for (const event of items) results.push(await this.put(event));
     return results;
+  },
+
+  async list({
+    year,
+    round,
+    sessionId,
+  } = {}) {
+    if (!year || !round) {
+      throw new Error('DynamoDB event-ledger reads require a year and round.');
+    }
+
+    const events = [];
+    let exclusiveStartKey;
+    do {
+      const response = await documentClient.send(new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'pk = :pk',
+        FilterExpression: sessionId ? 'sessionId = :sessionId' : undefined,
+        ExpressionAttributeValues: {
+          ':pk': eventPartitionKey({ year, round }),
+          ...(sessionId ? { ':sessionId': String(sessionId) } : {}),
+        },
+        ExclusiveStartKey: exclusiveStartKey,
+      }));
+      events.push(...(response.Items ?? []));
+      exclusiveStartKey = response.LastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    return events
+      .map(({ pk: _pk, sk: _sk, itemType: _itemType, ...event }) => event)
+      .sort((left, right) => (
+        left.timestamp.localeCompare(right.timestamp)
+        || left.eventId.localeCompare(right.eventId)
+      ));
   },
 });

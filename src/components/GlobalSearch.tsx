@@ -83,7 +83,7 @@ const navigationEntries = (year: number): SearchEntry[] => [
     detail: 'Lap and sector timing comparison',
     group: 'Explore',
     path: `/${year}/pace`,
-    keywords: 'fastest slowest timing sectors openf1',
+    keywords: 'fastest slowest timing sectors slipstream recorder',
   },
   {
     id: 'pit-lane',

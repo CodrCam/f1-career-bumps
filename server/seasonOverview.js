@@ -161,9 +161,7 @@ export const buildSeasonOverview = ({
       sources: uniqueSources([
         summary?.source,
         sourceCoverage.formula1Official === 'ready' ? 'Formula1.com' : null,
-        sourceCoverage.openF1 === 'ready' ? 'OpenF1' : null,
-        sourceCoverage.fastF1 === 'ready' ? 'FastF1' : null,
-        sourceCoverage.dhlPitService === 'ready' ? 'DHL Fastest Pit Stop' : null,
+        sourceCoverage.slipstreamRecorder === 'ready' ? 'Slipstream owned recorder' : null,
       ]),
       warnings: latestStatus?.missingCapabilities ?? [],
     },

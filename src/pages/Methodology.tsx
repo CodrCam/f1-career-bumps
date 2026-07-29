@@ -14,16 +14,8 @@ const sources = [
     role: 'Authority for official classifications, grids, points, and published pit-lane summaries.',
   },
   {
-    name: 'OpenF1',
-    role: 'Session timing, laps, sectors, driver identity, and live-compatible telemetry records.',
-  },
-  {
-    name: 'FastF1',
-    role: 'Detailed timing enrichment and reproducible historical backfill after source validation.',
-  },
-  {
-    name: 'DHL Fastest Pit Stop',
-    role: 'Stationary pit-box service measurements; never treated as total pit-lane duration.',
+    name: 'Slipstream timing recorder',
+    role: 'Owned ingestion, immutable raw batches, normalized laps, sectors, positions, pit events, race control, weather, and classifications.',
   },
 ];
 
@@ -51,8 +43,8 @@ const definitions = [
   ['average-lap-time', 'Average lap time', 'The arithmetic mean of valid, non-pit-out laps below the plausibility ceiling.'],
   ['best-sector-time', 'Best sector time', 'The driver’s minimum valid duration for the selected sector.'],
   ['average-sector-time', 'Average sector time', 'The driver’s mean valid duration for the selected sector.'],
-  ['pace-sample', 'Pace sample', 'Completed race, qualifying, and sprint sessions. Pit-out laps, missing times, and implausible laps above five minutes are excluded.'],
-  ['pit-service-time', 'Stationary service time', 'Time measured while the car is serviced in the pit box, normally sourced from DHL’s published pit-stop table.'],
+  ['pace-sample', 'Pace sample', 'Completed sessions published by the Slipstream recorder. Pit-out laps, missing times, and implausible laps above five minutes are excluded.'],
+  ['pit-service-time', 'Stationary service time', 'Time between owned pit-service start and completion events when that capability is present.'],
   ['pit-lane-time', 'Full pit-lane time', 'Official duration from pit entry through pit exit, including transit and stationary service.'],
   ['pit-transit-time', 'Pit transit time', 'Full pit-lane time minus stationary service, calculated only for a safe driver-and-lap match.'],
   ['pit-clock-matching', 'Matched pit clocks', 'A service record and official lane record sharing the same normalized driver and lap.'],

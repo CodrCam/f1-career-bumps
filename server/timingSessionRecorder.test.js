@@ -186,13 +186,13 @@ test('dispatch reservations collapse duplicate queue messages before ECS starts'
   const first = await stateStore.reserveDispatch({
     sourceId: adapter.metadata.id,
     sessionId: session.id,
-    requestId: 'public-check-1',
+    requestId: 'scheduler-check-1',
     now: '2026-07-27T12:00:00Z',
   });
   const duplicate = await stateStore.reserveDispatch({
     sourceId: adapter.metadata.id,
     sessionId: session.id,
-    requestId: 'public-check-2',
+    requestId: 'scheduler-check-2',
     now: '2026-07-27T12:00:01Z',
   });
 

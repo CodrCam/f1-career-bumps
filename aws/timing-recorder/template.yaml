@@ -13,7 +13,7 @@ Parameters:
     Description: Immutable ECR image URI, preferably pinned by digest.
   TimingSourceId:
     Type: String
-    Default: slipstream-fixture
+    Default: slipstream-owned
   TimingDeploymentScope:
     Type: String
     Default: test
@@ -40,21 +40,6 @@ Parameters:
   DispatcherCodeS3Key:
     Type: String
     Description: S3 key for the bundled dispatcher Lambda zip.
-  PublicCheckApiCodeS3Bucket:
-    Type: String
-    Description: S3 bucket containing the bundled public-check API Lambda zip.
-  PublicCheckApiCodeS3Key:
-    Type: String
-    Description: S3 key for the bundled public-check API Lambda zip.
-  PublicCheckAllowedOrigins:
-    Type: CommaDelimitedList
-    Default: https://f1datadesktop.com,https://www.f1datadesktop.com
-  PublicCheckMaxPerSession:
-    Type: Number
-    Default: 24
-    MinValue: 1
-    MaxValue: 100
-    Description: Maximum public-button checks accepted for one registered session.
   TaskCpu:
     Type: String
     Default: "512"
@@ -336,113 +321,6 @@ Resources:
         - ReportBatchItemFailures
       Enabled: true
 
-  PublicTimingCheckApiRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: enqueue-public-timing-check
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                  - dynamodb:UpdateItem
-                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoTableName}
-              - Effect: Allow
-                Action:
-                  - sqs:SendMessage
-                Resource: !GetAtt IngestionCheckQueue.Arn
-
-  PublicTimingCheckFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub slipstream-public-timing-check-${EnvironmentName}
-      Runtime: nodejs22.x
-      Handler: index.handler
-      Role: !GetAtt PublicTimingCheckApiRole.Arn
-      Timeout: 10
-      MemorySize: 256
-      ReservedConcurrentExecutions: 2
-      Code:
-        S3Bucket: !Ref PublicCheckApiCodeS3Bucket
-        S3Key: !Ref PublicCheckApiCodeS3Key
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: !Ref DynamoTableName
-          TIMING_SOURCE_ID: !Ref TimingSourceId
-          INGESTION_CHECK_QUEUE_URL: !Ref IngestionCheckQueue
-          PUBLIC_CHECK_COOLDOWN_SECONDS: "90"
-          PUBLIC_CHECK_MAX_PER_SESSION: !Ref PublicCheckMaxPerSession
-          CORS_ORIGINS: !Join [",", !Ref PublicCheckAllowedOrigins]
-
-  PublicTimingCheckHttpApi:
-    Type: AWS::ApiGatewayV2::Api
-    Properties:
-      Name: !Sub slipstream-public-timing-check-${EnvironmentName}
-      ProtocolType: HTTP
-      CorsConfiguration:
-        AllowOrigins: !Ref PublicCheckAllowedOrigins
-        AllowMethods:
-          - GET
-          - POST
-          - OPTIONS
-        AllowHeaders:
-          - content-type
-        MaxAge: 300
-
-  PublicTimingCheckIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref PublicTimingCheckHttpApi
-      IntegrationType: AWS_PROXY
-      IntegrationUri: !GetAtt PublicTimingCheckFunction.Arn
-      PayloadFormatVersion: "2.0"
-
-  PublicTimingCheckPostRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref PublicTimingCheckHttpApi
-      RouteKey: POST /api/v2/timing-checks
-      Target: !Sub integrations/${PublicTimingCheckIntegration}
-
-  PublicTimingCheckGetRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref PublicTimingCheckHttpApi
-      RouteKey: GET /api/v2/timing-checks/{year}/{round}/{sessionType}
-      Target: !Sub integrations/${PublicTimingCheckIntegration}
-
-  PublicTimingCheckStage:
-    Type: AWS::ApiGatewayV2::Stage
-    Properties:
-      ApiId: !Ref PublicTimingCheckHttpApi
-      StageName: $default
-      AutoDeploy: true
-      DefaultRouteSettings:
-        ThrottlingBurstLimit: 3
-        ThrottlingRateLimit: 1
-
-  PublicTimingCheckInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref PublicTimingCheckFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${PublicTimingCheckHttpApi}/*/*
-
   RecorderSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -512,8 +390,6 @@ Outputs:
     Value: !GetAtt IngestionCheckSchedulerRole.Arn
   IngestionCheckDispatcherArn:
     Value: !GetAtt IngestionCheckDispatcher.Arn
-  PublicTimingCheckApiUrl:
-    Value: !GetAtt PublicTimingCheckHttpApi.ApiEndpoint
   RecorderEventBusArn:
     Value: !GetAtt RecorderEventBus.Arn
   PrivateSubnetIds:

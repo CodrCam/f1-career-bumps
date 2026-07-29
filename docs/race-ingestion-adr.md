@@ -1,7 +1,7 @@
 # Race ingestion audit and architecture decision
 
-Status: fixture and recorder-control-plane foundations implemented; live-source activation is blocked pending source authorization  
-Date: 2026-07-27  
+Status: owned recorder publication path implemented; live-source adapter activation remains gated by source authorization
+Date: 2026-07-29
 Scope: race/session ingestion, raw retention, normalization, event ledger, anomaly analysis, and publication
 
 ## Decision
@@ -11,8 +11,9 @@ The recorder will run only inside authorized session windows, retain immutable c
 batches in S3, normalize them into deterministic append-only race events in DynamoDB, and build
 versioned analytical materializations for the existing API and frontend.
 
-The first implementation uses only a self-owned synthetic fixture. No new Formula1.com, FastF1,
-OpenF1, or DHL live adapter is activated by this work.
+The production publication path now accepts detailed timing only from the Slipstream recorder and
+event ledger. The included source remains a self-owned synthetic fixture until an authorized live
+adapter is connected. FastF1 and OpenF1 collectors and fallbacks have been removed.
 
 For a future authorized source, use EventBridge Scheduler to start a short-lived ECS Fargate task
 before each relevant session. A recorder needs to remain connected, checkpoint, and reconnect for
@@ -20,8 +21,8 @@ longer than a Netlify Function or AWS Lambda invocation permits. Netlify remains
 host; the existing API Gateway/Lambda read path remains suitable for bounded reads.
 
 ```text
-authorized schedule
-  -> one-time EventBridge schedule or rate-limited public check
+authorized schedule or authenticated operator
+  -> one-time EventBridge schedule or private queue message
   -> SQS availability-check queue
   -> Lambda probe + single dispatch reservation
   -> ECS Fargate recorder/replay task (only after a positive probe)
@@ -33,12 +34,11 @@ authorized schedule
 ```
 
 No MongoDB, Kafka, MQTT broker, or always-running service is required for the expected message
-volume. OpenF1 may use MQTT/WebSocket as a transport for paid live access, but the project does not
-need to operate its own broker.
+volume.
 
-## Why the current refresh can miss a race
+## Why the legacy refresh missed races
 
-The current flow is a completed-race repair job, not a session ingestion system:
+The replaced flow was a completed-race repair job, not a session ingestion system:
 
 1. `.github/workflows/update-race-data.yml` runs only every six hours on Sunday, Monday, and
    Tuesday. A delayed result published after Tuesday waits until the next scheduled race week unless
@@ -50,7 +50,7 @@ The current flow is a completed-race repair job, not a session ingestion system:
 4. `refreshRacePublications.js` attempts at most the newest two missing rounds per run. Older gaps are
    explicitly deferred. Sequential collection plus the 55-minute workflow timeout can leave those
    gaps in place.
-5. Each FastF1 attempt can run for 12 minutes, with retries and a later OpenF1 fallback. A failed
+5. Each FastF1 attempt could run for 12 minutes, with retries and a later OpenF1 fallback. A failed
    process has no per-message checkpoint; the raw timing snapshot is written only after full
    collection succeeds.
 6. Missing detection is based on whether a round already has an analytics index. It does not
@@ -75,7 +75,7 @@ or activated without written permission or a license that covers the planned ope
 | Slipstream synthetic fixture | `server/fixtures/timing/*.jsonl` | Self-authored; no upstream records | Yes | Yes | Yes | Yes | Approved and implemented |
 | Formula1.com results pages | `https://www.formula1.com/en/results/{year}/races` and linked session pages | Formula 1 says timing/results are protected by copyright and database rights and substantial data may not be reproduced or used commercially through scraping. See [Formula 1 Guidelines](https://www.formula1.com/en/information/guidelines.4EOKE9RRqevL4niTK9kWyt) and [Legal Notices](https://www.formula1.com/en/information/legal-notices.7egvZU48hzrypubGBNcQKt). | No automated approval identified | No | No | Incidental editorial facts only, subject to review | Blocked; existing collector needs written authorization review |
 | FastF1 / `livetiming.formula1.com` | `fastf1` package loads detailed timing | The [FastF1 repository](https://github.com/theOehrly/Fast-F1) is unofficial. Its [MIT license](https://raw.githubusercontent.com/theOehrly/Fast-F1/master/LICENSE) licenses software, not Formula 1’s underlying timing/database rights. Formula 1’s timing-data restrictions still apply. | Unclear | Unclear | Unclear | Unclear | Blocked for a new live/production adapter pending upstream permission |
-| OpenF1 historical API | `https://api.openf1.org/v1/*` after a race | [OpenF1 docs](https://openf1.org/docs/) state historical data is free without authentication. The repository uses [CC BY-NC-SA 4.0](https://raw.githubusercontent.com/br-g/openf1/main/LICENSE), including noncommercial/share-alike limits and only rights the licensor can grant. OpenF1 is unofficial and its repository identifies F1 live-timing ingestion. | Technically available; rights chain unclear | Unclear | Noncommercial terms may apply | Attribution/share-alike and underlying rights unresolved | Keep existing fallback code, but do not expand or treat it as production-authorized until clarified in writing |
+| OpenF1 historical API | `https://api.openf1.org/v1/*` after a race | [OpenF1 docs](https://openf1.org/docs/) state historical data is free without authentication. The repository uses [CC BY-NC-SA 4.0](https://raw.githubusercontent.com/br-g/openf1/main/LICENSE), including noncommercial/share-alike limits and only rights the licensor can grant. OpenF1 is unofficial and its repository identifies F1 live-timing ingestion. | Technically available; rights chain unclear | Unclear | Noncommercial terms may apply | Attribution/share-alike and underlying rights unresolved | Collector and fallback removed; do not restore to production |
 | OpenF1 live API | Paid OAuth access, WebSocket/MQTT transport | [OpenF1 authentication docs](https://openf1.org/auth.html) require OAuth for live data; [API docs](https://openf1.org/docs/) say real-time access requires a paid subscription. A subscription alone does not document storage/public-display rights. | Subscription required | Unclear | Unclear | Unclear | Blocked until plan terms and underlying display/storage rights are confirmed |
 | DHL Fastest Pit Stop Award | `https://inmotion.dhl/en/formula-1/fastest-pit-stop-award` and its page-discovered data endpoint | DHL terms prohibit automated systems used to access/scrape/retrieve site content without consent. See [DHL Terms of Use](https://del.dhl.com/terms-of-use.xhtml?ctrycode=tr&langcode=en). | No | No | No | No | Blocked pending written DHL permission |
 | Licensed provider placeholder | Contracted schedule/timing feed | Provider contract and data-display schedule must be attached to adapter metadata | Contract | Contract | Contract | Contract | Preferred production source |
@@ -100,7 +100,7 @@ public-display limits in the adapter metadata. Technical accessibility is not ap
   current endpoints instead of exposing a public raw-data API.
 - Existing `raceAnalytics.js`, Race Dossier, Pit Lane models, and fallback retry scripts: evolve them
   to consume ledger/materialized data.
-- OpenF1 fallback code remains present while a future authorized source shadows multiple weekends.
+- Third-party timing fallback code is removed from the production path.
 
 ### Change
 
@@ -171,8 +171,8 @@ lap-time, or other permitted evidence supports that wording.
    The source-agnostic recorder now has local and conditional DynamoDB session state, single-writer
    leases, durable cursor/health checkpoints, interval/count batch flushing, reconnect recovery,
    persistent local events, availability probes, an SQS check queue, duplicate-dispatch
-   reservations, one-time schedule payloads, a rate-limited public check API, and a status read
-   model. Parameterized Fargate, Lambda, Scheduler, IAM, queue, and public-API resources are defined
+   reservations, one-time schedule payloads, and a status read model. Parameterized Fargate,
+   Lambda, Scheduler, IAM, and queue resources are defined
    in CloudFormation but are not deployed. Choose a licensed/clearly permitted source; add its
    adapter; then build/deploy artifacts, create session schedules, and add lifecycle/alarms. Do not
    publish during shadowing.
@@ -184,7 +184,7 @@ lap-time, or other permitted evidence supports that wording.
    language and evidence links.
 5. **Shadow validation and cutover.** Shadow at least three representative race weekends (including
    a sprint and a disrupted race), measure completeness/recovery, then make the authorized adapter
-   primary. Retain OpenF1 only as legally approved and operationally necessary.
+   primary. Do not add a public or third-party timing fallback.
 
 ## First-slice operation
 

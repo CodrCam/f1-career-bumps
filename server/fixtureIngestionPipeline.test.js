@@ -154,6 +154,55 @@ test('DynamoDB ledger uses an isolated append-only partition and conditional wri
   );
 });
 
+test('DynamoDB ledger reads one owned session across paginated event pages', async () => {
+  const commands = [];
+  const pages = [
+    {
+      Items: [{
+        pk: 'RACE_EVENTS#2026#01',
+        sk: '2026-03-01T12:00:00.000Z#race_start#one',
+        itemType: 'race_event',
+        eventId: 'one',
+        sessionId: '2026-01-R',
+        timestamp: '2026-03-01T12:00:00.000Z',
+      }],
+      LastEvaluatedKey: { pk: 'cursor', sk: 'cursor' },
+    },
+    {
+      Items: [{
+        pk: 'RACE_EVENTS#2026#01',
+        sk: '2026-03-01T13:30:00.000Z#race_finish#two',
+        itemType: 'race_event',
+        eventId: 'two',
+        sessionId: '2026-01-R',
+        timestamp: '2026-03-01T13:30:00.000Z',
+      }],
+    },
+  ];
+  const ledger = createDynamoRaceEventLedger({
+    documentClient: {
+      async send(command) {
+        commands.push(command.input);
+        return pages.shift();
+      },
+    },
+    tableName: 'test-table',
+  });
+
+  const events = await ledger.list({
+    year: 2026,
+    round: 1,
+    sessionId: '2026-01-R',
+  });
+
+  assert.deepEqual(events.map(({ eventId }) => eventId), ['one', 'two']);
+  assert.equal(commands.length, 2);
+  assert.equal(commands[0].ExpressionAttributeValues[':pk'], 'RACE_EVENTS#2026#01');
+  assert.equal(commands[0].ExpressionAttributeValues[':sessionId'], '2026-01-R');
+  assert.deepEqual(commands[1].ExclusiveStartKey, { pk: 'cursor', sk: 'cursor' });
+  assert.equal('pk' in events[0], false);
+});
+
 test('partial pit evidence remains replayable without inventing a complete stop', () => {
   const serviceOnly = buildRaceEvent({
     year: 2026,

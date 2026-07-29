@@ -62,9 +62,7 @@ export const metaFor = ({
     sources: unique([
       summary?.source,
       coverage.formula1Official === 'ready' ? 'Formula1.com' : null,
-      coverage.openF1 === 'ready' ? 'OpenF1' : null,
-      coverage.fastF1 === 'ready' ? 'FastF1' : null,
-      coverage.dhlPitService === 'ready' ? 'DHL Fastest Pit Stop' : null,
+      coverage.slipstreamRecorder === 'ready' ? 'Slipstream owned recorder' : null,
     ]),
     warnings: unique([
       ...(status?.missingCapabilities ?? []),

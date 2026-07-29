@@ -15,7 +15,6 @@ import { useCoreData } from '../hooks/useCoreData';
 import { DataStatus } from '../ui/DataStatus';
 import { LoadingFrame } from '../ui/LoadingFrame';
 import { MetricStrip } from '../ui/MetricStrip';
-import { TimingCheckControl } from '../ui/TimingCheckControl';
 import { getTeamColor } from '../utils/dataProcessing.js';
 import { getSeasonFromParam } from '../utils/seasons.js';
 import './CorePages.css';
@@ -102,12 +101,6 @@ const RaceDossier = () => {
             : 'The official classification is live. Detailed timing is still processing.'}
         />
       </section>
-
-      <TimingCheckControl
-        year={year}
-        round={data.race.round}
-        sessionType="race"
-      />
 
       <MetricStrip
         label={`${data.race.grandPrix} race summary`}

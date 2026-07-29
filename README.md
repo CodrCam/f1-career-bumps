@@ -29,7 +29,7 @@ npm run dev:local
 - Race stories built from overtakes, traffic, strategy, and attrition
 - Fast site search across tools, races, drivers, and teams
 - Official Formula1.com race result sync
-- Automatic FastF1-to-OpenF1 timing fallback and missing-round retries
+- Owned timing-ledger publication with missing-round retries and no third-party timing fallback
 - Mobile-first responsive design
 
 ## Tech Stack
@@ -67,15 +67,15 @@ index; it adds no public write endpoint or metered service.
   `DYNAMODB_TABLE`, and `CORS_ORIGIN`
 - frontend routing: `VITE_API_BASE_URL` and `VITE_ALLOW_JSON_FALLBACK`
 - ingestion overrides: `F1_RAW_DATA_BUCKET`, `F1_RAW_DATA_DIR`, and
-  `FASTF1_PYTHON`
+  `TIMING_SOURCE_ID`
 - fixture recorder state: `TIMING_RECORDER_DIR` (defaults to
   `.data/timing-recorder`)
-- public timing-check API: `VITE_TIMING_CHECK_API_URL`
 
 The scheduled `pipeline:refresh` task checks every completed official round,
 repairs missing publication-status records, and retries up to two missing
-analytics rounds per run. Detailed timing uses FastF1 first and OpenF1 as the
-free historical fallback.
+analytics rounds per run. Detailed timing is published only from the Slipstream
+recorder and append-only event ledger. If owned timing has not arrived, the
+round stays deferred without calling a third-party timing service.
 
 The next ingestion architecture is being developed against self-owned fixtures
 until source storage and display rights are documented. Run the safe vertical
@@ -106,10 +106,9 @@ credentials are never exposed by that endpoint. See the
 [timing recorder runbook](docs/timing-recorder-runbook.md) for the rehearsal
 workflow and contracted-provider onboarding gates.
 
-Race dossiers also contain a rate-limited timing-check button. It can enqueue a
-cheap source-availability probe, but it cannot launch AWS resources directly.
-The backend enforces a per-session cooldown and a single dispatch reservation,
-then starts one recorder only after an authorized source reports data.
+Race dossiers expose no ingestion or refresh control. Visitors can only read
+published data; scheduled jobs and authenticated operator tools are the only
+ways to enqueue timing checks or start recorder work.
 
 Never expose AWS credentials through a `VITE_` variable. Vite embeds all
 `VITE_` values in public browser code.
@@ -141,8 +140,7 @@ Pushing to the production branch triggers the Netlify frontend deployment and
 the GitHub Actions AWS read-API deployment. Local `.env.local` values are not
 uploaded. Configure production values in the relevant host:
 
-- Netlify: `VITE_API_BASE_URL`, `VITE_TIMING_CHECK_API_URL`, and
-  `VITE_ALLOW_JSON_FALLBACK`
+- Netlify: `VITE_API_BASE_URL` and `VITE_ALLOW_JSON_FALLBACK`
 - GitHub/AWS: AWS credentials, data bucket, DynamoDB table, API CORS origin,
   and Lambda deployment variables
 

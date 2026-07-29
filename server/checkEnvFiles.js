@@ -61,11 +61,10 @@ console.log(JSON.stringify({
     'AWS_REGION',
     'DYNAMODB_TABLE',
     'VITE_API_BASE_URL',
-    'VITE_TIMING_CHECK_API_URL',
     'VITE_ALLOW_JSON_FALLBACK',
     'F1_RAW_DATA_BUCKET',
     'F1_RAW_DATA_DIR',
-    'FASTF1_PYTHON',
+    'TIMING_SOURCE_ID',
   ],
 }, null, 2));
 

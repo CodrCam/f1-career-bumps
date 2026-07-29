@@ -762,3 +762,7 @@ Approve the rebuild as one product program with two first-class tracks:
 2. **product-system replacement**, beginning with the custom shell and race dossier
 
 Starting with only visual changes would preserve the broken contract. Starting with only the pipeline would keep a clumsy and inconsistent product. The two tracks should share the same status model and meet in the new Race Dossier first.
+> Superseded for timing ingestion on 2026-07-29. OpenF1, FastF1, and DHL
+> collector recommendations below are historical design notes and are not part
+> of the production path. The current decision is the owned recorder/event
+> ledger in `docs/race-ingestion-adr.md`, with no public ingestion trigger.

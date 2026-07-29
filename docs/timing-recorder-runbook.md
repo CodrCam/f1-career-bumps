@@ -90,7 +90,7 @@ Set `TIMING_RECORDER_DIR` if the recorder and local API should share a state roo
 Local state coordination is for a single development host. Production coordination uses the
 conditional DynamoDB state-store implementation so only one task owns a non-expired session lease.
 
-## Check queue and manual trigger
+## Private check queue and operator trigger
 
 The AWS foundation in `aws/timing-recorder/template.yaml` defines:
 
@@ -98,16 +98,11 @@ The AWS foundation in `aws/timing-recorder/template.yaml` defines:
 - a low-concurrency dispatcher that probes availability and starts Fargate only after a positive
   probe;
 - a five-minute dispatch reservation, preventing two queue messages from launching two tasks;
-- a public check API with a 90-second atomic DynamoDB cooldown per session;
-- a configurable hard limit of 24 public-button checks per registered session;
-- API Gateway throttling of one request per second with a burst of three;
 - a one-time EventBridge Scheduler group for pre-created post-session checks.
 
-The frontend button never receives AWS permissions and never invokes ECS. It posts only the season,
-round, and allowed session type. The backend resolves those values to a pre-registered provider
-session and source, so a visitor cannot supply an arbitrary endpoint or task command.
-The hard public quota applies only to the community button; scheduled and administrative queue
-messages remain available for final-classification and correction checks.
+There is deliberately no public HTTP route to this queue and no frontend refresh button. Only
+EventBridge Scheduler and authenticated operators may enqueue checks. The read API has no IAM
+permission to send SQS messages or start ECS tasks.
 
 To create a manual queue message:
 
@@ -137,20 +132,12 @@ No default “race end plus N minutes” is guessed. The plan chooses the first 
 negative probes every five minutes for up to roughly five hours before moving an unprocessable
 message to the dead-letter queue. A later manual or reconciliation check can still detect revisions.
 
-## Public timing-check button
+## Read-only frontend boundary
 
-Race dossiers include a community timing-check control. Configure
-`VITE_TIMING_CHECK_API_URL` with the `PublicTimingCheckApiUrl` CloudFormation output. The UI can show:
-
-- check queued;
-- timing unavailable from the configured source;
-- ingestion in progress;
-- provisional timing ingested;
-- final timing up to date;
-- session not registered.
-
-The message deliberately says “our configured source,” not “F1 has not released timing,” unless a
-future contracted provider exposes that exact authoritative state.
+Race dossiers show publication state but cannot request an ingestion check. The timing-recorder
+stack creates no public timing-check Lambda, API Gateway route, or browser-facing queue permission.
+Any previously deployed version of those resources must be removed by updating the CloudFormation
+stack to this template.
 
 Observed FIA publication records demonstrate why the system must distinguish availability from
 finality. For the 2026 Barcelona-Catalunya event, the FIA list shows a provisional race

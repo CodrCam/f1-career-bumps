@@ -7,6 +7,7 @@ import {
   getDynamoRaceArchive,
   getDynamoRaceAnalytics,
   getDynamoRaceDossier,
+  getDynamoRaceTiming,
   getDynamoRacePublicationStatus,
   getDynamoSeason,
   getDynamoSeasonAnalytics,
@@ -86,6 +87,7 @@ const getRoute = (event) => {
     isV2RaceDossier: isV2 && tail[0] === 'races' && tail.length === 2,
     isRaceAnalytics: tail[0] === 'races' && tail[2] === 'analytics',
     isRaceStatus: tail[0] === 'races' && tail[2] === 'status',
+    isRaceTiming: isV2 && tail[0] === 'races' && tail[2] === 'timing',
   };
 };
 
@@ -106,6 +108,7 @@ export const handler = async (event) => {
     isV2RaceDossier,
     isRaceAnalytics,
     isRaceStatus,
+    isRaceTiming,
   } = getRoute(event);
 
   if (method !== 'GET') {
@@ -117,7 +120,7 @@ export const handler = async (event) => {
   }
 
   if (
-    (isV2RaceDossier || isRaceAnalytics || isRaceStatus)
+    (isV2RaceDossier || isRaceAnalytics || isRaceStatus || isRaceTiming)
     && (!Number.isInteger(round) || round < 1)
   ) {
     return response(400, { error: 'Invalid race round' });
@@ -136,6 +139,8 @@ export const handler = async (event) => {
         ? await getDynamoPaceCatalog(year)
       : isV2 && view === 'pit-lane'
         ? await getDynamoPitLane(year)
+      : isRaceTiming
+        ? await getDynamoRaceTiming(year, round)
       : isV2RaceDossier
         ? await getDynamoRaceDossier(year, round)
       : isV2 && view === 'races'
@@ -158,7 +163,9 @@ export const handler = async (event) => {
 
     if (!data) {
       return response(404, {
-        error: isRaceAnalytics
+        error: isRaceTiming
+          ? `No owned timing found for ${year} round ${round}`
+          : isRaceAnalytics
           ? `No race analytics found for ${year} round ${round}`
           : isV2DriverProfile
             ? `No driver found for ${year}: ${driverId}`

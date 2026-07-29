@@ -177,7 +177,7 @@ const PaceLab = () => {
             value: selectedDrivers.size || sessionState.data?.drivers.length || '—',
             detail: rows.length > 10 && !showAll ? 'Top 10 shown' : 'Full field shown',
           },
-          { label: 'Source', value: 'OpenF1', detail: sessionState.data ? `Fetched ${new Date(sessionState.data.fetchedAt).toLocaleTimeString()}` : 'Session timing' },
+          { label: 'Source', value: 'Slipstream', detail: sessionState.data ? `Published ${new Date(sessionState.data.fetchedAt).toLocaleTimeString()}` : 'Owned timing ledger' },
         ]}
       />
 
@@ -220,14 +220,14 @@ const PaceLab = () => {
         <AnalysisState
           state="loading"
           title="Checking completed sessions"
-          detail="Pace Lab verifies OpenF1 timing availability before mounting the comparison."
+          detail="Pace Lab checks Slipstream's owned timing publication before mounting the comparison."
         />
       )}
       {sessionsState.status === 'error' && (
         <AnalysisState
           state="error"
           title="Session catalog unavailable"
-          detail={`${sessionsState.error?.message}. Source: OpenF1 session timing.`}
+          detail={`${sessionsState.error?.message}. Source: Slipstream owned timing.`}
           onRetry={sessionsState.retry}
         />
       )}
@@ -353,7 +353,7 @@ const PaceLab = () => {
           <aside className="analysis-source-note">
             <Gauge aria-hidden="true" size={16} />
             <p>
-              OpenF1 session timing · {sessionState.data.validLaps} valid laps ·
+              Slipstream owned timing · {sessionState.data.validLaps} valid laps ·
               {' '}pit-out laps and invalid or implausible lap durations are excluded.
             </p>
             <DefinitionLink definition="pace-sample" children="Read sample rules" />

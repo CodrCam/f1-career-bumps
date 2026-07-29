@@ -333,7 +333,7 @@ const PitLaneWorkspace = () => {
         label={`${year} pit-lane coverage`}
         items={[
           { label: 'Recorded stops', value: coverage.records, detail: round === 'all' ? 'Season sample' : `Round ${round}` },
-          { label: 'Service clocks', value: coverage.serviceStops, detail: 'DHL / published service data', definition: 'pit-service-time' },
+          { label: 'Service clocks', value: coverage.serviceStops, detail: 'Owned recorder events', definition: 'pit-service-time' },
           { label: 'Lane clocks', value: coverage.pitLaneStops, detail: 'Formula1.com summary', definition: 'pit-lane-time' },
           { label: 'Matched stops', value: coverage.matchedStops, detail: 'Both clocks available', definition: 'pit-clock-matching' },
         ]}

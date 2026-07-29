@@ -1,4 +1,4 @@
-import { normalizeDriverTeamFields } from '../utils/dataProcessing.js';
+import { apiBaseUrl } from '../config/api.js';
 
 export interface PaceSession {
   sessionKey: number;
@@ -32,63 +32,61 @@ export interface PaceSessionData {
   fetchedAt: string;
 }
 
-interface OpenF1Session {
-  session_key: number;
-  session_name: string;
-  meeting_name?: string;
-  location?: string;
-  country_name?: string;
-  date_start: string;
-  date_end?: string;
+interface PaceCatalogRace {
+  round: number;
+  grandPrix: string;
+  date?: string;
+  circuit?: string;
+  detailedTimingReady: boolean;
 }
 
-interface OpenF1Driver {
-  driver_number: number;
-  full_name?: string;
-  broadcast_name?: string;
-  name_acronym?: string;
-  team_name?: string;
-  team_colour?: string;
+interface OwnedTimingResult {
+  driver_number?: string | null;
+  broadcast_name?: string | null;
+  driver_id?: string | null;
+  abbreviation: string;
+  team_name?: string | null;
+  team_color?: string | null;
 }
 
-interface OpenF1Lap {
-  driver_number: number;
-  lap_duration?: number;
-  duration_sector_1?: number;
-  duration_sector_2?: number;
-  duration_sector_3?: number;
-  is_pit_out_lap?: boolean;
+interface OwnedTimingLap {
+  driver: string;
+  lap_time?: number | null;
+  sector1_time?: number | null;
+  sector2_time?: number | null;
+  sector3_time?: number | null;
+  pit_out_time?: number | null;
+  deleted?: boolean;
 }
 
-const apiBase = 'https://api.openf1.org/v1';
+interface OwnedTimingSnapshot {
+  source?: {
+    name?: string;
+  };
+  session?: {
+    date_start?: string;
+  };
+  results?: OwnedTimingResult[];
+  laps?: OwnedTimingLap[];
+}
 
-const wait = (duration: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
-  const timeout = window.setTimeout(resolve, duration);
-  signal.addEventListener('abort', () => {
-    window.clearTimeout(timeout);
-    reject(new DOMException('Request aborted', 'AbortError'));
-  }, { once: true });
-});
-
-const requestOpenF1 = async <T>(
+const requestOwnedJson = async <T>(
   path: string,
   signal: AbortSignal,
-  attempts = 3,
 ): Promise<T> => {
-  let response: Response | undefined;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    response = await fetch(`${apiBase}${path}`, { signal });
-    if (response.status !== 429) break;
-    const retryAfter = Number(response.headers.get('retry-after'));
-    await wait(Number.isFinite(retryAfter) ? retryAfter * 1000 : 700 * (attempt + 1), signal);
-  }
-  if (!response?.ok) {
-    throw new Error(`OpenF1 timing request failed with ${response?.status ?? 'no response'}`);
+  const response = await fetch(`${apiBaseUrl}${path}`, { signal });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 404
+        ? 'Slipstream has not published owned timing for this session yet'
+        : `Slipstream timing request failed with ${response.status}`,
+    );
   }
   return response.json() as Promise<T>;
 };
 
 const finite = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return null;
   const candidate = Number(value);
   return Number.isFinite(candidate) && candidate > 0 ? candidate : null;
 };
@@ -117,28 +115,20 @@ export const getPaceSessions = async (
   year: number,
   signal: AbortSignal,
 ): Promise<PaceSession[]> => {
-  const sessions = await requestOpenF1<OpenF1Session[]>(
-    `/sessions?year=${year}`,
-    signal,
-  );
-  const now = Date.now();
-  return sessions
-    .filter((session) => ['Race', 'Qualifying', 'Sprint'].includes(session.session_name))
-    .filter((session) => {
-      const end = new Date(session.date_end ?? session.date_start).valueOf();
-      return Number.isFinite(end) && end <= now;
-    })
-    .sort((left, right) => (
-      new Date(right.date_start).valueOf() - new Date(left.date_start).valueOf()
-    ))
-    .map((session) => ({
-      sessionKey: session.session_key,
-      sessionName: session.session_name,
-      meetingName: session.meeting_name ?? session.location ?? 'Formula 1 session',
-      location: session.location ?? 'Circuit unavailable',
-      country: session.country_name ?? '',
-      dateStart: session.date_start,
-      dateEnd: session.date_end,
+  const catalog = await requestOwnedJson<{
+    data?: { races?: PaceCatalogRace[] };
+  }>(`/api/v2/seasons/${year}/pace`, signal);
+
+  return (catalog.data?.races ?? [])
+    .filter((race) => race.detailedTimingReady)
+    .sort((left, right) => right.round - left.round)
+    .map((race) => ({
+      sessionKey: Number(race.round),
+      sessionName: 'Race',
+      meetingName: race.grandPrix,
+      location: race.circuit ?? 'Circuit unavailable',
+      country: '',
+      dateStart: race.date ?? `${year}-01-01T00:00:00.000Z`,
     }));
 };
 
@@ -147,39 +137,40 @@ export const getPaceSessionData = async (
   sessionKey: number,
   signal: AbortSignal,
 ): Promise<PaceSessionData> => {
-  const laps = await requestOpenF1<OpenF1Lap[]>(
-    `/laps?session_key=${sessionKey}`,
+  const timing = await requestOwnedJson<OwnedTimingSnapshot>(
+    `/api/v2/seasons/${year}/races/${sessionKey}/timing`,
     signal,
   );
-  const drivers = normalizeDriverTeamFields(
-    await requestOpenF1<OpenF1Driver[]>(
-      `/drivers?session_key=${sessionKey}`,
-      signal,
-    ),
-    year,
-  ) as OpenF1Driver[];
-  const driverByNumber = new Map(drivers.map((driver) => [Number(driver.driver_number), driver]));
-  const lapsByDriver = new Map<number, OpenF1Lap[]>();
+  const resultByCode = new Map(
+    (timing.results ?? []).map((result) => [
+      String(result.abbreviation).toUpperCase(),
+      result,
+    ]),
+  );
+  const lapsByDriver = new Map<string, OwnedTimingLap[]>();
 
-  laps.forEach((lap) => {
-    const lapDuration = finite(lap.lap_duration);
-    if (!lapDuration || lapDuration > 300 || lap.is_pit_out_lap) return;
-    const current = lapsByDriver.get(Number(lap.driver_number)) ?? [];
+  (timing.laps ?? []).forEach((lap) => {
+    const driver = String(lap.driver ?? '').toUpperCase();
+    const lapDuration = finite(lap.lap_time);
+    if (!driver || !lapDuration || lapDuration > 300 || lap.pit_out_time != null || lap.deleted) {
+      return;
+    }
+    const current = lapsByDriver.get(driver) ?? [];
     current.push(lap);
-    lapsByDriver.set(Number(lap.driver_number), current);
+    lapsByDriver.set(driver, current);
   });
 
-  const paceDrivers = [...lapsByDriver.entries()].map(([driverNumber, driverLaps]) => {
-    const driver = driverByNumber.get(driverNumber);
+  const paceDrivers = [...lapsByDriver.entries()].map(([driver, driverLaps], index) => {
+    const result = resultByCode.get(driver);
     const lapTimes = driverLaps
-      .map((lap) => finite(lap.lap_duration))
+      .map((lap) => finite(lap.lap_time))
       .filter((value): value is number => value !== null);
-    const sectors = [0, 1, 2].map((index) => {
+    const sectors = [0, 1, 2].map((sectorIndex) => {
       const values = driverLaps.map((lap) => finite([
-        lap.duration_sector_1,
-        lap.duration_sector_2,
-        lap.duration_sector_3,
-      ][index]));
+        lap.sector1_time,
+        lap.sector2_time,
+        lap.sector3_time,
+      ][sectorIndex]));
       return {
         best: minimum(values),
         average: average(values),
@@ -189,13 +180,14 @@ export const getPaceSessionData = async (
     const theoreticalBest = bestSectors.every(Number.isFinite)
       ? bestSectors.reduce<number>((sum, value) => sum + (value ?? 0), 0)
       : null;
-    const rawColor = driver?.team_colour?.replace('#', '');
+    const rawColor = result?.team_color?.replace('#', '');
+    const providedNumber = finite(result?.driver_number);
 
     return {
-      driverNumber,
-      name: driver?.full_name ?? driver?.broadcast_name ?? driver?.name_acronym ?? String(driverNumber),
-      acronym: driver?.name_acronym ?? String(driverNumber),
-      team: driver?.team_name ?? 'Team unavailable',
+      driverNumber: providedNumber ?? 1000 + index,
+      name: result?.broadcast_name ?? result?.driver_id ?? driver,
+      acronym: driver,
+      team: result?.team_name ?? 'Team unavailable',
       color: rawColor ? `#${rawColor}` : '#929ba8',
       validLaps: lapTimes.length,
       bestLap: minimum(lapTimes),
@@ -206,7 +198,8 @@ export const getPaceSessionData = async (
       theoreticalBest,
     };
   }).sort((left, right) => (
-    (left.bestLap ?? Number.MAX_SAFE_INTEGER) - (right.bestLap ?? Number.MAX_SAFE_INTEGER)
+    (left.bestLap ?? Number.MAX_SAFE_INTEGER)
+    - (right.bestLap ?? Number.MAX_SAFE_INTEGER)
   ));
 
   return {
